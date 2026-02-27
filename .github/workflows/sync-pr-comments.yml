@@ -14,8 +14,9 @@ permissions:
   issues: read
 
 env:
-  # Comma-separated list of usernames to treat as AI bots (for tools using regular User accounts)
-  AI_BOT_USERNAMES: ""
+  # Known AI bot usernames (both are also type "Bot", so Layer 1 catches them too,
+  # but listing them here makes the intent explicit and self-documenting)
+  AI_BOT_USERNAMES: "claude[bot],chatgpt-codex-connector[bot]"
   # HTML comment marker that AI tools can embed in their comments
   AI_MARKER: "<!-- ai-generated -->"
   # Notes ref suffix - override via secret for obscurity (default: ai-pr-comments)
