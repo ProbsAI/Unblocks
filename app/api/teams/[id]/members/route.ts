@@ -2,7 +2,8 @@ import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
 import { successResponse } from '@unblocks/core/api'
-import { getTeamMembers, inviteMember } from '@unblocks/core/teams'
+import { getTeamMembers, getUserTeamRole, inviteMember } from '@unblocks/core/teams'
+import { ForbiddenError } from '@unblocks/core/errors/types'
 import { z } from 'zod'
 
 const inviteSchema = z.object({
@@ -12,8 +13,13 @@ const inviteSchema = z.object({
 
 export const GET = withErrorHandler(
   async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
-    await requireAuth()
+    const user = await requireAuth()
     const { id } = await params
+
+    const role = await getUserTeamRole(id, user.id)
+    if (!role) {
+      throw new ForbiddenError('Not a member of this team')
+    }
 
     const members = await getTeamMembers(id)
 

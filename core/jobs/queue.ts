@@ -163,7 +163,7 @@ export async function cancelJob(jobId: string): Promise<boolean> {
 
   const result = await db
     .update(jobs)
-    .set({ status: 'cancelled', updatedAt: now })
+    .set({ status: 'cancelled', completedAt: now, updatedAt: now })
     .where(and(eq(jobs.id, jobId), eq(jobs.status, 'pending')))
     .returning({ id: jobs.id })
 

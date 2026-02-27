@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { users } from '../db/schema/users'
@@ -24,14 +24,21 @@ export async function listSubscriptions(options?: {
     .from(subscriptions)
     .innerJoin(users, eq(subscriptions.userId, users.id))
 
+  let countQuery = db
+    .select({ count: sql<number>`count(*)` })
+    .from(subscriptions)
+
   if (options?.status) {
     query = query.where(eq(subscriptions.status, options.status)) as typeof query
+    countQuery = countQuery.where(eq(subscriptions.status, options.status)) as typeof countQuery
   }
 
   const rows = await query
     .orderBy(desc(subscriptions.createdAt))
     .limit(limit)
     .offset(offset)
+
+  const [countResult] = await countQuery
 
   return {
     subscriptions: rows.map((row) => ({
@@ -45,6 +52,6 @@ export async function listSubscriptions(options?: {
       cancelAtPeriodEnd: row.subscription.cancelAtPeriodEnd,
       createdAt: row.subscription.createdAt,
     })),
-    total: rows.length,
+    total: countResult.count,
   }
 }

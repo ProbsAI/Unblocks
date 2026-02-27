@@ -22,7 +22,7 @@ export async function GET(): Promise<Response> {
   return Response.json(
     {
       status: overallStatus,
-      version: '0.1.0-alpha',
+      version: process.env.npm_package_version ?? '0.2.0-alpha',
       uptime: process.uptime(),
       checks,
     },

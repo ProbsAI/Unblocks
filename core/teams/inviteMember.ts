@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
@@ -45,7 +45,7 @@ export async function inviteMember(
     }
   }
 
-  // Check if already invited (pending)
+  // Check if already invited (pending — not yet accepted or expired)
   const existingInvite = await db
     .select({ id: teamInvitations.id })
     .from(teamInvitations)
@@ -53,6 +53,8 @@ export async function inviteMember(
       and(
         eq(teamInvitations.teamId, teamId),
         eq(teamInvitations.email, email.toLowerCase()),
+        sql`${teamInvitations.acceptedAt} IS NULL`,
+        sql`${teamInvitations.expiresAt} > NOW()`,
       )
     )
     .limit(1)

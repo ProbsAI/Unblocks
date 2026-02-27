@@ -1,12 +1,23 @@
 import { requireAuth } from '@/lib/serverAuth'
 import { subscribeToStream } from '@unblocks/core/notifications'
+import { AuthError } from '@unblocks/core/errors/types'
+import { errorResponse } from '@unblocks/core/api'
+import type { User } from '@unblocks/core/auth/types'
 
 /**
  * SSE endpoint for real-time notifications.
  * Clients connect via EventSource and receive notifications as they arrive.
  */
 export async function GET(): Promise<Response> {
-  const user = await requireAuth()
+  let user: User
+  try {
+    user = await requireAuth()
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return errorResponse('AUTH_ERROR', err.message, 401)
+    }
+    throw err
+  }
 
   const encoder = new TextEncoder()
 
