@@ -17,7 +17,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function requireAuth(): Promise<User> {
   const user = await getCurrentUser()
   if (!user) {
-    throw new AuthError('Authentication required')
+    throw new AuthError('NOT_AUTHENTICATED', 'Authentication required')
   }
   return user
 }

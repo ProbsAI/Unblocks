@@ -1,7 +1,12 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
-import { successResponse } from '@unblocks/core/api'
+import { validateBody, successResponse } from '@unblocks/core/api'
 import { getNotifications, getUnreadCount, markAllAsRead } from '@unblocks/core/notifications'
+import { z } from 'zod'
+
+const actionSchema = z.object({
+  action: z.string(),
+})
 
 export const GET = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
@@ -22,7 +27,7 @@ export const GET = withErrorHandler(async (request: Request) => {
 
 export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
-  const body = await request.json()
+  const body = await validateBody(request, actionSchema)
 
   if (body.action === 'markAllRead') {
     const count = await markAllAsRead(user.id)
