@@ -1,15 +1,15 @@
-=== AI PR Comments for PR #4 ===
-Synced: 2026-02-27T19:14:30Z
+=== AI PR Comments for PR #5 ===
+Synced: 2026-02-27T22:09:34Z
 
 ## Reviews
 
---- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-02-27T12:35:52Z ---
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-02-27T22:09:22Z ---
 
 ### 💡 Codex Review
 
 Here are some automated review suggestions for this pull request.
 
-**Reviewed commit:** `ddd5f753c2`
+**Reviewed commit:** `8198a38a90`
 
 <details> <summary>ℹ️ About Codex in GitHub</summary>
 <br/>
@@ -25,442 +25,32 @@ Codex can also answer questions or update the PR. Try commenting "@codex address
 
 </details>
 
---- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T12:36:14Z ---
-## Pull request overview
-
-This PR bootstraps the Unblocks Next.js application and core library, introducing foundational systems (auth, billing, teams, uploads, jobs, notifications, admin) plus configuration, hooks, UI theming/overrides, and initial “blocks” modules.
-
-**Changes:**
-- Add Unblocks core modules (auth/billing/email/db/runtime/errors/security) and corresponding Next.js route handlers/pages.
-- Introduce teams, notifications (incl. SSE), uploads, background jobs, and an admin area.
-- Add project tooling/config (Next.js/Tailwind/TS/Drizzle/Docker), sample configs, and documentation.
-
-### Reviewed changes
-
-Copilot reviewed 227 out of 234 changed files in this pull request and generated 9 comments.
-
-<details>
-<summary>Show a summary per file</summary>
-
-| File | Description |
-| ---- | ----------- |
-| unblocks.manifest.json | Project capability/feature manifest. |
-| ui/theme.ts | Default theme token export. |
-| ui/pages/.gitkeep | Placeholder for UI overrides. |
-| ui/layouts/.gitkeep | Placeholder for UI overrides. |
-| ui/email-templates/.gitkeep | Placeholder for UI overrides. |
-| ui/components/.gitkeep | Placeholder for UI overrides. |
-| ui/README.md | Docs for UI override approach. |
-| tsconfig.json | TypeScript compiler configuration. |
-| postcss.config.mjs | PostCSS/Tailwind v4 plugin wiring. |
-| package.json | Dependencies/scripts for Next/Drizzle/Vitest/Tailwind. |
-| next.config.ts | Next.js config + security headers. |
-| middleware.ts | Auth gate middleware with public-path allowlist. |
-| lib/serverAuth.ts | Server helpers for current user/auth requirement. |
-| lib/routeHandler.ts | Route error wrapper + request metadata helpers. |
-| hooks/onUserDeleted.ts | User-deleted hook stub. |
-| hooks/onUserCreated.ts | User-created hook stub. |
-| hooks/onSubscriptionChanged.ts | Subscription-changed hook stub. |
-| hooks/onPaymentSucceeded.ts | Payment-succeeded hook stub. |
-| hooks/onPaymentFailed.ts | Payment-failed hook stub. |
-| hooks/beforeEmailSend.ts | Email “before send” modifier hook stub. |
-| hooks/README.md | Hook system documentation. |
-| extensions/README.md | Extension system documentation (planned). |
-| extensions/.gitkeep | Placeholder for extensions. |
-| drizzle.config.ts | Drizzle Kit configuration. |
-| docker-compose.yml | Local Postgres/Redis services for dev. |
-| core/uploads/validate.ts | Upload file validation + filename sanitization. |
-| core/uploads/types.ts | Upload config schema + upload types. |
-| core/uploads/index.ts | Uploads public exports. |
-| core/types.ts | App config Zod schema/types (landing/seo/footer/etc). |
-| core/teams/updateRole.ts | Team role updates + ownership transfer. |
-| core/teams/types.ts | Teams config schema + team domain types. |
-| core/teams/removeMember.ts | Remove member / leave team logic. |
-| core/teams/index.ts | Teams public exports. |
-| core/teams/createTeam.ts | Create team + hook dispatch. |
-| core/security/headers.ts | Central security headers constant. |
-| core/security/csrf.ts | CSRF token generation/validation helpers. |
-| core/security/cookies.ts | Cookie names/options + cookie serialization helpers. |
-| core/runtime/uiResolver.ts | UI override resolution utilities (fs-based). |
-| core/runtime/types.ts | Config registry + hook name/type definitions. |
-| core/runtime/hookRunner.ts | Hook registration and execution engine. |
-| core/runtime/configLoader.ts | Zod-validated config loader + cache. |
-| core/notifications/types.ts | Notifications config schema + notification types. |
-| core/notifications/preferences.ts | Preference read/update logic. |
-| core/notifications/markRead.ts | Mark read/all read + unread count. |
-| core/notifications/index.ts | Notifications public exports. |
-| core/notifications/getNotifications.ts | Fetch/delete notifications. |
-| core/jobs/index.ts | Jobs module public exports. |
-| core/index.ts | Core package public API barrel. |
-| core/extensions/types.ts | Extension manifest schema/types. |
-| core/extensions/index.ts | Extensions public exports. |
-| core/errors/types.ts | AppError hierarchy. |
-| core/errors/handler.ts | Error-to-response mapping helper. |
-| core/env.ts | Environment validation via Zod. |
-| core/email/types.ts | Email config schema + email types. |
-| core/email/sendEmail.ts | Email send orchestration + before-hook. |
-| core/email/providers/resend.ts | Resend provider implementation. |
-| core/email/index.ts | Email module exports. |
-| core/db/types.ts | Drizzle model type aliases. |
-| core/db/schema/verificationTokens.ts | Verification token table. |
-| core/db/schema/users.ts | Users table schema. |
-| core/db/schema/teams.ts | Teams/members/invitations tables. |
-| core/db/schema/subscriptions.ts | Subscriptions table schema. |
-| core/db/schema/sessions.ts | Sessions table schema. |
-| core/db/schema/notifications.ts | Notifications + preferences tables. |
-| core/db/schema/jobs.ts | Jobs table schema. |
-| core/db/schema/index.ts | DB schema exports barrel. |
-| core/db/schema/files.ts | Files table schema (uploads). |
-| core/db/schema/accounts.ts | OAuth accounts table schema. |
-| core/db/client.ts | pg Pool + drizzle client singleton. |
-| core/billing/plans.ts | Plan retrieval helpers. |
-| core/billing/index.ts | Billing module exports. |
-| core/billing/getSubscription.ts | Subscription fetcher. |
-| core/billing/customerPortal.ts | Stripe billing portal session creator. |
-| core/billing/customer.ts | Stripe customer get/create logic. |
-| core/billing/createCheckout.ts | Stripe checkout session creator. |
-| core/billing/checkPlanLimit.ts | Plan limit checker. |
-| core/billing/changePlan.ts | Change plan on Stripe + local update. |
-| core/billing/cancelSubscription.ts | Cancel subscription logic. |
-| core/auth/verifyCredentials.ts | Email/password verification + login counters. |
-| core/auth/validateSession.ts | Session token verification + DB session lookup. |
-| core/auth/token.ts | JWT creation/verification + random tokens. |
-| core/auth/revokeSession.ts | Session revocation helpers. |
-| core/auth/rateLimiter.ts | In-memory rate limiter. |
-| core/auth/permissions.ts | User lookup helpers. |
-| core/auth/passwordReset.ts | Password reset token issuance/consumption. |
-| core/auth/password.ts | bcrypt hashing/verification. |
-| core/auth/index.ts | Auth module exports. |
-| core/auth/emailVerification.ts | Email verification token/verification flow. |
-| core/auth/createUser.ts | User creation + hook dispatch. |
-| core/auth/createSession.ts | Session creation + token issuance. |
-| core/api/validate.ts | Zod request body validation helper. |
-| core/api/response.ts | Success/error response helpers. |
-| core/api/index.ts | API helpers barrel export. |
-| core/admin/types.ts | Admin DTO types. |
-| core/admin/subscriptions.ts | Admin subscription listing. |
-| core/admin/metrics.ts | Admin metrics aggregation. |
-| core/admin/index.ts | Admin module exports. |
-| config/uploads.config.ts | Default uploads config. |
-| config/teams.config.ts | Default teams config. |
-| config/notifications.config.ts | Default notifications config. |
-| config/jobs.config.ts | Default jobs config. |
-| config/email.config.ts | Default email config. |
-| config/billing.config.ts | Default billing/plans config. |
-| config/auth.config.ts | Default auth config. |
-| config/app.config.ts | Default app/landing config. |
-| components/ui/Input.tsx | Input component with label/error support. |
-| components/ui/Card.tsx | Card container component. |
-| components/ui/Button.tsx | Button component with variants/loading state. |
-| components/teams/TeamSelector.tsx | Client-side team selector. |
-| components/teams/InviteForm.tsx | Invite member client form. |
-| components/landing/Pricing.tsx | Landing pricing section. |
-| components/landing/Navbar.tsx | Marketing navbar. |
-| components/landing/Hero.tsx | Marketing hero section. |
-| components/landing/Footer.tsx | Marketing footer with attribution toggle. |
-| components/landing/Features.tsx | Marketing feature grid. |
-| components/landing/FAQ.tsx | Expand/collapse FAQ. |
-| components/dashboard/Sidebar.tsx | Dashboard sidebar navigation. |
-| components/dashboard/Header.tsx | Dashboard header with logout + bell. |
-| components/billing/PricingTable.tsx | Billing plan table + checkout trigger. |
-| components/billing/ManageSubscription.tsx | Billing portal entrypoint button. |
-| components/auth/SocialButtons.tsx | Google auth CTA button. |
-| components/auth/RegisterForm.tsx | Signup form. |
-| components/auth/LoginForm.tsx | Login form. |
-| components/admin/MetricCards.tsx | Admin metric summary cards. |
-| blocks/marketplace/index.ts | Marketplace block public exports. |
-| blocks/data-platform/schema.ts | Data platform block DB schema. |
-| blocks/data-platform/index.ts | Data platform block exports. |
-| blocks/data-platform/datasources.ts | Data sources CRUD functions. |
-| blocks/data-platform/datasets.ts | Datasets CRUD functions. |
-| blocks/ai-wrapper/schema.ts | AI wrapper block DB schema. |
-| blocks/ai-wrapper/index.ts | AI wrapper block exports. |
-| app/page.tsx | Marketing home page composition. |
-| app/layout.tsx | Root layout + global CSS inclusion. |
-| app/globals.css | Tailwind v4 + theme CSS variables. |
-| app/api/uploads/route.ts | Upload create/list API. |
-| app/api/uploads/[id]/route.ts | Upload get/delete API. |
-| app/api/teams/route.ts | Team create/list API. |
-| app/api/teams/invitations/accept/route.ts | Accept invitation API. |
-| app/api/teams/[id]/route.ts | Team detail API. |
-| app/api/teams/[id]/members/route.ts | Team members list/invite API. |
-| app/api/teams/[id]/members/[userId]/route.ts | Member role update/remove API. |
-| app/api/notifications/stream/route.ts | Notifications SSE stream endpoint. |
-| app/api/notifications/route.ts | Notifications list + mark-all-read action. |
-| app/api/notifications/preferences/route.ts | Notification preferences API. |
-| app/api/notifications/[id]/read/route.ts | Mark notification read API. |
-| app/api/marketplace/reviews/route.ts | Marketplace reviews API. |
-| app/api/marketplace/orders/route.ts | Marketplace orders API. |
-| app/api/marketplace/listings/route.ts | Marketplace listings create/search API. |
-| app/api/marketplace/listings/[id]/route.ts | Marketplace listing fetch API. |
-| app/api/jobs/route.ts | Jobs health/query API. |
-| app/api/health/route.ts | Service health endpoint. |
-| app/api/data/pipelines/route.ts | Data pipelines create/list API. |
-| app/api/data/datasets/route.ts | Datasets create/list API. |
-| app/api/billing/webhook/route.ts | Stripe webhook receiver. |
-| app/api/billing/subscription/route.ts | Subscription + plan fetch API. |
-| app/api/billing/portal/route.ts | Billing portal session API. |
-| app/api/billing/checkout/route.ts | Checkout session API. |
-| app/api/auth/verify-email/route.ts | Verify-email callback endpoint. |
-| app/api/auth/session/route.ts | Session introspection endpoint. |
-| app/api/auth/reset-password/route.ts | Reset-password request endpoint. |
-| app/api/auth/reset-password/confirm/route.ts | Reset-password confirm endpoint. |
-| app/api/auth/register/route.ts | Register endpoint + session cookie set. |
-| app/api/auth/magic-link/verify/route.ts | Magic-link verification endpoint. |
-| app/api/auth/magic-link/route.ts | Magic-link request endpoint. |
-| app/api/auth/logout/route.ts | Logout endpoint + session revoke. |
-| app/api/auth/login/route.ts | Login endpoint + rate limiting + cookie set. |
-| app/api/auth/google/route.ts | Google OAuth initiation endpoint. |
-| app/api/auth/google/callback/route.ts | Google OAuth callback endpoint. |
-| app/api/ai/usage/route.ts | AI usage stats endpoint. |
-| app/api/ai/completion/route.ts | AI completion endpoint. |
-| app/api/admin/users/route.ts | Admin users list endpoint. |
-| app/api/admin/users/[id]/route.ts | Admin user update endpoint. |
-| app/api/admin/subscriptions/route.ts | Admin subscriptions list endpoint. |
-| app/api/admin/metrics/route.ts | Admin metrics endpoint. |
-| app/(marketing)/pricing/page.tsx | Marketing pricing page. |
-| app/(dashboard)/teams/page.tsx | Teams list page. |
-| app/(dashboard)/teams/new/page.tsx | Team creation page. |
-| app/(dashboard)/teams/[id]/page.tsx | Team detail/members page. |
-| app/(dashboard)/page.tsx | Dashboard overview page. |
-| app/(dashboard)/layout.tsx | Protected dashboard layout shell. |
-| app/(dashboard)/billing/page.tsx | Billing management page. |
-| app/(auth)/verify-email/page.tsx | “Check your email” page. |
-| app/(auth)/signup/page.tsx | Signup page composition. |
-| app/(auth)/reset-password/page.tsx | Reset request page. |
-| app/(auth)/reset-password/confirm/page.tsx | Reset confirm page. |
-| app/(auth)/login/page.tsx | Login page composition. |
-| app/(auth)/layout.tsx | Auth pages layout shell. |
-| app/(admin)/layout.tsx | Admin layout + authorization gating. |
-| app/(admin)/admin/users/page.tsx | Admin users page. |
-| app/(admin)/admin/subscriptions/page.tsx | Admin subscriptions page. |
-| app/(admin)/admin/page.tsx | Admin overview page. |
-| README.md | Project overview and getting-started docs. |
-| LICENSE | MIT license file. |
-| .gitignore | Git ignore rules for Node/Next/Drizzle/etc. |
-| .github/copilot-instructions.md | Copilot instruction pointer to CLAUDE.md. |
-| .env.example | Example environment variables. |
-| .cursorrules | Cursor instruction pointer to CLAUDE.md. |
-</details>
-
----
-
-💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/instructions/*.instructions.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn how to get started</a>.
-
---- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T14:06:47Z ---
-## Pull request overview
-
-Copilot reviewed 228 out of 235 changed files in this pull request and generated 15 comments.
-
----
-
-💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/instructions/*.instructions.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn how to get started</a>.
-
---- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T16:11:30Z ---
-## Pull request overview
-
-Copilot reviewed 263 out of 270 changed files in this pull request and generated 13 comments.
-
----
-
-💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/instructions/*.instructions.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn how to get started</a>.
-
---- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T17:42:19Z ---
-## Pull request overview
-
-Copilot reviewed 263 out of 270 changed files in this pull request and generated 10 comments.
-
----
-
-💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/instructions/*.instructions.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn how to get started</a>.
-
 ## Inline Comments
 
---- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on lib/routeHandler.ts:20 ---
-**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Re-throw Next.js redirect exceptions**
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T22:09:22Z on app/api/teams/[id]/members/route.ts:18 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require team membership before returning member list**
 
-`withErrorHandler` currently converts every thrown value into a JSON error response, but `redirect()` in Next.js works by throwing a control-flow exception. Because this catch block swallows those exceptions, the OAuth callback path in `app/api/auth/google/callback/route.ts` (when `code` is missing or Google returns an error) returns a 500 JSON payload instead of the intended 302 redirect to `/login`.
-
-Useful? React with 👍 / 👎.
-
---- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/auth/google/callback/route.ts:21 ---
-**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Validate OAuth state in Google callback**
-
-The Google OAuth flow generates a `state` value on the start endpoint, but the callback handler never reads or verifies `state` before exchanging the authorization code. Without state validation bound to the user session/cookie, a login CSRF/account-confusion flow is possible where a victim browser can be forced to complete an attacker-initiated OAuth response.
+This handler only checks that the caller is authenticated and then returns `getTeamMembers(id)`, so any logged-in user who can obtain a team UUID can enumerate another team's member emails/names. The `POST` path already enforces team role via `inviteMember`, so the `GET` path should similarly verify membership/authorization (for example with `getUserTeamRole`) before returning sensitive roster data.
 
 Useful? React with 👍 / 👎.
 
---- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on core/jobs/queue.ts:87 ---
-**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Atomically claim pending jobs before processing**
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T22:09:22Z on core/teams/inviteMember.ts:57 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Filter duplicate invites to pending records**
 
-`fetchNextJobs` reads pending jobs and only then performs a separate update, so concurrent workers can select the same rows and execute duplicate work before either update completes. The current code also updates by id list without re-checking `status='pending'`, so there is no atomic claim step despite the comment about `FOR UPDATE SKIP LOCKED`.
-
-Useful? React with 👍 / 👎.
-
---- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/notifications/stream/route.ts:44 ---
-**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Remove self-cancellation from notification SSE start**
-
-Inside `ReadableStream` startup, this line calls `stream.cancel()` from within the initializer, which references `stream` before it is initialized (TDZ) and can throw immediately; even if it did not throw, it would cancel the stream right after opening. That makes the SSE endpoint unstable/non-functional instead of maintaining a live subscription.
+The duplicate-invite query treats any prior invitation for the email as blocking, but it does not filter out accepted or expired invitations. After one invite is accepted (or expires), future invites for that user/team will still hit this conflict path, preventing legitimate re-invites and making invitation lifecycle management brittle.
 
 Useful? React with 👍 / 👎.
 
---- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on middleware.ts:52 ---
-**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Exempt unauth session probe from middleware redirect**
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T22:09:22Z on core/jobs/queue.ts:166 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Set completion timestamp when cancelling a job**
 
-The middleware redirects all non-public paths without a session cookie, but `/api/auth/session` is not in `PUBLIC_PATHS`. That prevents `app/api/auth/session/route.ts` from returning its intended `401` JSON for logged-out clients and instead sends a login redirect response, which breaks callers expecting an auth-state JSON payload.
+`cleanupJobs` deletes cancelled jobs by `completedAt <= cutoff`, but `cancelJob` only updates `status` and `updatedAt`. Because cancelled rows keep `completedAt = null`, they never satisfy the retention predicate and accumulate indefinitely instead of being cleaned up.
 
 Useful? React with 👍 / 👎.
 
---- inline by @Copilot at 2026-02-27T12:36:15Z on core/notifications/getNotifications.ts:46 ---
-When `unreadOnly` is set, unread filtering is done in application code after the DB query (and after limit/offset). This can return fewer than `limit` results and makes `total` misleading. Apply the unread filter in the database query (and consider returning a real total via a count query if pagination is expected).
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T22:09:22Z on lib/serverAuth.ts:19 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Throw an auth-domain error for missing sessions**
 
---- inline by @Copilot at 2026-02-27T12:36:15Z on app/api/auth/google/callback/route.ts:25 ---
-The Google OAuth callback does not validate the `state` query parameter at all, even though the auth-init endpoint generates one. This leaves the OAuth flow vulnerable to CSRF/login swapping. Parse `state` from the callback URL and compare it to the value stored during `/api/auth/google` (then clear it).
+When no user is present, `requireAuth` throws a plain `Error`, and `withErrorHandler` maps non-`AppError` exceptions to 500 responses. That makes normal unauthenticated access to protected routes surface as internal server errors instead of 401s, which breaks client-side auth handling and pollutes error monitoring.
 
---- inline by @Copilot at 2026-02-27T12:36:15Z on app/api/auth/google/callback/route.ts:22 ---
-`redirect()` from `next/navigation` is intended for Server Components / actions; in Route Handlers you should return a redirect `Response`/`NextResponse.redirect`. Returning `redirect(...)` here is likely to throw and/or behave unexpectedly. Replace with an explicit redirect response.
-
---- inline by @Copilot at 2026-02-27T12:36:16Z on core/api/response.ts:28 ---
-`successResponse` always returns status 200 and only accepts `(data, meta?)`, but many route handlers in this PR call it with a 3rd argument (e.g. `..., 201`). This will be a TypeScript compile error under `noUnusedParameters`/`strict` and prevents returning non-200 statuses via the helper. Consider extending `successResponse` to accept an optional `status` (default 200) (and optionally keep `meta` as the 3rd param for backward compatibility), or update all call sites to match the current signature.
-
---- inline by @Copilot at 2026-02-27T12:36:16Z on core/notifications/getNotifications.ts:62 ---
-`deleteNotification` ignores the `userId` parameter and deletes by `notifications.id` only. This allows a user to delete another user's notification if they can guess/obtain the ID. Include `userId` in the delete `where` clause (and keep returning whether a row was deleted).
-
---- inline by @Copilot at 2026-02-27T12:36:16Z on app/api/auth/google/route.ts:20 ---
-OAuth `state` is generated but never persisted (cookie/session) for later verification, so the callback cannot validate it. This defeats the CSRF protection purpose of the `state` parameter. Store `state` (e.g., in an HttpOnly, short-lived cookie) and require the callback to compare the incoming `state` against the stored value.
-
---- inline by @Copilot at 2026-02-27T12:36:16Z on lib/routeHandler.ts:2 ---
-`AppError` is imported but never used. With `noUnusedLocals: true` in tsconfig, this will fail compilation. Remove the unused import or use it in the implementation.
-
---- inline by @Copilot at 2026-02-27T12:36:16Z on app/(marketing)/pricing/page.tsx:27 ---
-`Footer` is being passed `attribution={appConfig.footer.attribution}`, but the `Footer` component expects `showAttribution` (and `AppConfigSchema` defines `footer.showUnblocksAttribution`). This looks like a prop/name mismatch that will break rendering/type-checking. Pass the correct prop and read the correct config field.
-```suggestion
-        showAttribution={appConfig.footer.showUnblocksAttribution}
-```
-
---- inline by @Copilot at 2026-02-27T12:36:14Z on app/api/notifications/stream/route.ts:45 ---
-The SSE stream cleanup is wired incorrectly: calling `stream.cancel?.()` inside `start()` cancels the stream immediately (and may never run cleanup on actual client disconnect). Implement a `cancel()` method on the `ReadableStream` underlying source (or listen to `request.signal`/AbortSignal) and call `unsubscribe()` + `clearInterval()` there.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on lib/serverAuth.ts:21 ---
-`requireAuth()` throws a plain `Error('Authentication required')`. When used under `withErrorHandler`, this will be treated as an unknown error and returned as a 500 `INTERNAL_ERROR` instead of a 401. Consider throwing an `AuthError` (or another `AppError` with 401) so API routes consistently return the correct status/code for unauthenticated requests.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/layout.tsx:16 ---
-This file uses `React.ReactNode` for the `children` type, but `React` is not imported, which will cause a TypeScript compile error. Import `type { ReactNode }` from `react` and use `ReactNode`, or add a type-only `import type React from 'react'`.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on components/ui/Card.tsx:3 ---
-`CardProps` references `React.ReactNode`, but this file does not import `React` (or `ReactNode`). In TypeScript this will fail to compile because `React` isn't a global identifier. Import the type from `react` (e.g., `import type { ReactNode } from 'react'`) and use it, or add a type-only `import type React from 'react'`.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on components/auth/LoginForm.tsx:18 ---
-`handleSubmit` is typed as `React.FormEvent`, but `React` is not imported here, which will fail TS compilation. Import `type { FormEvent }` from `react` and use `FormEvent` (or add a type-only `import type React from 'react'`).
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/api/teams/[id]/route.ts:13 ---
-This endpoint returns arbitrary team details to any authenticated user. `getTeam(id)` does not verify that the requester is a member/owner of the team (it only selects by team ID), so this is an information disclosure risk if a team UUID is obtained/guessed. Add an authorization check (e.g., call `getUserTeamRole(id, user.id)` and return 404/403 if null) before returning the team.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on core/admin/subscriptions.ts:49 ---
-`total` is currently set to `rows.length`, which is only the size of the current page after `limit/offset` and will be incorrect for pagination/UI counts. Consider running a separate `count(*)` query with the same filters (without limit/offset) so `total` reflects the full result set.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on components/teams/InviteForm.tsx:21 ---
-`handleSubmit` is typed as `React.FormEvent` but `React` is not imported in this module, which will cause a TypeScript compile error. Import `type { FormEvent }` from `react` and use `FormEvent`, or add a type-only `import type React from 'react'`.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/(auth)/reset-password/confirm/page.tsx:20 ---
-`handleSubmit` uses the `React.FormEvent` type but `React` isn't imported, which will cause a TS compile error. Import `type { FormEvent }` from `react` and use `FormEvent`, or add a type-only `import type React from 'react'`.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/api/auth/google/callback/route.ts:77 ---
-This response attempts to set two `Set-Cookie` headers by passing duplicate header tuples. Depending on the runtime/adapter, duplicate `Set-Cookie` keys can be collapsed, causing either the session cookie or the state-clearing cookie to be dropped. Prefer explicitly appending cookies (e.g., via `NextResponse` and `response.cookies`, or `response.headers.append('Set-Cookie', ...)`) to guarantee both cookies are sent.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on core/auth/rateLimiter.ts:56 ---
-This module creates a `setInterval` at import time. In serverless/Next.js route handler environments, long-lived timers can keep the event loop active or create duplicated timers across hot reloads, with memory/CPU overhead. Consider making cleanup explicit (e.g., only schedule in a dedicated worker process) or using `timer.unref()` / a different eviction strategy.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/(dashboard)/teams/new/page.tsx:23 ---
-This client component uses the `React.FormEvent` type but does not import `React` (or `FormEvent`) anywhere, which will cause a TypeScript error. Import `type { FormEvent }` from `react` and use `FormEvent`, or add a type-only `import type React from 'react'`.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on app/(auth)/reset-password/page.tsx:16 ---
-`handleSubmit` is typed as `React.FormEvent` but `React` isn't imported in this module, so TypeScript will fail compilation. Import `type { FormEvent }` from `react` and use `FormEvent` (or add a type-only `import type React from 'react'`).
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on core/uploads/validate.ts:62 ---
-`ValidationError` expects `details?: Record<string, unknown>`, but this code passes an array (`errors`). This will not type-check and also makes the error payload shape inconsistent with other uses (e.g., `{ fields: ... }`). Wrap the array in an object (e.g., `{ errors }` or `{ fields: errors }`) or adjust `ValidationError` to accept structured arrays if that's intended.
-
---- inline by @Copilot at 2026-02-27T14:06:48Z on components/auth/RegisterForm.tsx:18 ---
-`handleSubmit` uses the `React.FormEvent` type but `React` isn't imported in this file, so TypeScript will error. Import `type { FormEvent }` from `react` and use `FormEvent` (or add `import type React from 'react'`).
-
---- inline by @Copilot at 2026-02-27T14:06:47Z on app/api/teams/[id]/members/route.ts:20 ---
-The `GET` handler returns the full member list for any team ID to any authenticated user. Since `getTeamMembers` does not verify membership, this can leak team membership data if a team UUID is obtained/guessed. Add an authorization check (e.g., `getUserTeamRole(id, user.id)` and reject when null) before calling `getTeamMembers`.
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on core/security/csrf.ts:12 ---
-`validateCsrfToken` compares secrets with `===`, which is vulnerable to timing attacks. Use `crypto.timingSafeEqual` (after normalizing to equal-length buffers) for constant-time comparison.
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on core/billing/plans.ts:24 ---
-`getFreePlan()` can return `undefined` when `billing.plans` is configured as an empty array (the schema doesn’t enforce a minimum length). Because the function is typed to return `Plan`, this can lead to runtime errors downstream. Consider throwing a clear error when no plans are configured, or enforce `plans` to have at least one entry in the Zod schema (e.g., `.min(1)`).
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on app/api/health/route.ts:28 ---
-The health endpoint hardcodes `version: '0.1.0-alpha'`, which doesn’t match the repository/package version in this PR (`0.2.0-alpha`). This will produce misleading operational reporting. Consider sourcing the version from a single place (e.g., `package.json` at build time) or updating this constant to match.
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on core/teams/createTeam.ts:75 ---
-`createTeam` awaits `runHook('onTeamCreated', ...)`, which means hook execution blocks team creation and adds latency/failure surface area to the request. This also contradicts the stated hook behavior in `hooks/README.md` (“Hooks run async and do not block the request”). Consider firing this hook in a fire-and-forget manner (e.g., `void runHook(...)`) or otherwise documenting that some hooks are synchronous/blocking.
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on components/auth/LoginForm.tsx:17 ---
-This file uses the `React` namespace (`React.FormEvent`) but doesn’t import `React` (or the `FormEvent` type). With strict TS + `isolatedModules`, this commonly fails type-checking (`Cannot find namespace 'React'`). Import `type { FormEvent }` from `react` and use `e: FormEvent`, or add a React type import.
-
---- inline by @Copilot at 2026-02-27T16:11:32Z on components/auth/RegisterForm.tsx:18 ---
-This file uses the `React` namespace (`React.FormEvent`) but doesn’t import `React` (or the `FormEvent` type). With strict TS + `isolatedModules`, this commonly fails type-checking (`Cannot find namespace 'React'`). Import `type { FormEvent }` from `react` and use `e: FormEvent`, or add a React type import.
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on lib/routeHandler.ts:3 ---
-`withErrorHandler` imports `isRedirectError`/`isNotFoundError` from `next/dist/...`, which is an internal Next.js path and not part of the public API surface. This is brittle across Next upgrades. Prefer using a documented/public helper (if available) or avoid depending on internal module paths (e.g., detect these errors via their well-known properties).
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on core/auth/createSession.ts:17 ---
-`createSession` embeds a randomly-generated `sessionId` into the JWT payload, but the session row inserted into the `sessions` table uses the table’s UUID `id` (defaultRandom). `validateSession` then returns `session.id`, so the `sessionId` inside the token never corresponds to the DB session identifier, making the field misleading and preventing any future “revoke by payload.sessionId” logic from working correctly. Consider generating the session UUID in code (e.g., `crypto.randomUUID()`), inserting it as `sessions.id`, and using that same value in the token payload (or drop `sessionId` from `TokenPayload` entirely if it’s not meant to be authoritative).
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on middleware.ts:55 ---
-This middleware only checks for presence of the session cookie, not whether it’s a valid, unexpired, correctly-signed session. Any client can bypass auth gating by setting `__unblocks_session` to an arbitrary value. If middleware is intended to protect routes, it should at least verify the JWT signature/expiry in an Edge-safe way and (ideally) confirm the session exists server-side (e.g., via a lightweight auth service/API call), or otherwise remove the middleware check and rely on server-side `requireAuth()` for protection.
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on components/ui/Card.tsx:4 ---
-`CardProps` references `React.ReactNode` but this module doesn’t import `React` (or `ReactNode`). With `isolatedModules`/strict TS settings, this typically fails type-checking (`Cannot find namespace 'React'`). Import `type { ReactNode }` from `react` and use `children: ReactNode`, or add a React type import.
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on app/api/notifications/route.ts:30 ---
-This POST handler calls `request.json()` without guarding against invalid JSON or validating the request body shape. If a client sends malformed JSON, it will throw and be returned as a generic 500 by `withErrorHandler`. Consider using `validateBody` with a Zod schema (e.g., `{ action: z.literal('markAllRead') }`) so bad input consistently returns a 400 validation error.
-
---- inline by @Copilot at 2026-02-27T16:11:33Z on hooks/README.md:23 ---
-The documented hook argument shapes don’t match the actual hook types used in this PR. For example, `OnUserDeletedArgs` is `{ user: User }` (not `{ userId, email }`), and the billing hook args in the table also differ from the types in `@unblocks/core/*/types`. Please update this README to match the exported hook arg interfaces so integrators don’t implement hooks with the wrong signature.
-
---- inline by @Copilot at 2026-02-27T16:11:31Z on app/api/auth/google/callback/route.ts:41 ---
-This callback route proceeds with `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` defaulting to empty strings. If the endpoint is hit while OAuth isn’t configured, `exchangeGoogleCode` will likely throw and `withErrorHandler` will return a JSON error instead of a user-friendly redirect. Add an explicit config check (like `/api/auth/google`) and redirect to `/login?error=oauth_not_configured` (or similar) when credentials are missing.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on core/teams/createTeam.ts:43 ---
-Slug uniqueness is checked against the raw `slug` input, but the stored slug is normalized later (`toLowerCase().replace(...)`). This can allow collisions when different inputs normalize to the same stored slug. Normalize once up front and use the normalized value consistently for uniqueness check + insert.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on core/teams/inviteMember.ts:133 ---
-Before inserting the membership, `acceptInvitation` never verifies that the authenticated user matches the invited email on the invitation. Consider enforcing that the accepting user's email matches `invitation.email` (or explicitly documenting token-only acceptance).
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on core/email/providers/resend.ts:10 ---
-Resend provider reads `process.env.RESEND_API_KEY` directly, but the config system defines `email.resend.apiKey`. This makes config ineffective and can fail even when config is set. Prefer passing the API key from `loadConfig('email')` into the provider (or have the provider accept an explicit apiKey).
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on app/api/health/route.ts:26 ---
-The response hard-codes `version: '0.1.0-alpha'`, which is inconsistent with the repo version (`0.2.0-alpha` in package/manifest). Consider sourcing the version from `package.json` or `unblocks.manifest.json` to avoid drift.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on lib/serverAuth.ts:20 ---
-`requireAuth` throws a generic `Error`, which will be mapped to a 500 by `withErrorHandler`/`toErrorResponse`. For APIs this should be a 401/403. Throw an `AuthError` (or another `AppError`) so callers get the correct status code.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on app/api/notifications/route.ts:26 ---
-This handler parses `request.json()` without validation/try-catch. Invalid JSON will throw and be converted into a 500 by `withErrorHandler`. Prefer using `validateBody` (even with a small schema) or catching JSON parse errors and returning a 400.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on app/(dashboard)/teams/[id]/page.tsx:27 ---
-This page fetches the team and member list before verifying the current user is a member (`getUserTeamRole`). That allows an unauthorized user to trigger retrieval of team metadata/members prior to redirect. Check membership first (or change core APIs to require a userId and enforce authorization) before fetching team details.
-```suggestion
-  const currentRole = await getUserTeamRole(id, user.id)
-
-  if (!currentRole) {
-    redirect('/teams')
-  }
-
-  const team = await getTeam(id)
-  const members = await getTeamMembers(id)
-```
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on core/auth/rateLimiter.ts:52 ---
-This module starts a global `setInterval` at import time. In serverless runtimes this can keep the event loop alive or waste resources. Consider unref-ing the interval (`interval.unref?.()`), starting it lazily, or moving cleanup into an explicit lifecycle hook.
-
---- inline by @Copilot at 2026-02-27T17:42:21Z on app/api/teams/[id]/route.ts:11 ---
-This route returns team details for any authenticated user without checking team membership/authorization. Since `core/teams/getTeam` doesn’t enforce access control, add a membership check (e.g., `getUserTeamRole(teamId, user.id)` and return 403/404 when not a member).
-
---- inline by @Copilot at 2026-02-27T17:42:19Z on app/api/teams/[id]/members/route.ts:18 ---
-This route exposes the full team member list (including emails) without verifying the requester belongs to the team. Add a membership/permission check before calling `getTeamMembers` to avoid leaking team data.
+Useful? React with 👍 / 👎.
