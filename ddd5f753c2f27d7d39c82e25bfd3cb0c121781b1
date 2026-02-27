@@ -1,224 +1,246 @@
-=== AI PR Comments for PR #3 ===
-Synced: 2026-02-27T13:11:36Z
+=== AI PR Comments for PR #4 ===
+Synced: 2026-02-27T13:11:37Z
 
 ## Reviews
 
---- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T12:34:10Z ---
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-02-27T12:35:52Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `ddd5f753c2`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T12:36:14Z ---
 ## Pull request overview
 
-This PR bootstraps the “Unblocks” Next.js application and its framework-agnostic `core/` library, adding foundational modules (auth, billing, teams, uploads, notifications, hooks/extensions) plus the initial app pages and API routes that wire those modules together.
+This PR bootstraps the Unblocks Next.js application and core library, introducing foundational systems (auth, billing, teams, uploads, jobs, notifications, admin) plus configuration, hooks, UI theming/overrides, and initial “blocks” modules.
 
 **Changes:**
-- Introduces the `core/` public API, config loader, error handling, and database schema (Drizzle/Postgres).
-- Adds major feature modules (auth/billing/email/jobs/uploads/teams/notifications/admin) and corresponding Next.js API routes.
-- Adds UI foundations (Tailwind v4 theme tokens, base UI components, landing/auth/dashboard/admin pages) and repo scaffolding/docs.
+- Add Unblocks core modules (auth/billing/email/db/runtime/errors/security) and corresponding Next.js route handlers/pages.
+- Introduce teams, notifications (incl. SSE), uploads, background jobs, and an admin area.
+- Add project tooling/config (Next.js/Tailwind/TS/Drizzle/Docker), sample configs, and documentation.
 
 ### Reviewed changes
 
-Copilot reviewed 227 out of 234 changed files in this pull request and generated 10 comments.
+Copilot reviewed 227 out of 234 changed files in this pull request and generated 9 comments.
 
 <details>
 <summary>Show a summary per file</summary>
 
 | File | Description |
 | ---- | ----------- |
-| unblocks.manifest.json | Adds a project/feature manifest describing core modules and blocks. |
-| ui/theme.ts | Defines default theme tokens intended to map to CSS variables. |
-| ui/pages/.gitkeep | Placeholder for future UI page overrides. |
-| ui/layouts/.gitkeep | Placeholder for future UI layout overrides. |
-| ui/email-templates/.gitkeep | Placeholder for future email template overrides. |
-| ui/components/.gitkeep | Placeholder for future UI component overrides. |
-| ui/README.md | Documents planned UI override mechanism and current customization approach. |
-| tsconfig.json | Sets strict TypeScript compiler options and path aliases. |
-| postcss.config.mjs | Configures PostCSS to use Tailwind’s PostCSS plugin. |
-| package.json | Declares dependencies/devDependencies and scripts (Next, Drizzle, Vitest, Tailwind). |
-| next.config.ts | Adds basic security-related response headers and Next config. |
-| middleware.ts | Adds auth-gating middleware with public path allowlist. |
-| lib/serverAuth.ts | Implements server-side helpers to read session cookie and load current user. |
-| lib/routeHandler.ts | Adds a route wrapper for consistent JSON error handling plus request metadata helpers. |
-| hooks/onUserDeleted.ts | Adds a user lifecycle hook stub. |
-| hooks/onUserCreated.ts | Adds a user lifecycle hook stub. |
-| hooks/onSubscriptionChanged.ts | Adds a billing hook stub. |
-| hooks/onPaymentSucceeded.ts | Adds a billing hook stub. |
-| hooks/onPaymentFailed.ts | Adds a billing hook stub. |
-| hooks/beforeEmailSend.ts | Adds a modifier hook stub for outbound emails. |
-| hooks/README.md | Documents available hooks and usage patterns. |
-| extensions/README.md | Documents planned extensions system and V1A workaround approach. |
-| extensions/.gitkeep | Placeholder for future extensions. |
-| drizzle.config.ts | Configures drizzle-kit schema/migrations for Postgres. |
-| docker-compose.yml | Adds local Postgres + Redis containers for development. |
-| core/uploads/validate.ts | Implements upload validation and filename sanitization utilities. |
-| core/uploads/types.ts | Adds Zod schema + types for uploads config and file records. |
-| core/uploads/index.ts | Exposes uploads module API surface. |
-| core/types.ts | Adds `AppConfigSchema` / `AppConfig` for marketing/SEO/footer config. |
-| core/teams/updateRole.ts | Implements team role update and ownership transfer logic. |
-| core/teams/types.ts | Adds teams config schema and core teams types. |
-| core/teams/removeMember.ts | Implements team member removal and “leave team” behavior with hooks. |
-| core/teams/index.ts | Exposes teams module API surface. |
-| core/teams/createTeam.ts | Implements team creation with slug uniqueness and hooks. |
-| core/security/headers.ts | Adds a reusable security headers map. |
-| core/security/csrf.ts | Adds CSRF token generation/validation helpers. |
-| core/security/cookies.ts | Adds cookie names, cookie option helpers, and cookie serialization helpers. |
-| core/runtime/uiResolver.ts | Adds a filesystem-based UI override path resolver. |
-| core/runtime/types.ts | Defines config registry types and hook name registry. |
-| core/runtime/hookRunner.ts | Implements hook registration and execution (including before-hooks). |
-| core/runtime/configLoader.ts | Implements config loading + Zod validation with caching. |
-| core/notifications/types.ts | Adds notifications config schema and notifications domain types. |
-| core/notifications/preferences.ts | Adds CRUD-ish operations for notification preferences. |
-| core/notifications/markRead.ts | Adds mark-as-read APIs and unread count query. |
-| core/notifications/index.ts | Exposes notifications module API surface. |
-| core/notifications/getNotifications.ts | Implements notification listing and deletion. |
-| core/jobs/index.ts | Exposes jobs module API surface (queue/worker/scheduler). |
-| core/index.ts | Adds the main `@unblocks/core` entrypoint exports. |
-| core/extensions/types.ts | Adds extension manifest schema and extension context types. |
-| core/extensions/index.ts | Exposes extensions module API surface. |
-| core/errors/types.ts | Adds structured application error types with HTTP status codes. |
-| core/errors/handler.ts | Adds error-to-JSON-response conversion with safe handling for unknown errors. |
-| core/env.ts | Adds Zod-based environment variable validation. |
-| core/email/types.ts | Adds email provider config schema and send hook args types. |
-| core/email/sendEmail.ts | Adds email sending flow with `beforeEmailSend` hook support. |
-| core/email/providers/resend.ts | Adds Resend provider integration. |
-| core/email/index.ts | Exposes email module API surface. |
-| core/db/types.ts | Adds Drizzle-inferred DB model types. |
-| core/db/schema/verificationTokens.ts | Adds verification token table schema. |
-| core/db/schema/users.ts | Adds users table schema. |
-| core/db/schema/teams.ts | Adds teams, members, invitations table schemas. |
-| core/db/schema/subscriptions.ts | Adds subscriptions table schema. |
-| core/db/schema/sessions.ts | Adds sessions table schema. |
-| core/db/schema/notifications.ts | Adds notifications + preferences table schemas. |
-| core/db/schema/jobs.ts | Adds jobs table schema. |
-| core/db/schema/index.ts | Aggregates schema exports. |
-| core/db/schema/files.ts | Adds files table schema for uploads. |
-| core/db/schema/accounts.ts | Adds OAuth accounts table schema. |
-| core/db/client.ts | Adds singleton pg Pool + drizzle client helpers. |
-| core/billing/plans.ts | Adds billing plan retrieval helpers. |
-| core/billing/index.ts | Exposes billing module API surface. |
-| core/billing/getSubscription.ts | Adds subscription retrieval by user. |
-| core/billing/customerPortal.ts | Adds Stripe billing portal session creation. |
-| core/billing/customer.ts | Adds Stripe customer lookup/creation and subscription upsert. |
-| core/billing/createCheckout.ts | Adds Stripe Checkout session creation for subscriptions. |
-| core/billing/checkPlanLimit.ts | Adds plan limit evaluation helper. |
-| core/billing/changePlan.ts | Adds Stripe subscription price update + hook trigger. |
-| core/billing/cancelSubscription.ts | Adds Stripe subscription cancellation logic. |
-| core/auth/verifyCredentials.ts | Adds email/password verification with login bookkeeping. |
-| core/auth/validateSession.ts | Adds session validation against JWT + DB session record. |
-| core/auth/token.ts | Adds JWT creation/verification helpers plus random token generator. |
-| core/auth/revokeSession.ts | Adds session revocation helpers. |
-| core/auth/rateLimiter.ts | Adds in-memory rate limiter for auth flows. |
-| core/auth/permissions.ts | Adds helpers to retrieve users by ID/email. |
-| core/auth/passwordReset.ts | Adds password reset token generation and password reset flow. |
-| core/auth/password.ts | Adds bcrypt password hashing + verification. |
-| core/auth/index.ts | Exposes auth module API surface. |
-| core/auth/emailVerification.ts | Adds email verification token creation and verification flow. |
-| core/auth/createUser.ts | Adds user creation with conflict checks and hook trigger. |
-| core/auth/createSession.ts | Adds session creation and DB session persistence. |
-| core/api/validate.ts | Adds request JSON parsing + Zod validation helper. |
-| core/api/response.ts | Adds standardized success/error JSON response helpers. |
-| core/api/index.ts | Exposes core API helpers. |
-| core/admin/types.ts | Adds admin-facing DTO types. |
-| core/admin/subscriptions.ts | Adds admin subscription listing query. |
-| core/admin/metrics.ts | Adds basic admin metrics queries. |
-| core/admin/index.ts | Exposes admin module API surface. |
-| config/uploads.config.ts | Adds default app uploads configuration. |
-| config/teams.config.ts | Adds default app teams configuration. |
-| config/notifications.config.ts | Adds default app notifications configuration. |
-| config/jobs.config.ts | Adds default app jobs configuration. |
-| config/email.config.ts | Adds default app email configuration. |
-| config/billing.config.ts | Adds default app billing config including plans/trial behavior. |
-| config/auth.config.ts | Adds default app auth configuration. |
-| config/app.config.ts | Adds default marketing/SEO/social/footer app config. |
-| components/ui/Input.tsx | Adds a labeled input component with error display. |
-| components/ui/Card.tsx | Adds a basic card container component. |
-| components/ui/Button.tsx | Adds a button component with variants, sizes, and loading state. |
-| components/teams/TeamSelector.tsx | Adds a client-side team selector that loads teams from API. |
-| components/teams/InviteForm.tsx | Adds invite form UI that posts to team members API. |
-| components/landing/Pricing.tsx | Adds marketing pricing section component. |
-| components/landing/Navbar.tsx | Adds marketing navbar component. |
-| components/landing/Hero.tsx | Adds marketing hero component. |
-| components/landing/Footer.tsx | Adds marketing footer component with optional attribution link. |
-| components/landing/Features.tsx | Adds marketing features section component. |
-| components/landing/FAQ.tsx | Adds marketing FAQ accordion component. |
-| components/dashboard/Sidebar.tsx | Adds dashboard navigation sidebar. |
-| components/dashboard/Header.tsx | Adds dashboard header with logout and notification bell slot. |
-| components/billing/PricingTable.tsx | Adds dashboard pricing/upgrade UI with checkout integration. |
-| components/billing/ManageSubscription.tsx | Adds dashboard “manage subscription” UI via billing portal API. |
-| components/auth/SocialButtons.tsx | Adds “Continue with Google” button for auth. |
-| components/auth/RegisterForm.tsx | Adds registration form UI calling register API. |
-| components/auth/LoginForm.tsx | Adds login form UI calling login API. |
-| components/admin/MetricCards.tsx | Adds admin metrics cards UI. |
-| blocks/marketplace/index.ts | Exposes marketplace block API surface. |
-| blocks/data-platform/schema.ts | Adds data platform block DB schema. |
-| blocks/data-platform/index.ts | Exposes data platform block API surface. |
-| blocks/data-platform/datasources.ts | Adds data source CRUD functions. |
-| blocks/data-platform/datasets.ts | Adds dataset CRUD functions. |
-| blocks/ai-wrapper/schema.ts | Adds AI wrapper block DB schema. |
-| blocks/ai-wrapper/index.ts | Exposes AI wrapper block API surface. |
-| app/page.tsx | Adds marketing home page wiring config + components. |
-| app/layout.tsx | Adds root layout + metadata. |
-| app/globals.css | Adds Tailwind v4 import and theme CSS variables. |
-| app/api/uploads/route.ts | Adds uploads list/upload endpoints. |
-| app/api/uploads/[id]/route.ts | Adds per-file get/delete endpoints. |
-| app/api/teams/route.ts | Adds team create/list endpoints. |
-| app/api/teams/invitations/accept/route.ts | Adds invitation acceptance endpoint. |
-| app/api/teams/[id]/route.ts | Adds team detail endpoint. |
-| app/api/teams/[id]/members/route.ts | Adds team members list/invite endpoints. |
-| app/api/teams/[id]/members/[userId]/route.ts | Adds team member role update + removal endpoints. |
-| app/api/notifications/stream/route.ts | Adds notifications SSE streaming endpoint. |
-| app/api/notifications/route.ts | Adds notifications list endpoint + mark-all-read action. |
-| app/api/notifications/preferences/route.ts | Adds preferences get/update endpoints. |
-| app/api/notifications/[id]/read/route.ts | Adds mark-one-read endpoint. |
-| app/api/marketplace/reviews/route.ts | Adds marketplace review create/list endpoints. |
-| app/api/marketplace/orders/route.ts | Adds marketplace order create/list endpoints. |
-| app/api/marketplace/listings/route.ts | Adds marketplace listing create/search endpoints. |
-| app/api/marketplace/listings/[id]/route.ts | Adds marketplace listing fetch endpoint. |
-| app/api/jobs/route.ts | Adds a basic jobs health/status endpoint. |
-| app/api/health/route.ts | Adds health endpoint checking DB connectivity. |
-| app/api/data/pipelines/route.ts | Adds data platform pipelines create/list endpoints. |
-| app/api/data/datasets/route.ts | Adds data platform datasets create/list endpoints. |
-| app/api/billing/webhook/route.ts | Adds Stripe webhook receiver endpoint. |
-| app/api/billing/subscription/route.ts | Adds endpoint returning subscription + plans. |
-| app/api/billing/portal/route.ts | Adds endpoint creating Stripe customer portal session. |
-| app/api/billing/checkout/route.ts | Adds endpoint creating Stripe Checkout session. |
-| app/api/auth/verify-email/route.ts | Adds email verification callback endpoint. |
-| app/api/auth/session/route.ts | Adds “who am I” session endpoint. |
-| app/api/auth/reset-password/route.ts | Adds reset-password request endpoint. |
-| app/api/auth/reset-password/confirm/route.ts | Adds reset-password confirm endpoint. |
-| app/api/auth/register/route.ts | Adds register endpoint that also creates a session cookie. |
-| app/api/auth/magic-link/verify/route.ts | Adds magic-link verification endpoint that creates session cookie. |
-| app/api/auth/magic-link/route.ts | Adds magic-link request endpoint (currently no email sending). |
-| app/api/auth/logout/route.ts | Adds logout endpoint revoking session and clearing cookie. |
-| app/api/auth/login/route.ts | Adds login endpoint with rate limiting and session cookie. |
-| app/api/auth/google/route.ts | Adds Google OAuth initiation endpoint. |
-| app/api/auth/google/callback/route.ts | Adds Google OAuth callback endpoint to create session. |
-| app/api/ai/usage/route.ts | Adds AI usage stats endpoint. |
-| app/api/ai/completion/route.ts | Adds AI completion endpoint. |
-| app/api/admin/users/route.ts | Adds admin users listing endpoint. |
-| app/api/admin/users/[id]/route.ts | Adds admin user mutation endpoint. |
-| app/api/admin/subscriptions/route.ts | Adds admin subscriptions listing endpoint. |
-| app/api/admin/metrics/route.ts | Adds admin metrics endpoint. |
-| app/(marketing)/pricing/page.tsx | Adds marketing pricing page. |
-| app/(dashboard)/teams/page.tsx | Adds teams overview page in dashboard section. |
-| app/(dashboard)/teams/new/page.tsx | Adds new team creation page. |
-| app/(dashboard)/teams/[id]/page.tsx | Adds team detail page with members + invite UI. |
-| app/(dashboard)/page.tsx | Adds dashboard overview page. |
-| app/(dashboard)/layout.tsx | Adds authenticated dashboard layout wrapper. |
-| app/(dashboard)/billing/page.tsx | Adds billing page with plan management UI. |
-| app/(auth)/verify-email/page.tsx | Adds “check your email” verification page. |
-| app/(auth)/signup/page.tsx | Adds signup page with social + email registration. |
-| app/(auth)/reset-password/page.tsx | Adds reset password request page. |
-| app/(auth)/reset-password/confirm/page.tsx | Adds reset password confirmation page. |
-| app/(auth)/login/page.tsx | Adds login page with social + email login. |
-| app/(auth)/layout.tsx | Adds auth layout wrapper. |
-| app/(admin)/layout.tsx | Adds admin layout with navigation and admin access gating. |
-| app/(admin)/admin/users/page.tsx | Adds admin users page. |
-| app/(admin)/admin/subscriptions/page.tsx | Adds admin subscriptions page. |
-| app/(admin)/admin/page.tsx | Adds admin dashboard page. |
-| README.md | Replaces minimal README with full product overview and quick start. |
-| LICENSE | Adds MIT license text. |
-| .gitignore | Adds ignore rules for Next, env, Drizzle, coverage, etc. |
-| .github/copilot-instructions.md | Points Copilot instructions to CLAUDE.md. |
-| .env.example | Adds example environment variables for local setup. |
-| .cursorrules | Points Cursor rules to CLAUDE.md. |
+| unblocks.manifest.json | Project capability/feature manifest. |
+| ui/theme.ts | Default theme token export. |
+| ui/pages/.gitkeep | Placeholder for UI overrides. |
+| ui/layouts/.gitkeep | Placeholder for UI overrides. |
+| ui/email-templates/.gitkeep | Placeholder for UI overrides. |
+| ui/components/.gitkeep | Placeholder for UI overrides. |
+| ui/README.md | Docs for UI override approach. |
+| tsconfig.json | TypeScript compiler configuration. |
+| postcss.config.mjs | PostCSS/Tailwind v4 plugin wiring. |
+| package.json | Dependencies/scripts for Next/Drizzle/Vitest/Tailwind. |
+| next.config.ts | Next.js config + security headers. |
+| middleware.ts | Auth gate middleware with public-path allowlist. |
+| lib/serverAuth.ts | Server helpers for current user/auth requirement. |
+| lib/routeHandler.ts | Route error wrapper + request metadata helpers. |
+| hooks/onUserDeleted.ts | User-deleted hook stub. |
+| hooks/onUserCreated.ts | User-created hook stub. |
+| hooks/onSubscriptionChanged.ts | Subscription-changed hook stub. |
+| hooks/onPaymentSucceeded.ts | Payment-succeeded hook stub. |
+| hooks/onPaymentFailed.ts | Payment-failed hook stub. |
+| hooks/beforeEmailSend.ts | Email “before send” modifier hook stub. |
+| hooks/README.md | Hook system documentation. |
+| extensions/README.md | Extension system documentation (planned). |
+| extensions/.gitkeep | Placeholder for extensions. |
+| drizzle.config.ts | Drizzle Kit configuration. |
+| docker-compose.yml | Local Postgres/Redis services for dev. |
+| core/uploads/validate.ts | Upload file validation + filename sanitization. |
+| core/uploads/types.ts | Upload config schema + upload types. |
+| core/uploads/index.ts | Uploads public exports. |
+| core/types.ts | App config Zod schema/types (landing/seo/footer/etc). |
+| core/teams/updateRole.ts | Team role updates + ownership transfer. |
+| core/teams/types.ts | Teams config schema + team domain types. |
+| core/teams/removeMember.ts | Remove member / leave team logic. |
+| core/teams/index.ts | Teams public exports. |
+| core/teams/createTeam.ts | Create team + hook dispatch. |
+| core/security/headers.ts | Central security headers constant. |
+| core/security/csrf.ts | CSRF token generation/validation helpers. |
+| core/security/cookies.ts | Cookie names/options + cookie serialization helpers. |
+| core/runtime/uiResolver.ts | UI override resolution utilities (fs-based). |
+| core/runtime/types.ts | Config registry + hook name/type definitions. |
+| core/runtime/hookRunner.ts | Hook registration and execution engine. |
+| core/runtime/configLoader.ts | Zod-validated config loader + cache. |
+| core/notifications/types.ts | Notifications config schema + notification types. |
+| core/notifications/preferences.ts | Preference read/update logic. |
+| core/notifications/markRead.ts | Mark read/all read + unread count. |
+| core/notifications/index.ts | Notifications public exports. |
+| core/notifications/getNotifications.ts | Fetch/delete notifications. |
+| core/jobs/index.ts | Jobs module public exports. |
+| core/index.ts | Core package public API barrel. |
+| core/extensions/types.ts | Extension manifest schema/types. |
+| core/extensions/index.ts | Extensions public exports. |
+| core/errors/types.ts | AppError hierarchy. |
+| core/errors/handler.ts | Error-to-response mapping helper. |
+| core/env.ts | Environment validation via Zod. |
+| core/email/types.ts | Email config schema + email types. |
+| core/email/sendEmail.ts | Email send orchestration + before-hook. |
+| core/email/providers/resend.ts | Resend provider implementation. |
+| core/email/index.ts | Email module exports. |
+| core/db/types.ts | Drizzle model type aliases. |
+| core/db/schema/verificationTokens.ts | Verification token table. |
+| core/db/schema/users.ts | Users table schema. |
+| core/db/schema/teams.ts | Teams/members/invitations tables. |
+| core/db/schema/subscriptions.ts | Subscriptions table schema. |
+| core/db/schema/sessions.ts | Sessions table schema. |
+| core/db/schema/notifications.ts | Notifications + preferences tables. |
+| core/db/schema/jobs.ts | Jobs table schema. |
+| core/db/schema/index.ts | DB schema exports barrel. |
+| core/db/schema/files.ts | Files table schema (uploads). |
+| core/db/schema/accounts.ts | OAuth accounts table schema. |
+| core/db/client.ts | pg Pool + drizzle client singleton. |
+| core/billing/plans.ts | Plan retrieval helpers. |
+| core/billing/index.ts | Billing module exports. |
+| core/billing/getSubscription.ts | Subscription fetcher. |
+| core/billing/customerPortal.ts | Stripe billing portal session creator. |
+| core/billing/customer.ts | Stripe customer get/create logic. |
+| core/billing/createCheckout.ts | Stripe checkout session creator. |
+| core/billing/checkPlanLimit.ts | Plan limit checker. |
+| core/billing/changePlan.ts | Change plan on Stripe + local update. |
+| core/billing/cancelSubscription.ts | Cancel subscription logic. |
+| core/auth/verifyCredentials.ts | Email/password verification + login counters. |
+| core/auth/validateSession.ts | Session token verification + DB session lookup. |
+| core/auth/token.ts | JWT creation/verification + random tokens. |
+| core/auth/revokeSession.ts | Session revocation helpers. |
+| core/auth/rateLimiter.ts | In-memory rate limiter. |
+| core/auth/permissions.ts | User lookup helpers. |
+| core/auth/passwordReset.ts | Password reset token issuance/consumption. |
+| core/auth/password.ts | bcrypt hashing/verification. |
+| core/auth/index.ts | Auth module exports. |
+| core/auth/emailVerification.ts | Email verification token/verification flow. |
+| core/auth/createUser.ts | User creation + hook dispatch. |
+| core/auth/createSession.ts | Session creation + token issuance. |
+| core/api/validate.ts | Zod request body validation helper. |
+| core/api/response.ts | Success/error response helpers. |
+| core/api/index.ts | API helpers barrel export. |
+| core/admin/types.ts | Admin DTO types. |
+| core/admin/subscriptions.ts | Admin subscription listing. |
+| core/admin/metrics.ts | Admin metrics aggregation. |
+| core/admin/index.ts | Admin module exports. |
+| config/uploads.config.ts | Default uploads config. |
+| config/teams.config.ts | Default teams config. |
+| config/notifications.config.ts | Default notifications config. |
+| config/jobs.config.ts | Default jobs config. |
+| config/email.config.ts | Default email config. |
+| config/billing.config.ts | Default billing/plans config. |
+| config/auth.config.ts | Default auth config. |
+| config/app.config.ts | Default app/landing config. |
+| components/ui/Input.tsx | Input component with label/error support. |
+| components/ui/Card.tsx | Card container component. |
+| components/ui/Button.tsx | Button component with variants/loading state. |
+| components/teams/TeamSelector.tsx | Client-side team selector. |
+| components/teams/InviteForm.tsx | Invite member client form. |
+| components/landing/Pricing.tsx | Landing pricing section. |
+| components/landing/Navbar.tsx | Marketing navbar. |
+| components/landing/Hero.tsx | Marketing hero section. |
+| components/landing/Footer.tsx | Marketing footer with attribution toggle. |
+| components/landing/Features.tsx | Marketing feature grid. |
+| components/landing/FAQ.tsx | Expand/collapse FAQ. |
+| components/dashboard/Sidebar.tsx | Dashboard sidebar navigation. |
+| components/dashboard/Header.tsx | Dashboard header with logout + bell. |
+| components/billing/PricingTable.tsx | Billing plan table + checkout trigger. |
+| components/billing/ManageSubscription.tsx | Billing portal entrypoint button. |
+| components/auth/SocialButtons.tsx | Google auth CTA button. |
+| components/auth/RegisterForm.tsx | Signup form. |
+| components/auth/LoginForm.tsx | Login form. |
+| components/admin/MetricCards.tsx | Admin metric summary cards. |
+| blocks/marketplace/index.ts | Marketplace block public exports. |
+| blocks/data-platform/schema.ts | Data platform block DB schema. |
+| blocks/data-platform/index.ts | Data platform block exports. |
+| blocks/data-platform/datasources.ts | Data sources CRUD functions. |
+| blocks/data-platform/datasets.ts | Datasets CRUD functions. |
+| blocks/ai-wrapper/schema.ts | AI wrapper block DB schema. |
+| blocks/ai-wrapper/index.ts | AI wrapper block exports. |
+| app/page.tsx | Marketing home page composition. |
+| app/layout.tsx | Root layout + global CSS inclusion. |
+| app/globals.css | Tailwind v4 + theme CSS variables. |
+| app/api/uploads/route.ts | Upload create/list API. |
+| app/api/uploads/[id]/route.ts | Upload get/delete API. |
+| app/api/teams/route.ts | Team create/list API. |
+| app/api/teams/invitations/accept/route.ts | Accept invitation API. |
+| app/api/teams/[id]/route.ts | Team detail API. |
+| app/api/teams/[id]/members/route.ts | Team members list/invite API. |
+| app/api/teams/[id]/members/[userId]/route.ts | Member role update/remove API. |
+| app/api/notifications/stream/route.ts | Notifications SSE stream endpoint. |
+| app/api/notifications/route.ts | Notifications list + mark-all-read action. |
+| app/api/notifications/preferences/route.ts | Notification preferences API. |
+| app/api/notifications/[id]/read/route.ts | Mark notification read API. |
+| app/api/marketplace/reviews/route.ts | Marketplace reviews API. |
+| app/api/marketplace/orders/route.ts | Marketplace orders API. |
+| app/api/marketplace/listings/route.ts | Marketplace listings create/search API. |
+| app/api/marketplace/listings/[id]/route.ts | Marketplace listing fetch API. |
+| app/api/jobs/route.ts | Jobs health/query API. |
+| app/api/health/route.ts | Service health endpoint. |
+| app/api/data/pipelines/route.ts | Data pipelines create/list API. |
+| app/api/data/datasets/route.ts | Datasets create/list API. |
+| app/api/billing/webhook/route.ts | Stripe webhook receiver. |
+| app/api/billing/subscription/route.ts | Subscription + plan fetch API. |
+| app/api/billing/portal/route.ts | Billing portal session API. |
+| app/api/billing/checkout/route.ts | Checkout session API. |
+| app/api/auth/verify-email/route.ts | Verify-email callback endpoint. |
+| app/api/auth/session/route.ts | Session introspection endpoint. |
+| app/api/auth/reset-password/route.ts | Reset-password request endpoint. |
+| app/api/auth/reset-password/confirm/route.ts | Reset-password confirm endpoint. |
+| app/api/auth/register/route.ts | Register endpoint + session cookie set. |
+| app/api/auth/magic-link/verify/route.ts | Magic-link verification endpoint. |
+| app/api/auth/magic-link/route.ts | Magic-link request endpoint. |
+| app/api/auth/logout/route.ts | Logout endpoint + session revoke. |
+| app/api/auth/login/route.ts | Login endpoint + rate limiting + cookie set. |
+| app/api/auth/google/route.ts | Google OAuth initiation endpoint. |
+| app/api/auth/google/callback/route.ts | Google OAuth callback endpoint. |
+| app/api/ai/usage/route.ts | AI usage stats endpoint. |
+| app/api/ai/completion/route.ts | AI completion endpoint. |
+| app/api/admin/users/route.ts | Admin users list endpoint. |
+| app/api/admin/users/[id]/route.ts | Admin user update endpoint. |
+| app/api/admin/subscriptions/route.ts | Admin subscriptions list endpoint. |
+| app/api/admin/metrics/route.ts | Admin metrics endpoint. |
+| app/(marketing)/pricing/page.tsx | Marketing pricing page. |
+| app/(dashboard)/teams/page.tsx | Teams list page. |
+| app/(dashboard)/teams/new/page.tsx | Team creation page. |
+| app/(dashboard)/teams/[id]/page.tsx | Team detail/members page. |
+| app/(dashboard)/page.tsx | Dashboard overview page. |
+| app/(dashboard)/layout.tsx | Protected dashboard layout shell. |
+| app/(dashboard)/billing/page.tsx | Billing management page. |
+| app/(auth)/verify-email/page.tsx | “Check your email” page. |
+| app/(auth)/signup/page.tsx | Signup page composition. |
+| app/(auth)/reset-password/page.tsx | Reset request page. |
+| app/(auth)/reset-password/confirm/page.tsx | Reset confirm page. |
+| app/(auth)/login/page.tsx | Login page composition. |
+| app/(auth)/layout.tsx | Auth pages layout shell. |
+| app/(admin)/layout.tsx | Admin layout + authorization gating. |
+| app/(admin)/admin/users/page.tsx | Admin users page. |
+| app/(admin)/admin/subscriptions/page.tsx | Admin subscriptions page. |
+| app/(admin)/admin/page.tsx | Admin overview page. |
+| README.md | Project overview and getting-started docs. |
+| LICENSE | MIT license file. |
+| .gitignore | Git ignore rules for Node/Next/Drizzle/etc. |
+| .github/copilot-instructions.md | Copilot instruction pointer to CLAUDE.md. |
+| .env.example | Example environment variables. |
+| .cursorrules | Cursor instruction pointer to CLAUDE.md. |
 </details>
 
 ---
@@ -227,35 +249,67 @@ Copilot reviewed 227 out of 234 changed files in this pull request and generated
 
 ## Inline Comments
 
---- inline by @Copilot at 2026-02-27T12:34:11Z on lib/routeHandler.ts:3 ---
-`AppError` is imported but never used. With `noUnusedLocals` enabled in tsconfig, this will break the build; remove the unused import (or use it).
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on lib/routeHandler.ts:15 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Re-throw Next.js redirect exceptions**
 
---- inline by @Copilot at 2026-02-27T12:34:11Z on app/(marketing)/pricing/page.tsx:27 ---
-`Footer` is called with an `attribution` prop and `appConfig.footer.attribution`, but the `Footer` component expects `showAttribution` and the `AppConfig` schema defines `footer.showUnblocksAttribution` (no `attribution` field). This will fail type-checking; update the prop name and source field to match the actual config shape.
+`withErrorHandler` currently converts every thrown value into a JSON error response, but `redirect()` in Next.js works by throwing a control-flow exception. Because this catch block swallows those exceptions, the OAuth callback path in `app/api/auth/google/callback/route.ts` (when `code` is missing or Google returns an error) returns a 500 JSON payload instead of the intended 302 redirect to `/login`.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/auth/google/callback/route.ts:18 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Validate OAuth state in Google callback**
+
+The Google OAuth flow generates a `state` value on the start endpoint, but the callback handler never reads or verifies `state` before exchanging the authorization code. Without state validation bound to the user session/cookie, a login CSRF/account-confusion flow is possible where a victim browser can be forced to complete an attacker-initiated OAuth response.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on core/jobs/queue.ts:87 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Atomically claim pending jobs before processing**
+
+`fetchNextJobs` reads pending jobs and only then performs a separate update, so concurrent workers can select the same rows and execute duplicate work before either update completes. The current code also updates by id list without re-checking `status='pending'`, so there is no atomic claim step despite the comment about `FOR UPDATE SKIP LOCKED`.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/notifications/stream/route.ts:44 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Remove self-cancellation from notification SSE start**
+
+Inside `ReadableStream` startup, this line calls `stream.cancel()` from within the initializer, which references `stream` before it is initialized (TDZ) and can throw immediately; even if it did not throw, it would cancel the stream right after opening. That makes the SSE endpoint unstable/non-functional instead of maintaining a live subscription.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on middleware.ts:51 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Exempt unauth session probe from middleware redirect**
+
+The middleware redirects all non-public paths without a session cookie, but `/api/auth/session` is not in `PUBLIC_PATHS`. That prevents `app/api/auth/session/route.ts` from returning its intended `401` JSON for logged-out clients and instead sends a login redirect response, which breaks callers expecting an auth-state JSON payload.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-02-27T12:36:15Z on core/notifications/getNotifications.ts:46 ---
+When `unreadOnly` is set, unread filtering is done in application code after the DB query (and after limit/offset). This can return fewer than `limit` results and makes `total` misleading. Apply the unread filter in the database query (and consider returning a real total via a count query if pagination is expected).
+
+--- inline by @Copilot at 2026-02-27T12:36:15Z on app/api/auth/google/callback/route.ts:22 ---
+The Google OAuth callback does not validate the `state` query parameter at all, even though the auth-init endpoint generates one. This leaves the OAuth flow vulnerable to CSRF/login swapping. Parse `state` from the callback URL and compare it to the value stored during `/api/auth/google` (then clear it).
+
+--- inline by @Copilot at 2026-02-27T12:36:15Z on app/api/auth/google/callback/route.ts:22 ---
+`redirect()` from `next/navigation` is intended for Server Components / actions; in Route Handlers you should return a redirect `Response`/`NextResponse.redirect`. Returning `redirect(...)` here is likely to throw and/or behave unexpectedly. Replace with an explicit redirect response.
+
+--- inline by @Copilot at 2026-02-27T12:36:16Z on core/api/response.ts:27 ---
+`successResponse` always returns status 200 and only accepts `(data, meta?)`, but many route handlers in this PR call it with a 3rd argument (e.g. `..., 201`). This will be a TypeScript compile error under `noUnusedParameters`/`strict` and prevents returning non-200 statuses via the helper. Consider extending `successResponse` to accept an optional `status` (default 200) (and optionally keep `meta` as the 3rd param for backward compatibility), or update all call sites to match the current signature.
+
+--- inline by @Copilot at 2026-02-27T12:36:16Z on core/notifications/getNotifications.ts:61 ---
+`deleteNotification` ignores the `userId` parameter and deletes by `notifications.id` only. This allows a user to delete another user's notification if they can guess/obtain the ID. Include `userId` in the delete `where` clause (and keep returning whether a row was deleted).
+
+--- inline by @Copilot at 2026-02-27T12:36:16Z on app/api/auth/google/route.ts:20 ---
+OAuth `state` is generated but never persisted (cookie/session) for later verification, so the callback cannot validate it. This defeats the CSRF protection purpose of the `state` parameter. Store `state` (e.g., in an HttpOnly, short-lived cookie) and require the callback to compare the incoming `state` against the stored value.
+
+--- inline by @Copilot at 2026-02-27T12:36:16Z on lib/routeHandler.ts:2 ---
+`AppError` is imported but never used. With `noUnusedLocals: true` in tsconfig, this will fail compilation. Remove the unused import or use it in the implementation.
+
+--- inline by @Copilot at 2026-02-27T12:36:16Z on app/(marketing)/pricing/page.tsx:27 ---
+`Footer` is being passed `attribution={appConfig.footer.attribution}`, but the `Footer` component expects `showAttribution` (and `AppConfigSchema` defines `footer.showUnblocksAttribution`). This looks like a prop/name mismatch that will break rendering/type-checking. Pass the correct prop and read the correct config field.
 ```suggestion
         showAttribution={appConfig.footer.showUnblocksAttribution}
 ```
 
---- inline by @Copilot at 2026-02-27T12:34:11Z on core/notifications/getNotifications.ts:46 ---
-`unreadOnly` is implemented by fetching rows without a `read=false` filter and then filtering in memory. This makes pagination inconsistent (you can return < `limit` rows) and `total` becomes just the page size, not the true total. Apply the unread filter in the DB query and compute `total` via a `count(*)` query (or return a separate `pageTotal` if that’s the intention).
-
---- inline by @Copilot at 2026-02-27T12:34:11Z on core/notifications/getNotifications.ts:63 ---
-`deleteNotification` ignores the `userId` parameter in the delete `where` clause, so a caller who can guess an ID could delete another user's notification. Include `notifications.userId = userId` in the delete predicate (and ideally return false when no row matched both).
-
---- inline by @Copilot at 2026-02-27T12:34:11Z on app/api/auth/google/route.ts:21 ---
-OAuth `state` is generated but never persisted (cookie/session) so it cannot be validated on callback, leaving the flow open to CSRF/login injection. Store the `state` server-side (e.g., as a CSRF cookie using `CSRF_COOKIE_NAME` + `getCsrfCookieOptions`) and validate it in the callback before exchanging the code.
-
---- inline by @Copilot at 2026-02-27T12:34:11Z on app/api/auth/google/callback/route.ts:22 ---
-This route uses `redirect()` from `next/navigation` inside a Route Handler wrapped by `withErrorHandler`. `redirect()` throws, so it will likely be caught and turned into a JSON error response instead of a 302. Also, the OAuth callback does not validate the `state` parameter against a stored value/cookie. Use `Response.redirect(...)` (or `NextResponse.redirect`) and add `state` validation to prevent CSRF.
-
---- inline by @Copilot at 2026-02-27T12:34:11Z on app/api/teams/[id]/members/route.ts:21 ---
-This members listing endpoint does not verify the requester belongs to the team; it will expose member emails/names to any authenticated user who guesses a team ID. Check membership/authorization (e.g., require `getUserTeamRole` non-null) before calling `getTeamMembers`.
-
---- inline by @Copilot at 2026-02-27T12:34:12Z on core/api/response.ts:27 ---
-`successResponse` is hard-coded to return HTTP 200 and only accepts `(data, meta)`, but multiple route handlers in this PR call it with a third `status` argument (e.g. `..., undefined, 201`), which will fail type-checking. Consider extending `successResponse` to accept an optional `status` parameter (default 200) and pass it through to `Response.json` so call sites can return 201/other codes consistently.
-
---- inline by @Copilot at 2026-02-27T12:34:12Z on app/api/notifications/stream/route.ts:46 ---
-The stream cleanup logic is broken: `stream` is referenced inside its own `ReadableStream` `start()` callback, and calling `stream.cancel()` from within `start()` is not how disconnect cleanup is triggered. This can throw at runtime and/or leak intervals/subscriptions. Implement an underlying source `cancel()` handler (or listen to `request.signal.abort`) to call `unsubscribe()`/`clearInterval()` when the client disconnects.
-
---- inline by @Copilot at 2026-02-27T12:34:10Z on app/api/teams/[id]/route.ts:13 ---
-This endpoint returns team details for any authenticated user who knows a team ID. Since `getTeam()` is not access-controlled, the route should verify the requester is a member (e.g., via `getUserTeamRole`) before returning the team, otherwise it leaks org metadata.
+--- inline by @Copilot at 2026-02-27T12:36:14Z on app/api/notifications/stream/route.ts:45 ---
+The SSE stream cleanup is wired incorrectly: calling `stream.cancel?.()` inside `start()` cancels the stream immediately (and may never run cleanup on actual client disconnect). Implement a `cancel()` method on the `ReadableStream` underlying source (or listen to `request.signal`/AbortSignal) and call `unsubscribe()` + `clearInterval()` there.
