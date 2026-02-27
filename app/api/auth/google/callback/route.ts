@@ -69,12 +69,10 @@ export const GET = withErrorHandler(async (request) => {
 
   const response = new Response(null, {
     status: 302,
-    headers: [
-      ['Location', '/dashboard'],
-      ['Set-Cookie', sessionCookie],
-      ['Set-Cookie', clearStateCookie],
-    ],
+    headers: { Location: '/dashboard' },
   })
+  response.headers.append('Set-Cookie', sessionCookie)
+  response.headers.append('Set-Cookie', clearStateCookie)
 
   return response
 })

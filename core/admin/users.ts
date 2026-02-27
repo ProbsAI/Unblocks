@@ -60,9 +60,21 @@ export async function listUsers(options?: {
     .limit(limit)
     .offset(offset)
 
-  const [countResult] = await db
+  let countQuery = db
     .select({ count: sql<number>`count(*)` })
     .from(users)
+
+  if (options?.search) {
+    const pattern = `%${options.search}%`
+    countQuery = countQuery.where(
+      or(
+        like(users.email, pattern),
+        like(users.name, pattern)
+      )
+    ) as typeof countQuery
+  }
+
+  const [countResult] = await countQuery
 
   return {
     users: rows.map((row) => ({

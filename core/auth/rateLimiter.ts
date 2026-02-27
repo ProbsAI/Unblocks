@@ -46,7 +46,7 @@ export function resetRateLimit(key: string): void {
 }
 
 // Periodic cleanup of expired entries
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of store.entries()) {
     if (entry.resetAt <= now) {
@@ -54,3 +54,4 @@ setInterval(() => {
     }
   }
 }, 60_000)
+cleanupInterval.unref?.()

@@ -9,17 +9,17 @@ Hooks let you react to events and modify behavior without changing core code.
 | Hook | When it fires | Args |
 |------|--------------|------|
 | `onUserCreated` | After a new user registers | `{ user, method }` |
-| `onUserDeleted` | After a user is deleted | `{ userId, email }` |
+| `onUserDeleted` | After a user is deleted | `{ user }` |
 | `onAuthSuccess` | After successful login | `{ user, method, ip }` |
-| `onAuthFailure` | After failed login attempt | `{ email, method, reason, ip }` |
+| `onAuthFailure` | After failed login attempt | `{ email, reason, ip }` |
 
 ### Billing Hooks
 
 | Hook | When it fires | Args |
 |------|--------------|------|
-| `onPaymentSucceeded` | After Stripe payment succeeds | `{ userId, amount, currency, invoiceId }` |
-| `onPaymentFailed` | After Stripe payment fails | `{ userId, amount, currency, error }` |
-| `onSubscriptionChanged` | After plan change/cancel | `{ userId, previousPlan, newPlan, action }` |
+| `onPaymentSucceeded` | After Stripe payment succeeds | `{ userId, amount, plan, invoiceUrl }` |
+| `onPaymentFailed` | After Stripe payment fails | `{ userId, amount, error }` |
+| `onSubscriptionChanged` | After plan change/cancel | `{ userId, oldPlan, newPlan, subscription }` |
 
 ### Modifier Hooks
 

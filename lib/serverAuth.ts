@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { validateSession } from '@unblocks/core/auth'
 import { SESSION_COOKIE_NAME } from '@unblocks/core/security/cookies'
+import { AuthError } from '@unblocks/core/errors/types'
 import type { User } from '@unblocks/core/auth/types'
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -16,7 +17,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function requireAuth(): Promise<User> {
   const user = await getCurrentUser()
   if (!user) {
-    throw new Error('Authentication required')
+    throw new AuthError('Authentication required')
   }
   return user
 }

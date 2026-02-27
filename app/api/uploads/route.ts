@@ -16,14 +16,15 @@ export const POST = withErrorHandler(async (request: Request) => {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
-  const teamId = formData.get('teamId') as string | null
+  const rawTeamId = formData.get('teamId')
+  const teamId = typeof rawTeamId === 'string' ? rawTeamId : undefined
 
   const result = await uploadFile(
     user.id,
     buffer,
     file.name,
     file.type,
-    teamId ?? undefined
+    teamId
   )
 
   return successResponse(result, undefined, 201)
