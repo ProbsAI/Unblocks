@@ -1,7 +1,6 @@
 import { getDb } from '../db/client'
 import { notifications, notificationPreferences } from '../db/schema/notifications'
 import { runHook } from '../runtime/hookRunner'
-import { loadConfig } from '../runtime/configLoader'
 import { eq, and } from 'drizzle-orm'
 import type {
   Notification,
@@ -16,9 +15,6 @@ import type {
 export async function createNotification(
   input: CreateNotificationInput
 ): Promise<Notification | null> {
-  const config = loadConfig('notifications')
-  if (!config.enabled) return null
-
   const db = getDb()
 
   // Check user preferences

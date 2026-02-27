@@ -11,10 +11,9 @@ export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, magicLinkSchema)
   const token = await createMagicLink(email)
 
-  // In production, send email with magic link
-  // For now, return the token (will be wired to email system in Phase 5)
-  const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
-  const _magicLinkUrl = `${appUrl}/api/auth/magic-link/verify?token=${token}`
+  // TODO: Wire to email system — send magic link to user
+  // const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
+  // const magicLinkUrl = `${appUrl}/api/auth/magic-link/verify?token=${token}`
 
   // Always return success to prevent email enumeration
   return successResponse({

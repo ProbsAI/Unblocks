@@ -11,7 +11,7 @@ const inviteSchema = z.object({
 })
 
 export const GET = withErrorHandler(
-  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
     await requireAuth()
     const { id } = await params
 

@@ -26,7 +26,7 @@ export const PATCH = withErrorHandler(
 
 export const DELETE = withErrorHandler(
   async (
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string; userId: string }> }
   ) => {
     const user = await requireAuth()

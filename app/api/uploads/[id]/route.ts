@@ -4,7 +4,7 @@ import { successResponse } from '@unblocks/core/api'
 import { getFile, deleteFile } from '@unblocks/core/uploads'
 
 export const GET = withErrorHandler(
-  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
     const user = await requireAuth()
     const { id } = await params
 
@@ -15,7 +15,7 @@ export const GET = withErrorHandler(
 )
 
 export const DELETE = withErrorHandler(
-  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
     const user = await requireAuth()
     const { id } = await params
 
