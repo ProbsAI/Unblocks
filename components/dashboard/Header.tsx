@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { NotificationBell } from './NotificationBell'
 import type { User } from '@unblocks/core/auth/types'
 
 interface HeaderProps {
@@ -22,6 +23,7 @@ export function Header({ user }: HeaderProps) {
         Welcome back{user.name ? `, ${user.name}` : ''}
       </h2>
       <div className="flex items-center gap-4">
+        <NotificationBell />
         <span className="text-sm text-muted-foreground">{user.email}</span>
         <button
           onClick={handleLogout}

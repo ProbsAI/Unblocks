@@ -1,7 +1,7 @@
 {
   "name": "unblocks",
-  "version": "0.1.0-alpha",
-  "phase": "V1A",
+  "version": "0.2.0-alpha",
+  "phase": "V1C",
   "description": "The AI-native open-source foundation for building web applications",
   "repository": "https://github.com/ProbsAI/Unblocks",
   "license": "MIT",
@@ -13,12 +13,19 @@
     "email": true,
     "database": true,
     "config": true,
-    "hooks": true
+    "hooks": true,
+    "jobs": true,
+    "uploads": true,
+    "teams": true,
+    "notifications": true,
+    "admin": true,
+    "extensions": true,
+    "ui_overrides": true
   },
   "blocks": {
-    "data-platform": false,
-    "ai-wrapper": false,
-    "marketplace": false
+    "ai-wrapper": true,
+    "data-platform": true,
+    "marketplace": true
   },
   "extensions": [],
   "features": {
@@ -34,6 +41,23 @@
     "email.resend": true,
     "email.templates": true,
     "landing_page": true,
-    "dashboard": true
+    "dashboard": true,
+    "jobs.queue": true,
+    "jobs.scheduler": true,
+    "jobs.worker": true,
+    "uploads.local": true,
+    "uploads.s3": true,
+    "teams.create": true,
+    "teams.invite": true,
+    "teams.roles": true,
+    "notifications.in_app": true,
+    "notifications.sse": true,
+    "notifications.preferences": true,
+    "admin.users": true,
+    "admin.subscriptions": true,
+    "admin.metrics": true,
+    "blocks.ai_wrapper": true,
+    "blocks.data_platform": true,
+    "blocks.marketplace": true
   }
 }

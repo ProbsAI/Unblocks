@@ -1,6 +1,10 @@
 import { AuthConfigSchema } from '../auth/types'
 import { BillingConfigSchema } from '../billing/types'
 import { EmailConfigSchema } from '../email/types'
+import { JobsConfigSchema } from '../jobs/types'
+import { UploadsConfigSchema } from '../uploads/types'
+import { TeamsConfigSchema } from '../teams/types'
+import { NotificationsConfigSchema } from '../notifications/types'
 import { AppConfigSchema } from '../types'
 import type { ConfigRegistry, ConfigKey } from './types'
 import type { ZodSchema } from 'zod'
@@ -9,6 +13,10 @@ const schemas: Record<ConfigKey, ZodSchema> = {
   auth: AuthConfigSchema,
   billing: BillingConfigSchema,
   email: EmailConfigSchema,
+  jobs: JobsConfigSchema,
+  uploads: UploadsConfigSchema,
+  teams: TeamsConfigSchema,
+  notifications: NotificationsConfigSchema,
   app: AppConfigSchema,
 }
 
@@ -52,6 +60,10 @@ export function getConfig(): ConfigRegistry {
     auth: loadConfig('auth'),
     billing: loadConfig('billing'),
     email: loadConfig('email'),
+    jobs: loadConfig('jobs'),
+    uploads: loadConfig('uploads'),
+    teams: loadConfig('teams'),
+    notifications: loadConfig('notifications'),
     app: loadConfig('app'),
   }
 }

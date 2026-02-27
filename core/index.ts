@@ -48,6 +48,27 @@ export {
 } from './errors/types'
 export { toErrorResponse } from './errors/handler'
 
+// Jobs
+export * as jobs from './jobs/index'
+
+// Uploads
+export * as uploads from './uploads/index'
+
+// Teams
+export * as teams from './teams/index'
+
+// Notifications
+export * as notifications from './notifications/index'
+
+// Admin
+export * as admin from './admin/index'
+
+// Extensions
+export * as extensions from './extensions/index'
+
+// UI Resolution
+export { resolveUIPath, hasUIOverride } from './runtime/uiResolver'
+
 // Types
 export type { ConfigRegistry, ConfigKey, HookName } from './runtime/types'
 export type { AppConfig } from './types'
