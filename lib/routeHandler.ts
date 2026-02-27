@@ -1,5 +1,6 @@
+import { isRedirectError } from 'next/dist/client/components/redirect'
+import { isNotFoundError } from 'next/dist/client/components/not-found'
 import { toErrorResponse } from '@unblocks/core/errors/handler'
-import { AppError } from '@unblocks/core/errors/types'
 
 type RouteHandler = (
   request: Request,
@@ -11,6 +12,10 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
     try {
       return await handler(request, context)
     } catch (error) {
+      // Re-throw Next.js control-flow exceptions (redirect, notFound)
+      if (isRedirectError(error) || isNotFoundError(error)) {
+        throw error
+      }
       const { body, status } = toErrorResponse(error)
       return Response.json(body, { status })
     }

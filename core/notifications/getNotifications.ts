@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm'
+import { eq, and, desc, count } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { notifications } from '../db/schema/notifications'
 import type { Notification } from './types'
@@ -18,31 +18,27 @@ export async function getNotifications(
   const limit = options?.limit ?? 50
   const offset = options?.offset ?? 0
 
-  let query = db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.userId, userId))
+  const whereClause = options?.unreadOnly
+    ? and(eq(notifications.userId, userId), eq(notifications.read, false))
+    : eq(notifications.userId, userId)
 
-  if (options?.unreadOnly) {
-    query = db
+  const [rows, totalResult] = await Promise.all([
+    db
       .select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
-      // Filter to unread only handled at application level below
-  }
-
-  const rows = await query
-    .orderBy(desc(notifications.createdAt))
-    .limit(limit)
-    .offset(offset)
-
-  const filtered = options?.unreadOnly
-    ? rows.filter((r) => !r.read)
-    : rows
+      .where(whereClause)
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(notifications)
+      .where(whereClause),
+  ])
 
   return {
-    notifications: filtered.map(toNotification),
-    total: filtered.length,
+    notifications: rows.map(toNotification),
+    total: totalResult[0]?.count ?? 0,
   }
 }
 
@@ -57,7 +53,12 @@ export async function deleteNotification(
 
   const result = await db
     .delete(notifications)
-    .where(eq(notifications.id, notificationId))
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId)
+      )
+    )
     .returning({ id: notifications.id })
 
   return result.length > 0
