@@ -1,0 +1,63 @@
+=== AI PR Comments for PR #4 ===
+Synced: 2026-02-27T12:36:05Z
+
+## Reviews
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-02-27T12:35:52Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `ddd5f753c2`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on lib/routeHandler.ts:15 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Re-throw Next.js redirect exceptions**
+
+`withErrorHandler` currently converts every thrown value into a JSON error response, but `redirect()` in Next.js works by throwing a control-flow exception. Because this catch block swallows those exceptions, the OAuth callback path in `app/api/auth/google/callback/route.ts` (when `code` is missing or Google returns an error) returns a 500 JSON payload instead of the intended 302 redirect to `/login`.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/auth/google/callback/route.ts:18 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Validate OAuth state in Google callback**
+
+The Google OAuth flow generates a `state` value on the start endpoint, but the callback handler never reads or verifies `state` before exchanging the authorization code. Without state validation bound to the user session/cookie, a login CSRF/account-confusion flow is possible where a victim browser can be forced to complete an attacker-initiated OAuth response.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on core/jobs/queue.ts:87 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Atomically claim pending jobs before processing**
+
+`fetchNextJobs` reads pending jobs and only then performs a separate update, so concurrent workers can select the same rows and execute duplicate work before either update completes. The current code also updates by id list without re-checking `status='pending'`, so there is no atomic claim step despite the comment about `FOR UPDATE SKIP LOCKED`.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on app/api/notifications/stream/route.ts:44 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Remove self-cancellation from notification SSE start**
+
+Inside `ReadableStream` startup, this line calls `stream.cancel()` from within the initializer, which references `stream` before it is initialized (TDZ) and can throw immediately; even if it did not throw, it would cancel the stream right after opening. That makes the SSE endpoint unstable/non-functional instead of maintaining a live subscription.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-02-27T12:35:53Z on middleware.ts:51 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Exempt unauth session probe from middleware redirect**
+
+The middleware redirects all non-public paths without a session cookie, but `/api/auth/session` is not in `PUBLIC_PATHS`. That prevents `app/api/auth/session/route.ts` from returning its intended `401` JSON for logged-out clients and instead sends a login redirect response, which breaks callers expecting an auth-state JSON payload.
+
+Useful? React with 👍 / 👎.
