@@ -1,0 +1,17 @@
+=== AI PR Comments for PR #2 ===
+Synced: 2026-02-27T03:22:37Z
+
+## Reviews
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-02-27T03:21:50Z ---
+## Pull request overview
+
+This PR adds explicit AI bot usernames to a GitHub Actions workflow that syncs AI-generated PR comments to Git notes. While both bots (`claude[bot]` and `chatgpt-codex-connector[bot]`) are already detected by the user-type check, listing them explicitly improves the workflow's self-documentation.
+
+**Changes:**
+- Populated `AI_BOT_USERNAMES` environment variable with `claude[bot]` and `chatgpt-codex-connector[bot]`
+- Updated the accompanying comment to clarify that these bots are redundantly listed for documentation purposes
+
+---
+
+💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/instructions/*.instructions.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn how to get started</a>.
