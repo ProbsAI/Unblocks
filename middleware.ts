@@ -47,6 +47,14 @@ export function middleware(request: NextRequest): NextResponse {
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
 
   if (!sessionToken) {
+    // Return 401 JSON for API routes instead of redirecting
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: { code: 'AUTH_ERROR', message: 'Authentication required' } },
+        { status: 401 }
+      )
+    }
+
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)

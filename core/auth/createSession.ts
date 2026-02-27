@@ -1,7 +1,6 @@
 import { getDb } from '../db/client'
 import { sessions } from '../db/schema/sessions'
-import { createToken } from './token'
-import { generateRandomToken } from './token'
+import { createToken, generateRandomToken } from './token'
 import type { Session } from './types'
 
 export async function createSession(

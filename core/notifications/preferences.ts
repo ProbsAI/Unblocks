@@ -67,13 +67,18 @@ export async function updatePreference(
     return toPref(updated)
   }
 
+  const config = loadConfig('notifications')
+  const cat = config.categories.find((c) => c.id === category)
+  const defaultInApp = cat?.defaultEnabled ?? true
+  const defaultEmail = config.channels.email && (cat?.defaultEnabled ?? false)
+
   const [created] = await db
     .insert(notificationPreferences)
     .values({
       userId,
       category,
-      inApp: updates.inApp ?? true,
-      email: updates.email ?? false,
+      inApp: updates.inApp ?? defaultInApp,
+      email: updates.email ?? defaultEmail,
     })
     .returning()
 
