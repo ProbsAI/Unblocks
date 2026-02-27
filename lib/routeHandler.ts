@@ -4,11 +4,11 @@ import { toErrorResponse } from '@unblocks/core/errors/handler'
 
 type RouteHandler = (
   request: Request,
-  context?: { params: Promise<Record<string, string>> }
+  context: { params: Promise<Record<string, string>> }
 ) => Promise<Response>
 
 export function withErrorHandler(handler: RouteHandler): RouteHandler {
-  return async (request, context) => {
+  return async (request: Request, context: { params: Promise<Record<string, string>> }) => {
     try {
       return await handler(request, context)
     } catch (error) {
@@ -22,14 +22,14 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
   }
 }
 
-export function getClientIp(request: Request): string | null {
+export function getClientIp(request: Request): string | undefined {
   return (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     request.headers.get('x-real-ip') ??
-    null
+    undefined
   )
 }
 
-export function getUserAgent(request: Request): string | null {
-  return request.headers.get('user-agent')
+export function getUserAgent(request: Request): string | undefined {
+  return request.headers.get('user-agent') ?? undefined
 }

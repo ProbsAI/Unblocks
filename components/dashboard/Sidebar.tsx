@@ -8,6 +8,9 @@ const navItems = [
   { href: '/teams', label: 'Teams', icon: '\u{1F465}' },
   { href: '/dashboard/billing', label: 'Billing', icon: '\u{1F4B3}' },
   { href: '/notifications', label: 'Notifications', icon: '\u{1F514}' },
+  { href: '/ai', label: 'AI', icon: '\u{2728}' },
+  { href: '/data', label: 'Data', icon: '\u{1F5C4}\u{FE0F}' },
+  { href: '/marketplace', label: 'Marketplace', icon: '\u{1F3EA}' },
 ]
 
 export function Sidebar() {

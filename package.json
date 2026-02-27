@@ -1,6 +1,6 @@
 {
   "name": "unblocks",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0-alpha",
   "private": true,
   "description": "The AI-native open-source foundation for building web applications",
   "scripts": {

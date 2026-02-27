@@ -11,7 +11,7 @@ export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, resetRequestSchema)
 
   // Returns null if user doesn't exist — we don't reveal this
-  const _result = await requestPasswordReset(email)
+  await requestPasswordReset(email)
 
   // TODO: Wire to email system in Phase 5
   // If result is non-null, send reset email with result.token

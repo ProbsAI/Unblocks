@@ -25,7 +25,9 @@
   "blocks": {
     "ai-wrapper": true,
     "data-platform": true,
-    "marketplace": true
+    "marketplace": true,
+    "testing": true,
+    "seed": true
   },
   "extensions": [],
   "features": {
@@ -58,6 +60,8 @@
     "admin.metrics": true,
     "blocks.ai_wrapper": true,
     "blocks.data_platform": true,
-    "blocks.marketplace": true
+    "blocks.marketplace": true,
+    "blocks.testing": true,
+    "blocks.seed": true
   }
 }

@@ -82,7 +82,7 @@ async function initializeExtension(ext: LoadedExtension): Promise<void> {
       console.log(`[ext:${ext.manifest.id}] ${message}`, ...args)
     },
     registerHook: (name: string, handler: (...args: unknown[]) => Promise<void>) => {
-      registerHook(name, handler as (args: unknown) => Promise<unknown>)
+      registerHook(name as Parameters<typeof registerHook>[0], handler as (args: unknown) => Promise<unknown>)
     },
     enqueueJob: async (type: string, payload: unknown) => {
       return enqueueJob({

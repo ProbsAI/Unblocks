@@ -1,6 +1,5 @@
 import { enqueueJob } from './queue'
 import { loadConfig } from '../runtime/configLoader'
-import type { ScheduledJobDefinition } from './types'
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null
 let running = false

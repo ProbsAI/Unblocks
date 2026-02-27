@@ -1,4 +1,4 @@
-import { eq, and, lte, asc, sql } from 'drizzle-orm'
+import { eq, and, lte, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { jobs } from '../db/schema/jobs'
 import type { JobDefinition, JobRecord, JobPriority } from './types'
@@ -16,13 +16,6 @@ export async function enqueueJob<T = unknown>(
   const scheduledAt = definition.delay
     ? new Date(Date.now() + definition.delay)
     : new Date()
-
-  const priorityOrder: Record<JobPriority, number> = {
-    critical: 0,
-    high: 1,
-    normal: 2,
-    low: 3,
-  }
 
   // Deduplication check
   if (definition.dedupeKey) {

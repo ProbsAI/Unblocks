@@ -58,7 +58,7 @@ export function validateFile(file: FileValidation): void {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError('File validation failed', errors)
+    throw new ValidationError('File validation failed', { errors })
   }
 }
 
