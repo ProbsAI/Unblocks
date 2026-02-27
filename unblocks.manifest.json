@@ -1,0 +1,39 @@
+{
+  "name": "unblocks",
+  "version": "0.1.0-alpha",
+  "phase": "V1A",
+  "description": "The AI-native open-source foundation for building web applications",
+  "repository": "https://github.com/ProbsAI/Unblocks",
+  "license": "MIT",
+  "framework": "next@15",
+  "runtime": "node@20",
+  "core": {
+    "auth": true,
+    "billing": true,
+    "email": true,
+    "database": true,
+    "config": true,
+    "hooks": true
+  },
+  "blocks": {
+    "data-platform": false,
+    "ai-wrapper": false,
+    "marketplace": false
+  },
+  "extensions": [],
+  "features": {
+    "auth.email_password": true,
+    "auth.google_oauth": true,
+    "auth.magic_link": true,
+    "auth.email_verification": true,
+    "auth.password_reset": true,
+    "billing.stripe_checkout": true,
+    "billing.customer_portal": true,
+    "billing.webhooks": true,
+    "billing.plan_limits": true,
+    "email.resend": true,
+    "email.templates": true,
+    "landing_page": true,
+    "dashboard": true
+  }
+}
