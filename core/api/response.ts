@@ -18,12 +18,13 @@ export interface ErrorResponseBody {
 
 export function successResponse<T>(
   data: T,
-  meta?: SuccessResponse['meta']
+  meta?: SuccessResponse['meta'],
+  status: number = 200
 ): Response {
   const body: SuccessResponse<T> = { data }
   if (meta) body.meta = meta
 
-  return Response.json(body, { status: 200 })
+  return Response.json(body, { status })
 }
 
 export function errorResponse(

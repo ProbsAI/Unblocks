@@ -1,6 +1,9 @@
 import { getGoogleAuthUrl } from '@unblocks/core/auth'
 import { generateCsrfToken } from '@unblocks/core/security/csrf'
+import { serializeCookie } from '@unblocks/core/security/cookies'
 import { withErrorHandler } from '@/lib/routeHandler'
+
+const OAUTH_STATE_COOKIE = '__unblocks_oauth_state'
 
 export const GET = withErrorHandler(async () => {
   const clientId = process.env.GOOGLE_CLIENT_ID
@@ -17,5 +20,21 @@ export const GET = withErrorHandler(async () => {
 
   const url = getGoogleAuthUrl(clientId, redirectUri, state)
 
-  return Response.redirect(url)
+  // Store state in a short-lived cookie for validation in the callback
+  const isProduction = process.env.NODE_ENV === 'production'
+  const stateCookie = serializeCookie(OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600, // 10 minutes
+  })
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url,
+      'Set-Cookie': stateCookie,
+    },
+  })
 })

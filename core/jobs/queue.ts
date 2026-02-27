@@ -59,34 +59,45 @@ export async function enqueueJob<T = unknown>(
 
 /**
  * Fetch the next batch of jobs ready for processing.
- * Uses SELECT ... FOR UPDATE SKIP LOCKED for safe concurrency.
+ * Uses an atomic UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED)
+ * to prevent concurrent workers from claiming the same jobs.
  */
 export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
   const db = getDb()
-  const now = new Date()
 
-  const rows = await db
-    .select()
-    .from(jobs)
-    .where(
-      and(
-        eq(jobs.status, 'pending'),
-        lte(jobs.scheduledAt, now)
-      )
+  // Atomic claim: SELECT + UPDATE in one query via CTE.
+  // FOR UPDATE SKIP LOCKED ensures each row is claimed by exactly one worker.
+  const rows = await db.execute(sql`
+    UPDATE ${jobs}
+    SET status = 'processing',
+        started_at = NOW(),
+        updated_at = NOW()
+    WHERE id IN (
+      SELECT id FROM ${jobs}
+      WHERE status = 'pending'
+        AND scheduled_at <= NOW()
+      ORDER BY priority ASC, scheduled_at ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
     )
-    .orderBy(asc(jobs.priority), asc(jobs.scheduledAt))
-    .limit(limit)
+    RETURNING *
+  `)
 
-  if (rows.length === 0) return []
-
-  // Mark as processing
-  const jobIds = rows.map((r) => r.id)
-  await db
-    .update(jobs)
-    .set({ status: 'processing', startedAt: now, updatedAt: now })
-    .where(sql`${jobs.id} = ANY(${jobIds})`)
-
-  return rows.map(toJobRecord)
+  return (rows.rows as Array<Record<string, unknown>>).map((row) => ({
+    id: row.id as string,
+    type: row.type as string,
+    payload: row.payload,
+    status: row.status as JobRecord['status'],
+    priority: row.priority as JobRecord['priority'],
+    attempts: row.attempts as number,
+    maxRetries: row.max_retries as number,
+    lastError: row.last_error as string | null,
+    scheduledAt: new Date(row.scheduled_at as string),
+    startedAt: row.started_at ? new Date(row.started_at as string) : null,
+    completedAt: row.completed_at ? new Date(row.completed_at as string) : null,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  }))
 }
 
 /**

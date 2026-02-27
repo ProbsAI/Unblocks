@@ -24,7 +24,7 @@ export default async function PricingPage() {
       </div>
       <Footer
         appName={appConfig.name}
-        attribution={appConfig.footer.attribution}
+        showAttribution={appConfig.footer.showUnblocksAttribution}
       />
     </div>
   )

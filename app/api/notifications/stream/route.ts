@@ -10,13 +10,17 @@ export async function GET(): Promise<Response> {
 
   const encoder = new TextEncoder()
 
+  // Closure-scoped cleanup handles shared by start() and cancel()
+  let unsubscribe: (() => void) | null = null
+  let pingInterval: ReturnType<typeof setInterval> | null = null
+
   const stream = new ReadableStream({
     start(controller) {
       // Send initial ping
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected' })}\n\n`))
 
       // Subscribe to notification stream
-      const unsubscribe = subscribeToStream(user.id, (notification) => {
+      unsubscribe = subscribeToStream(user.id, (notification) => {
         try {
           const data = JSON.stringify({ type: 'notification', notification })
           controller.enqueue(encoder.encode(`data: ${data}\n\n`))
@@ -26,22 +30,19 @@ export async function GET(): Promise<Response> {
       })
 
       // Keep-alive ping every 30 seconds
-      const pingInterval = setInterval(() => {
+      pingInterval = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'ping' })}\n\n`))
         } catch {
-          clearInterval(pingInterval)
+          if (pingInterval) clearInterval(pingInterval)
         }
       }, 30_000)
+    },
 
-      // Cleanup on close
-      const cleanup = () => {
-        unsubscribe()
-        clearInterval(pingInterval)
-      }
-
-      // Set cleanup for when the stream is cancelled
-      void stream.cancel?.().then(cleanup).catch(cleanup)
+    cancel() {
+      // Called when the client disconnects
+      if (unsubscribe) unsubscribe()
+      if (pingInterval) clearInterval(pingInterval)
     },
   })
 
