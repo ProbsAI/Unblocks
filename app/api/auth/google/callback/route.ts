@@ -11,7 +11,6 @@ import {
   clearCookie,
 } from '@unblocks/core/security/cookies'
 import { withErrorHandler, getClientIp, getUserAgent } from '@/lib/routeHandler'
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 
 const OAUTH_STATE_COOKIE = '__unblocks_oauth_state'
@@ -22,7 +21,7 @@ export const GET = withErrorHandler(async (request) => {
   const error = url.searchParams.get('error')
 
   if (error || !code) {
-    return redirect('/login?error=oauth_failed')
+    return new Response(null, { status: 302, headers: { Location: '/login?error=oauth_failed' } })
   }
 
   // Validate OAuth state to prevent CSRF
@@ -31,7 +30,7 @@ export const GET = withErrorHandler(async (request) => {
   const storedState = cookieStore.get(OAUTH_STATE_COOKIE)?.value
 
   if (!stateParam || !storedState || stateParam !== storedState) {
-    return redirect('/login?error=oauth_state_mismatch')
+    return new Response(null, { status: 302, headers: { Location: '/login?error=oauth_state_mismatch' } })
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID ?? ''
