@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '\u{1F3E0}' },
+  { href: '/teams', label: 'Teams', icon: '\u{1F465}' },
   { href: '/dashboard/billing', label: 'Billing', icon: '\u{1F4B3}' },
+  { href: '/notifications', label: 'Notifications', icon: '\u{1F514}' },
 ]
 
 export function Sidebar() {
