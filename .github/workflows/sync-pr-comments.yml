@@ -1,0 +1,236 @@
+name: Sync AI PR Comments to Git Notes
+
+on:
+  issue_comment:
+    types: [created, edited, deleted]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: read
+
+env:
+  # Comma-separated list of usernames to treat as AI bots (for tools using regular User accounts)
+  AI_BOT_USERNAMES: ""
+  # HTML comment marker that AI tools can embed in their comments
+  AI_MARKER: "<!-- ai-generated -->"
+  # Notes ref suffix - override via secret for obscurity (default: ai-pr-comments)
+  NOTES_REF_SUFFIX: ${{ secrets.NOTES_REF_SUFFIX || 'ai-pr-comments' }}
+
+jobs:
+  sync-ai-comments:
+    # Only run for pull request events (issue_comment fires for both issues and PRs)
+    if: >
+      github.event_name != 'issue_comment' ||
+      github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ai-notes-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      # ── Step 1: Check if the triggering comment is from an AI ──
+      # Uses three detection layers (OR logic):
+      #   1. GitHub user type == "Bot" (catches all GitHub App bot accounts)
+      #   2. Username in AI_BOT_USERNAMES allowlist (for regular-user AI tools)
+      #   3. <!-- ai-generated --> marker in comment body (opt-in escape hatch)
+      # Reads from $GITHUB_EVENT_PATH via jq to avoid shell injection.
+      - name: Check if triggering comment is from AI
+        id: check-ai
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+
+          if [ "$EVENT_NAME" = "issue_comment" ] || [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
+            USER_TYPE=$(jq -r '.comment.user.type' "$GITHUB_EVENT_PATH")
+            USER_LOGIN=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
+            BODY=$(jq -r '.comment.body // ""' "$GITHUB_EVENT_PATH")
+          elif [ "$EVENT_NAME" = "pull_request_review" ]; then
+            USER_TYPE=$(jq -r '.review.user.type' "$GITHUB_EVENT_PATH")
+            USER_LOGIN=$(jq -r '.review.user.login' "$GITHUB_EVENT_PATH")
+            BODY=$(jq -r '.review.body // ""' "$GITHUB_EVENT_PATH")
+          else
+            echo "Unhandled event: $EVENT_NAME"
+            echo "is_ai=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          IS_AI="false"
+
+          # Layer 1: GitHub user type
+          if [ "$USER_TYPE" = "Bot" ]; then
+            IS_AI="true"
+            echo "Detected AI via user type: Bot"
+          fi
+
+          # Layer 2: Username allowlist
+          if [ -n "$AI_BOT_USERNAMES" ]; then
+            IFS=',' read -ra ALLOWED <<< "$AI_BOT_USERNAMES"
+            for name in "${ALLOWED[@]}"; do
+              name=$(echo "$name" | xargs)
+              if [ -n "$name" ] && [ "$name" = "$USER_LOGIN" ]; then
+                IS_AI="true"
+                echo "Detected AI via username allowlist: $USER_LOGIN"
+              fi
+            done
+          fi
+
+          # Layer 3: Marker in comment body
+          if echo "$BODY" | grep -qF "$AI_MARKER"; then
+            IS_AI="true"
+            echo "Detected AI via marker in comment body"
+          fi
+
+          echo "is_ai=$IS_AI" >> "$GITHUB_OUTPUT"
+          echo "User: $USER_LOGIN (type: $USER_TYPE), is_ai: $IS_AI"
+
+      # ── Step 2: Checkout (only if AI comment) ──
+      - uses: actions/checkout@v4
+        if: steps.check-ai.outputs.is_ai == 'true'
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Step 3: Resolve PR number and head SHA ──
+      - name: Get PR details
+        if: steps.check-ai.outputs.is_ai == 'true'
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            PR_NUMBER=$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")
+          else
+            PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+          fi
+
+          HEAD_SHA=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}" --jq '.head.sha')
+
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR_NUMBER, head SHA: $HEAD_SHA"
+
+      # ── Step 4: Collect all AI comments from the PR ──
+      # Rebuilds the full set each time (idempotent). Filters each API
+      # response through the same three-layer AI detection jq filter.
+      - name: Collect AI comments
+        if: steps.check-ai.outputs.is_ai == 'true'
+        id: collect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr-info.outputs.pr_number }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          # jq filter: keep only comments from AI sources
+          AI_FILTER='[.[] | select(
+            .user.type == "Bot"
+            or (.user.login as $l | env.AI_BOT_USERNAMES | split(",") | map(select(. != "")) | any(. == $l))
+            or (.body // "" | test("<!-- ai-generated -->"))
+          )]'
+
+          # Conversation comments (issue_comment API)
+          CONVERSATION=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --paginate | jq -s 'add // []' | jq "$AI_FILTER")
+
+          # Review verdicts (approve / request_changes / comment)
+          REVIEWS=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+            --paginate | jq -s 'add // []' | jq "$AI_FILTER")
+
+          # Inline review comments (file-level)
+          INLINE=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/comments" \
+            --paginate | jq -s 'add // []' | jq "$AI_FILTER")
+
+          NOTES_FILE=$(mktemp)
+          {
+            echo "=== AI PR Comments for PR #${PR_NUMBER} ==="
+            echo "Synced: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+
+            CONV_COUNT=$(echo "$CONVERSATION" | jq 'length')
+            if [ "$CONV_COUNT" -gt 0 ]; then
+              echo "## Conversation"
+              echo ""
+              echo "$CONVERSATION" | jq -r '.[] | "--- comment by @\(.user.login) at \(.updated_at) ---\n\(.body)\n"'
+              echo ""
+            fi
+
+            REV_COUNT=$(echo "$REVIEWS" | jq 'length')
+            if [ "$REV_COUNT" -gt 0 ]; then
+              echo "## Reviews"
+              echo ""
+              echo "$REVIEWS" | jq -r '.[] | "--- review by @\(.user.login) [\(.state)] at \(.submitted_at) ---\n\(.body // "(no body)")\n"'
+              echo ""
+            fi
+
+            INL_COUNT=$(echo "$INLINE" | jq 'length')
+            if [ "$INL_COUNT" -gt 0 ]; then
+              echo "## Inline Comments"
+              echo ""
+              echo "$INLINE" | jq -r '.[] | "--- inline by @\(.user.login) at \(.updated_at) on \(.path):\(.line // .original_line // "?") ---\n\(.body)\n"'
+              echo ""
+            fi
+          } > "$NOTES_FILE"
+
+          TOTAL=$(( CONV_COUNT + REV_COUNT + INL_COUNT ))
+          echo "total_comments=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+          echo "Found $TOTAL AI comments across conversation/reviews/inline"
+
+      # ── Step 5: Optionally encrypt the notes ──
+      # If NOTES_ENCRYPTION_KEY secret is set, encrypts with AES256 + base64.
+      # Consuming bots decrypt with: base64 -d | gpg --batch --passphrase <key> --decrypt
+      - name: Encrypt notes (if key provided)
+        if: steps.check-ai.outputs.is_ai == 'true' && steps.collect.outputs.total_comments != '0'
+        env:
+          NOTES_FILE: ${{ steps.collect.outputs.notes_file }}
+          ENCRYPTION_KEY: ${{ secrets.NOTES_ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "No encryption key provided, storing notes in plaintext"
+            exit 0
+          fi
+
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase "$ENCRYPTION_KEY" \
+            --output "${NOTES_FILE}.gpg" "$NOTES_FILE"
+
+          # Base64 encode for safe storage in git notes (avoids binary issues)
+          base64 "${NOTES_FILE}.gpg" > "${NOTES_FILE}.enc"
+          echo "ENCRYPTED_NOTES_FILE=${NOTES_FILE}.enc" >> "$GITHUB_ENV"
+          echo "Notes encrypted with AES256"
+
+      # ── Step 6: Push git notes ──
+      # Attaches the note to the PR's head commit under a configurable ref.
+      # Retries on push conflicts (concurrent workflow runs on same PR).
+      - name: Push git notes
+        if: steps.check-ai.outputs.is_ai == 'true' && steps.collect.outputs.total_comments != '0'
+        env:
+          HEAD_SHA: ${{ steps.pr-info.outputs.head_sha }}
+          NOTES_FILE: ${{ steps.collect.outputs.notes_file }}
+          NOTES_REF: refs/notes/${{ env.NOTES_REF_SUFFIX }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Fetch existing notes ref (may not exist yet)
+          git fetch origin "${NOTES_REF}:${NOTES_REF}" 2>/dev/null || true
+
+          # Use encrypted file if available, otherwise plaintext
+          FILE_TO_USE="${ENCRYPTED_NOTES_FILE:-$NOTES_FILE}"
+
+          git notes --ref="${NOTES_REF#refs/notes/}" add -f -F "$FILE_TO_USE" "$HEAD_SHA"
+
+          # Push with retry for concurrent conflicts
+          for i in 1 2 3; do
+            if git push origin "${NOTES_REF}"; then
+              echo "Notes pushed successfully"
+              break
+            fi
+            echo "Push attempt $i failed, re-fetching and retrying..."
+            git fetch origin "${NOTES_REF}:${NOTES_REF}" 2>/dev/null || true
+            git notes --ref="${NOTES_REF#refs/notes/}" add -f -F "$FILE_TO_USE" "$HEAD_SHA"
+            sleep 2
+          done
