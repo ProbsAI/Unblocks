@@ -56,7 +56,7 @@ export function Pricing({ plans }: PricingProps) {
                 </ul>
                 <div className="mt-8">
                   <Link
-                    href={plan.price.monthly === 0 ? '/signup' : '/signup'}
+                    href="/signup"
                     className={`block w-full rounded-md py-2.5 text-center text-sm font-medium ${
                       isPopular
                         ? 'bg-primary text-white hover:bg-primary-hover'
