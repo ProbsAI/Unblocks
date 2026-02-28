@@ -36,11 +36,14 @@ export async function createTeam(
     }
   }
 
+  // Normalize slug once for both uniqueness check and insert
+  const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+
   // Check slug uniqueness
   const existing = await db
     .select({ id: teams.id })
     .from(teams)
-    .where(eq(teams.slug, slug))
+    .where(eq(teams.slug, normalizedSlug))
     .limit(1)
 
   if (existing.length > 0) {
@@ -52,7 +55,7 @@ export async function createTeam(
     .insert(teams)
     .values({
       name,
-      slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+      slug: normalizedSlug,
       ownerId,
     })
     .returning()

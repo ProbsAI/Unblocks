@@ -51,6 +51,6 @@ export default async function onUserCreated(args: OnUserCreatedArgs) {
 ## Rules
 
 - Hook errors are caught and logged — they never crash the app
-- Hooks run async and do not block the request
+- Hooks are awaited — they run before the response is sent
 - `beforeEmailSend` can modify the email args by returning a new object
 - Multiple hooks for the same event are supported (they run in sequence)

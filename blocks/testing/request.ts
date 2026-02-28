@@ -1,3 +1,5 @@
+import { SESSION_COOKIE_NAME } from '@unblocks/core/security/cookies'
+
 /**
  * Testing Block — HTTP Request Helpers
  *
@@ -78,7 +80,7 @@ export function buildAuthenticatedRequest(
   return buildRequest(path, {
     ...options,
     cookies: {
-      __unblocks_session: sessionToken,
+      [SESSION_COOKIE_NAME]: sessionToken,
       ...options.cookies,
     },
   })

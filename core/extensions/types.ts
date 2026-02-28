@@ -11,7 +11,7 @@ export const ExtensionManifestSchema = z.object({
   name: z.string().min(1),
 
   /** Semantic version */
-  version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must be semver format'),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/, 'Must be semver format'),
 
   /** Description */
   description: z.string().default(''),
