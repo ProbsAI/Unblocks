@@ -5,8 +5,11 @@ on:
     types: [created, edited, deleted]
   pull_request_review:
     types: [submitted, edited, dismissed]
-  pull_request_review_comment:
-    types: [created, edited, deleted]
+  # NOTE: pull_request_review_comment is intentionally excluded.
+  # It fires per inline comment, causing cascading cancellations via
+  # cancel-in-progress. The pull_request_review event fires once per
+  # review submission, and Step 4 collects all inline comments via
+  # the API anyway (idempotent rebuild).
 
 permissions:
   contents: write
@@ -44,7 +47,7 @@ jobs:
         run: |
           EVENT_NAME="${{ github.event_name }}"
 
-          if [ "$EVENT_NAME" = "issue_comment" ] || [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
             USER_TYPE=$(jq -r '.comment.user.type' "$GITHUB_EVENT_PATH")
             USER_LOGIN=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
             BODY=$(jq -r '.comment.body // ""' "$GITHUB_EVENT_PATH")
