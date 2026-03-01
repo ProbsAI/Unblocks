@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE_NAME } from '@unblocks/core/security/cookies'
+import { jwtVerify } from 'jose'
+
+function getSecret(): Uint8Array {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) return new TextEncoder().encode('')
+  return new TextEncoder().encode(secret)
+}
 
 const PUBLIC_PATHS = [
   '/',
@@ -35,7 +42,7 @@ function isPublicPath(pathname: string): boolean {
   return false
 }
 
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
 
   // Allow public paths
@@ -51,6 +58,22 @@ export function middleware(request: NextRequest): NextResponse {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: { code: 'AUTH_ERROR', message: 'Authentication required' } },
+        { status: 401 }
+      )
+    }
+
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Verify JWT signature/expiry (full session validation happens in requireAuth)
+  try {
+    await jwtVerify(sessionToken, getSecret())
+  } catch {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: { code: 'AUTH_ERROR', message: 'Invalid or expired session' } },
         { status: 401 }
       )
     }

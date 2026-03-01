@@ -51,9 +51,9 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     updatedAt: dbUser.updatedAt,
   }
 
-  // Fire hook asynchronously
+  // Fire hook before returning
   const method = input.password ? 'email' : 'oauth'
-  void runHook('onUserCreated', { user, method })
+  await runHook('onUserCreated', { user, method })
 
   return user
 }

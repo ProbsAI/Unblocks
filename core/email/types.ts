@@ -44,4 +44,5 @@ export interface SendEmailInput {
   subject: string
   html: string
   from?: { name: string; email: string }
+  headers?: Record<string, string>
 }

@@ -18,6 +18,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@unblocks/core': path.resolve(__dirname, './core'),
+      '@unblocks/blocks': path.resolve(__dirname, './blocks'),
       '@': path.resolve(__dirname, '.'),
     },
   },
