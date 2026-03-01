@@ -12,8 +12,10 @@ export const GET = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const url = new URL(request.url)
 
-  const limit = parseInt(url.searchParams.get('limit') ?? '50', 10)
-  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10)
+  const parsedLimit = parseInt(url.searchParams.get('limit') ?? '50', 10)
+  const parsedOffset = parseInt(url.searchParams.get('offset') ?? '0', 10)
+  const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 50
+  const offset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0
   const unreadOnly = url.searchParams.get('unreadOnly') === 'true'
 
   const result = await getNotifications(user.id, { limit, offset, unreadOnly })

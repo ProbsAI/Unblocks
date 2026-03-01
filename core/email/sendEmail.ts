@@ -24,6 +24,7 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
     from: hookArgs.from,
     subject: hookArgs.subject,
     html: hookArgs.html,
+    headers: hookArgs.headers,
   }
 
   switch (config.provider) {

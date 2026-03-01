@@ -24,6 +24,7 @@ export async function sendViaResend(input: SendEmailInput): Promise<void> {
     to: input.to,
     subject: input.subject,
     html: input.html,
+    headers: input.headers,
   })
 
   if (error) {
