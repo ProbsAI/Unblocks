@@ -1,12 +1,16 @@
 import { withErrorHandler } from '@/lib/routeHandler'
-import { successResponse } from '@unblocks/core/api'
-import { getListing } from '@/blocks/marketplace'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 
 export const GET = withErrorHandler(
   async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = await params
+    const mp = tryRequireBlock<{ getListing: Function }>('marketplace')
+    if (!mp) {
+      return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
+    }
 
-    const listing = await getListing(id)
+    const { id } = await params
+    const listing = await mp.getListing(id)
 
     return successResponse(listing)
   }
