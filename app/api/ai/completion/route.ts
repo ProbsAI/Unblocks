@@ -1,8 +1,8 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse } from '@unblocks/core/api'
-import { complete } from '@/blocks/ai-wrapper'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 import { z } from 'zod'
 
 const completionSchema = z.object({
@@ -19,7 +19,12 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, completionSchema)
 
-  const response = await complete({
+  const ai = tryRequireBlock<{ complete: Function }>('ai-wrapper')
+  if (!ai) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'AI wrapper block is not installed', 404)
+  }
+
+  const response = await ai.complete({
     model: body.model ?? 'gpt-4o',
     messages: body.messages,
     temperature: body.temperature,

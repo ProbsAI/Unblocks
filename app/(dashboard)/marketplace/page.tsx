@@ -1,4 +1,6 @@
 import { getCurrentUser } from '@/lib/serverAuth'
+import { redirect } from 'next/navigation'
+import { isBlockAvailable } from '@unblocks/core/runtime/blockRegistry'
 import { Card } from '@/components/ui/Card'
 import { ListingGrid } from '@/components/marketplace/ListingGrid'
 
@@ -15,6 +17,10 @@ const mockListings = [
 
 export default async function MarketplacePage() {
   await getCurrentUser()
+
+  if (!isBlockAvailable('marketplace')) {
+    redirect('/dashboard?block=marketplace&status=not-installed')
+  }
 
   return (
     <div className="space-y-6">

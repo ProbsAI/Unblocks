@@ -1,8 +1,8 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse } from '@unblocks/core/api'
-import { createReview, getListingReviews } from '@/blocks/marketplace'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -16,23 +16,28 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const review = await createReview(user.id, body)
+  const mp = tryRequireBlock<{ createReview: Function }>('marketplace')
+  if (!mp) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
+  }
 
+  const review = await mp.createReview(user.id, body)
   return successResponse(review, undefined, 201)
 })
 
 export const GET = withErrorHandler(async (request: Request) => {
+  const mp = tryRequireBlock<{ getListingReviews: Function }>('marketplace')
+  if (!mp) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
+  }
+
   const url = new URL(request.url)
   const listingId = url.searchParams.get('listingId')
 
   if (!listingId) {
-    return new Response(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'listingId is required' } }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    )
+    return errorResponse('VALIDATION_ERROR', 'listingId is required', 400)
   }
 
-  const listingReviews = await getListingReviews(listingId)
-
+  const listingReviews = await mp.getListingReviews(listingId)
   return successResponse(listingReviews)
 })

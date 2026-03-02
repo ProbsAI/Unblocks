@@ -1,8 +1,8 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse } from '@unblocks/core/api'
-import { createDataset, listDatasets } from '@/blocks/data-platform'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -18,13 +18,23 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const dataset = await createDataset(user.id, body)
+  const data = tryRequireBlock<{ createDataset: Function }>('data-platform')
+  if (!data) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
+  }
 
+  const dataset = await data.createDataset(user.id, body)
   return successResponse(dataset, undefined, 201)
 })
 
 export const GET = withErrorHandler(async () => {
   const user = await requireAuth()
-  const userDatasets = await listDatasets(user.id)
+
+  const data = tryRequireBlock<{ listDatasets: Function }>('data-platform')
+  if (!data) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
+  }
+
+  const userDatasets = await data.listDatasets(user.id)
   return successResponse(userDatasets)
 })

@@ -27,6 +27,18 @@ export * as schema from './db/schema/index'
 export { loadConfig, getConfig, clearConfigCache } from './runtime/configLoader'
 export { registerHook, runHook, runBeforeHook, clearHooks } from './runtime/hookRunner'
 
+// Block Registry
+export {
+  registerBlock,
+  isBlockAvailable,
+  tryRequireBlock,
+  requireBlock,
+  getRegisteredBlocks,
+} from './runtime/blockRegistry'
+
+// License
+export { validateLicense, hasFeature, getLicenseTier } from './runtime/licenseValidator'
+
 // Environment
 export { getEnv } from './env'
 export type { Env } from './env'
