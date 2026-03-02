@@ -1,0 +1,42 @@
+=== AI PR Comments for PR #6 ===
+Synced: 2026-03-02T12:58:56Z
+
+## Reviews
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-02T12:58:43Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `97e0100371`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-02T12:58:43Z on core/runtime/blockRegistry.ts:62 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Load premium package exports before querying registry**
+
+`tryRequireBlock` only reads the in-memory `registry` map, but this commit also removed all direct premium-block imports from routes/pages and did not add any bootstrap import path for `@unblocks/block-*` packages to call `registerBlock()`. In practice, even after installing a premium package, the registry stays empty and these routes will keep returning `BLOCK_NOT_AVAILABLE` (and dashboard pages keep redirecting) because nothing ever populates the map.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-02T12:58:43Z on core/runtime/licenseValidator.ts:84 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Honor explicit license key when caching validation**
+
+`validateLicense(key?)` returns `_cachedLicense` before checking the `key` argument, so once any license is cached, later calls with a different key always return stale tier/features. This breaks any in-process flow that validates a user-provided or rotated key unless callers remember to manually call `resetLicenseCache()` first.
+
+Useful? React with 👍 / 👎.
