@@ -1,5 +1,5 @@
 === AI PR Comments for PR #6 ===
-Synced: 2026-03-02T12:58:56Z
+Synced: 2026-03-03T04:25:02Z
 
 ## Reviews
 
@@ -25,6 +25,70 @@ Codex can also answer questions or update the PR. Try commenting "@codex address
 
 </details>
 
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-02T13:06:30Z ---
+## Pull request overview
+
+This PR advances the repo’s open-core architecture by decoupling premium blocks from the public core, introducing runtime mechanisms to (a) gate premium *core* features via licensing and (b) make premium *blocks* optional without causing build-time import failures.
+
+**Changes:**
+- Introduces a core block registry (`blockRegistry`) and license feature gating (`licenseValidator`), and re-exports them via `core/index.ts`.
+- Updates AI/Data/Marketplace API routes and dashboard pages to gracefully handle missing premium blocks (return 404 / redirect).
+- Stages premium block source under `proprietary/`, updates Drizzle schema discovery, and documents the new model (manifest + README/CLAUDE + plan).
+
+### Reviewed changes
+
+Copilot reviewed 21 out of 43 changed files in this pull request and generated 6 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| unblocks.manifest.json | Adds tier/inclusion/package metadata for blocks and tiers for features. |
+| proprietary/block-marketplace/types.ts | Introduces Marketplace domain types + zod config schema. |
+| proprietary/block-marketplace/seller.ts | Seller profile CRUD using Drizzle + core errors. |
+| proprietary/block-marketplace/schema.ts | Adds Drizzle tables for marketplace entities. |
+| proprietary/block-marketplace/reviews.ts | Review creation + listing/seller review retrieval. |
+| proprietary/block-marketplace/orders.ts | Order creation/status update + hooks/stats updates. |
+| proprietary/block-marketplace/marketplace.config.ts | Adds marketplace config (staging). |
+| proprietary/block-marketplace/listings.ts | Listing CRUD + basic search and view-count increment. |
+| proprietary/block-marketplace/index.ts | Barrel exports for marketplace block. |
+| proprietary/block-data-platform/types.ts | Data platform domain types + zod config schema. |
+| proprietary/block-data-platform/schema.ts | Adds Drizzle tables for data platform entities. |
+| proprietary/block-data-platform/pipelines.ts | Pipeline CRUD + run triggering via background jobs. |
+| proprietary/block-data-platform/index.ts | Barrel exports for data platform block. |
+| proprietary/block-data-platform/datasources.ts | Data source CRUD. |
+| proprietary/block-data-platform/datasets.ts | Dataset CRUD. |
+| proprietary/block-data-platform/data.config.ts | Adds data platform config (staging). |
+| proprietary/block-ai-wrapper/usage.ts | Usage tracking, aggregation, and cost estimation. |
+| proprietary/block-ai-wrapper/types.ts | AI wrapper domain types + zod config schema. |
+| proprietary/block-ai-wrapper/schema.ts | Drizzle tables for AI usage + prompt templates. |
+| proprietary/block-ai-wrapper/providers.ts | Provider adapters (OpenAI-compatible + Anthropic). |
+| proprietary/block-ai-wrapper/index.ts | Barrel exports for AI wrapper block. |
+| proprietary/block-ai-wrapper/completion.ts | AI completion orchestration (config, hooks, usage). |
+| proprietary/block-ai-wrapper/ai.config.ts | Adds AI wrapper config (staging). |
+| plan.md | Documents open-core/submodule approach and implementation steps. |
+| drizzle.config.ts | Adds dynamic schema discovery via glob for installed block packages. |
+| core/runtime/licenseValidator.ts | Adds license tier + feature gating and cache/reset helpers. |
+| core/runtime/blockRegistry.ts | Adds registry and `tryRequireBlock`/`isBlockAvailable` APIs. |
+| core/index.ts | Re-exports block registry and license APIs from core. |
+| app/page.tsx | Gates attribution rendering based on `hasFeature('attribution.remove')`. |
+| app/(marketing)/pricing/page.tsx | Same attribution gating on marketing pricing page. |
+| app/api/marketplace/reviews/route.ts | Uses block registry lookup + consistent errorResponse for missing block/params. |
+| app/api/marketplace/orders/route.ts | Uses block registry lookup for marketplace operations. |
+| app/api/marketplace/listings/route.ts | Uses block registry lookup for listing create/search. |
+| app/api/marketplace/listings/[id]/route.ts | Uses block registry lookup for getListing. |
+| app/api/data/pipelines/route.ts | Uses block registry lookup for data-platform operations. |
+| app/api/data/datasets/route.ts | Uses block registry lookup for data-platform operations. |
+| app/api/ai/usage/route.ts | Uses block registry lookup for AI usage endpoints. |
+| app/api/ai/completion/route.ts | Uses block registry lookup for AI completion endpoint. |
+| app/(dashboard)/marketplace/page.tsx | Redirects if marketplace block not available. |
+| app/(dashboard)/data/page.tsx | Redirects if data-platform block not available. |
+| app/(dashboard)/ai/page.tsx | Redirects if ai-wrapper block not available. |
+| README.md | Updates block categorization and documents premium block installation behavior. |
+| CLAUDE.md | Updates repository structure + documents block registry and license gating patterns. |
+</details>
+
 ## Inline Comments
 
 --- inline by @chatgpt-codex-connector[bot] at 2026-03-02T12:58:43Z on core/runtime/blockRegistry.ts:62 ---
@@ -40,3 +104,69 @@ Useful? React with 👍 / 👎.
 `validateLicense(key?)` returns `_cachedLicense` before checking the `key` argument, so once any license is cached, later calls with a different key always return stale tier/features. This breaks any in-process flow that validates a user-provided or rotated key unless callers remember to manually call `resetLicenseCache()` first.
 
 Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on core/runtime/licenseValidator.ts:132 ---
+Add unit tests for `validateLicense`/`hasFeature` covering key parsing, caching behavior, and `resetLicenseCache()`. These functions now affect user-facing behavior (attribution rendering), and the repo’s conventions recommend colocated tests for new core utilities.
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on core/runtime/licenseValidator.ts:89 ---
+`validateLicense(key?)` caches the first computed license in `_cachedLicense` without considering the `key` argument. If any call passes an explicit key (e.g., tests, CLI tools), subsequent calls with a different key or with no key will still return the first cached result. Consider caching per-key (e.g., cache key string) or skipping the cache when an explicit `key` argument is provided.
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on core/runtime/licenseValidator.ts:109 ---
+The current "key-prefix" validation makes any `UNBLOCKS_LICENSE_KEY` starting with `ub_pro_`/`ub_team_`/etc. immediately grant premium features (e.g., attribution removal) with no cryptographic verification. If this module is intended to run in production, gate this behavior behind a dev-only flag (e.g., `NODE_ENV !== 'production'`) and/or require a signed token / server-side verification before setting `valid: true`.
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on drizzle.config.ts:8 ---
+`drizzle.config.ts` now imports `glob`, but `glob` is not declared in this repo’s `package.json`. Relying on a transitive dependency (e.g., from drizzle-kit) can break under pnpm / non-hoisted installs. Add `glob` as a (dev)dependency or avoid the external dependency (e.g., use Node’s `fs` traversal) for schema discovery.
+```suggestion
+import { readdirSync, existsSync } from 'node:fs'
+import * as path from 'node:path'
+
+// Core schema is always included. Premium block schemas are discovered
+// dynamically from installed @unblocks/block-* packages.
+const unblocksBaseDir = path.join(
+  process.cwd(),
+  'node_modules',
+  '@unblocks',
+)
+
+function discoverBlockSchemaPaths(): string[] {
+  let results: string[] = []
+
+  let entries: ReturnType<typeof readdirSync> = []
+  try {
+    entries = readdirSync(unblocksBaseDir, { withFileTypes: true })
+  } catch {
+    // If @unblocks packages are not installed, just return an empty list.
+    return results
+  }
+
+  for (const entry of entries) {
+    if (!('isDirectory' in entry) || !entry.isDirectory()) continue
+    if (!entry.name.startsWith('block-')) continue
+
+    const candidateDir = path.join(unblocksBaseDir, entry.name)
+    for (const ext of ['ts', 'js'] as const) {
+      const fullSchemaPath = path.join(candidateDir, `schema.${ext}`)
+      if (!existsSync(fullSchemaPath)) continue
+
+      // Convert to a project-root-relative path, prefixed with "./"
+      let rel = path.relative(process.cwd(), fullSchemaPath).replace(/\\/g, '/')
+      if (!rel.startsWith('.')) {
+        rel = './' + rel
+      }
+      results.push(rel)
+    }
+  }
+
+  return results
+}
+
+const schemaPaths = [
+  './core/db/schema/index.ts',
+  ...discoverBlockSchemaPaths(),
+```
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on core/runtime/blockRegistry.ts:64 ---
+`tryRequireBlock()`/`isBlockAvailable()` only consult the in-memory registry and never attempts to load an installed block package. After this PR, API routes/pages no longer import premium blocks directly, so the registry will remain empty and blocks will appear “not installed” even when the npm package is present. Consider making `tryRequireBlock()` perform a safe dynamic `require()`/`import()` of `@unblocks/block-${id}` (catching MODULE_NOT_FOUND), or add an explicit core bootstrap that imports installed blocks once at startup (and document that requirement).
+
+--- inline by @Copilot at 2026-03-02T13:06:30Z on core/runtime/blockRegistry.ts:78 ---
+Add unit tests for the new block registry behavior (registration, `tryRequireBlock`/`requireBlock` semantics, reset behavior). This repo’s conventions encourage colocated `*.test.ts` files for new core logic, and these functions are now used by API routes/pages.
