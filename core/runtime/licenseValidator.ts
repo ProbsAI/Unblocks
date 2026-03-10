@@ -66,6 +66,7 @@ const TIER_FEATURES: Record<LicenseTier, string[]> = {
 }
 
 let _cachedLicense: LicenseInfo | null = null
+let _cachedKey: string | undefined
 
 /**
  * Validate the license key and return tier info.
@@ -79,11 +80,13 @@ let _cachedLicense: LicenseInfo | null = null
  * In production, this would verify a signed JWT or call a license API.
  */
 export function validateLicense(key?: string): LicenseInfo {
-  if (_cachedLicense) return _cachedLicense
-
   const licenseKey = key ?? process.env.UNBLOCKS_LICENSE_KEY
 
+  // Return cached result only when the resolved key matches
+  if (_cachedLicense && _cachedKey === licenseKey) return _cachedLicense
+
   if (!licenseKey) {
+    _cachedKey = licenseKey
     _cachedLicense = { valid: false, tier: 'community', features: [], expiresAt: null }
     return _cachedLicense
   }
@@ -95,6 +98,7 @@ export function validateLicense(key?: string): LicenseInfo {
   else if (licenseKey.startsWith('ub_pro_')) tier = 'pro'
   else if (licenseKey.startsWith('ub_builder_')) tier = 'builder'
 
+  _cachedKey = licenseKey
   if (tier === 'community') {
     _cachedLicense = { valid: false, tier: 'community', features: [], expiresAt: null }
     return _cachedLicense
@@ -129,4 +133,5 @@ export function getLicenseTier(): LicenseTier {
  */
 export function resetLicenseCache(): void {
   _cachedLicense = null
+  _cachedKey = undefined
 }
