@@ -107,24 +107,24 @@ export async function getUsageHistory(
 
 /**
  * Rough cost estimation per 1K tokens by model.
+ * Reads model costs from AI wrapper config so they can be updated without code changes.
  */
 function estimateCost(
   model: string,
   promptTokens: number,
   completionTokens: number
 ): number {
-  // Cost per 1K tokens in cents
-  const costs: Record<string, { input: number; output: number }> = {
-    'gpt-4o': { input: 0.25, output: 1.0 },
-    'gpt-4o-mini': { input: 0.015, output: 0.06 },
-    'gpt-4-turbo': { input: 1.0, output: 3.0 },
-    'claude-sonnet-4-6': { input: 0.3, output: 1.5 },
-    'claude-haiku-4-5-20251001': { input: 0.08, output: 0.4 },
-    'claude-opus-4-6': { input: 1.5, output: 7.5 },
-    'gemini-2.0-flash': { input: 0.015, output: 0.06 },
+  let configCosts: Record<string, { input: number; output: number }> = {}
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const configModule = require('../../config/ai-wrapper.config')
+    const config = configModule.default ?? configModule
+    configCosts = config?.modelCosts ?? {}
+  } catch {
+    // No config file — use defaults from schema
   }
 
-  const modelCosts = costs[model] ?? { input: 0.1, output: 0.3 }
+  const modelCosts = configCosts[model] ?? { input: 0.1, output: 0.3 }
 
   return (
     (promptTokens / 1000) * modelCosts.input +

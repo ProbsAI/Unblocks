@@ -131,6 +131,20 @@ export const AIWrapperConfigSchema = z.object({
 
   /** Cache TTL in ms (default 1 hour) */
   cacheTtl: z.number().default(3600_000),
+
+  /** Cost per 1K tokens by model (cents). Override to keep pricing current. */
+  modelCosts: z.record(z.object({
+    input: z.number(),
+    output: z.number(),
+  })).default({
+    'gpt-4o': { input: 0.25, output: 1.0 },
+    'gpt-4o-mini': { input: 0.015, output: 0.06 },
+    'gpt-4-turbo': { input: 1.0, output: 3.0 },
+    'claude-sonnet-4-6': { input: 0.3, output: 1.5 },
+    'claude-haiku-4-5-20251001': { input: 0.08, output: 0.4 },
+    'claude-opus-4-6': { input: 1.5, output: 7.5 },
+    'gemini-2.0-flash': { input: 0.015, output: 0.06 },
+  }),
 })
 
 export type AIWrapperConfig = z.infer<typeof AIWrapperConfigSchema>

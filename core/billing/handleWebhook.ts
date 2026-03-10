@@ -4,6 +4,7 @@ import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
+import { getAllPlans } from './plans'
 
 export async function handleStripeWebhook(
   payload: string,
@@ -71,8 +72,12 @@ async function handleSubscriptionUpdate(
     .limit(1)
 
   const priceId = stripeSubscription.items.data[0]?.price.id ?? null
+  // Fall back to first paid plan in config rather than hardcoding 'pro'
+  const firstPaidPlan = getAllPlans().find((p) => p.price.monthly > 0)
   const planId =
-    stripeSubscription.items.data[0]?.price.metadata?.planId ?? 'pro'
+    stripeSubscription.items.data[0]?.price.metadata?.planId ??
+    firstPaidPlan?.id ??
+    'pro'
 
   const subData = {
     stripeSubscriptionId: stripeSubscription.id,

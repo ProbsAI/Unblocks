@@ -6,7 +6,9 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 
 ## REPORT 1: Proprietary & Licensing Audit
 
-### 1.1 License Key System
+> **Corrected framing (v2):** Unblocks is an open-source SaaS foundation. The `config/`, `blocks/`, and `components/` directories are **user-owned by design** — plans, pricing, landing page copy, marketplace defaults, etc. are all things the developer is *supposed* to customize. These are features of the framework, not proprietary gates. The audit below focuses on (A) items that genuinely need attention and (B) hardcoded values in `core/` that should be configurable.
+
+### 1.1 License Key System — NEEDS IMPLEMENTATION
 
 | File | Lines | What It Does |
 |------|-------|-------------|
@@ -15,18 +17,28 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 | `config/app.config.ts` | 91-93 | Sets `showUnblocksAttribution: true`, `unblocksLicenseKey: ''` |
 | `.env.example` | 37-39 | Documents `UNBLOCKS_LICENSE_KEY` as "controls footer attribution" |
 
-**Status:** The license key is **defined but never validated anywhere**. No code reads `UNBLOCKS_LICENSE_KEY` from env, compares it to a server, or gates features on it. It's a placeholder — the field exists in the schema/config but has zero enforcement logic.
+**Status:** The license key is **defined but never validated anywhere**. No code reads `UNBLOCKS_LICENSE_KEY` from env, compares it to a server, or gates features on it. The field exists in the schema/config but has zero enforcement logic.
 
 **What the license key currently controls:** Nothing. The `showUnblocksAttribution` boolean directly controls footer display with no license check. Anyone can set it to `false`.
 
 **Action needed:**
-- Decide: keep as a future hook or remove entirely
-- If keeping, the validation logic would go in `core/` (currently untouchable) or as a runtime hook
-- If removing, delete from: `core/env.ts:20`, `core/types.ts:57-58`, `config/app.config.ts:91-93`, `.env.example:37-39`
+- Implement license key validation logic
+- Validation code should live in a **`proprietary/` folder** that is excluded from the public open-source repo (via `.gitignore` or separate build step)
+- The `proprietary/` folder will NOT be copied to fresh public repos
+- License validation should gate the `showUnblocksAttribution` toggle (and potentially other premium features in the future)
+
+**Proposed `proprietary/` structure:**
+```
+proprietary/              # NOT included in public repo
+  license/
+    validate.ts           # License key validation logic (server-side check)
+    types.ts              # License tiers, entitlements schema
+  README.md               # Documents what's here and why it's excluded
+```
 
 ---
 
-### 1.2 "Powered by Unblocks" Attribution
+### 1.2 "Powered by Unblocks" Attribution — NEEDS LICENSE GATING
 
 | File | Lines | What It Does |
 |------|-------|-------------|
@@ -34,132 +46,68 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 | `app/page.tsx` | 32 | Passes `footer.showUnblocksAttribution` to Footer component |
 | `app/(marketing)/pricing/page.tsx` | 27 | Same pattern for pricing page |
 
-**Action needed:** If you want this removable only for paying customers, you need actual license validation logic. Currently it's honor-system.
+**Status:** Currently honor-system. Anyone can set `showUnblocksAttribution: false` without a valid license.
+
+**Action needed:** Wire attribution toggle to license validation from `proprietary/license/validate.ts`. Without a valid license key, attribution should always render regardless of the config setting.
 
 ---
 
-### 1.3 Proprietary Plans & Pricing (MOVE TO SEPARATE FOLDER)
+### 1.3 Hardcoded Values in `core/` That Should Be Configurable
 
-These files contain **specific business decisions** (plan names, prices, limits, features, trial config) that you'll want to separate:
-
-#### `config/billing.config.ts` (entire file — 78 lines)
-Contains:
-- **3 plan definitions:** Free ($0), Pro ($29/mo, $290/yr), Business ($99/mo, $990/yr)
-- **Placeholder Stripe Price IDs:** `price_xxx`, `price_yyy` (not real, but the structure)
-- **Plan limits:** projects (3/999/999), team members (1/10/999), storage (1/50/500 GB), API requests (100/10k/100k per day)
-- **Feature flags per plan:** `basic_dashboard`, `email_support`, `api_access`, `priority_support`, `sso`, `audit_log`
-- **Trial config:** 14-day trial on Pro plan, no payment method required
-- **Behavior config:** allow downgrade, prorate on change, 3-day grace period, cancel at period end
-
-#### `core/billing/types.ts` (entire file — 111 lines)
-Contains:
-- `PlanLimitsSchema` with default values (projects: 3, teamMembers: 1, storageGb: 1, apiRequestsPerDay: 100)
-- `BillingConfigSchema` with default plan array (free tier defaults)
-- Trial defaults (14 days, pro plan)
-- Behavior defaults (prorate, grace period, etc.)
-- **NOTE:** This is in `core/` (untouchable). The defaults here bake in business decisions.
-
-#### `core/billing/plans.ts` (25 lines)
-- `getFreePlan()` identifies free plan by `price.monthly === 0`
-- Business logic tightly coupled to plan structure
-
-#### `core/billing/checkPlanLimit.ts` (47 lines)
-- Reads user's subscription plan from DB, looks up limits, returns `allowed: boolean`
-- Falls back to free plan if plan not found
-- **This is the actual feature gate** — used to enforce plan limits
+These are the **only real issues** in core — specific business values that should come from config rather than being hardcoded:
 
 #### `core/admin/metrics.ts` line 44
 ```typescript
 const mrr = paidCount.count * 29 // Rough estimate using Pro plan price
 ```
-- **Hardcoded $29** Pro plan price in MRR calculation. This is proprietary pricing leaking into core admin logic.
+- **Hardcoded $29** Pro plan price in MRR calculation. Should compute from actual plan prices in billing config.
 
----
-
-### 1.4 Stripe Integration Points
-
-| File | What | Notes |
-|------|------|-------|
-| `config/billing.config.ts:6-8` | Stripe keys from env | Good — uses env vars, not hardcoded |
-| `core/billing/createCheckout.ts` | Creates Stripe checkout sessions | Core business logic |
-| `core/billing/customer.ts` | Creates/manages Stripe customers | Core business logic |
-| `core/billing/customerPortal.ts` | Stripe customer portal sessions | Core business logic |
-| `core/billing/handleWebhook.ts` | Processes Stripe webhooks | Core business logic; hardcodes `'pro'` as default plan on line 75 |
-| `core/billing/changePlan.ts` | Stripe subscription item changes | Core business logic |
-| `core/billing/cancelSubscription.ts` | Stripe subscription cancellation | Core business logic |
-| `core/billing/getSubscription.ts` | Reads subscription from DB | Core business logic |
-| `core/db/schema/subscriptions.ts` | DB schema with Stripe columns | `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId` |
-| `.env.example:24-26` | Stripe env var templates | `sk_test_...`, `pk_test_...`, `whsec_...` |
-
-**Key concern in `core/billing/handleWebhook.ts:75`:**
+#### `core/billing/handleWebhook.ts:75`
 ```typescript
 const planId = stripeSubscription.items.data[0]?.price.metadata?.planId ?? 'pro'
 ```
-Falls back to `'pro'` if no planId in Stripe metadata — this is a proprietary business decision hardcoded in core.
+- Falls back to `'pro'` if no planId in Stripe metadata. Should fall back to a configurable default or the first paid plan.
+
+#### `core/billing/types.ts`
+- `PlanLimitsSchema` has default values (projects: 3, teamMembers: 1, etc.) — these are reasonable defaults for a free tier and work fine as Zod schema defaults. **No action needed** unless we want to make the default tier limits configurable separately.
+
+#### `blocks/ai-wrapper/usage.ts`
+- Hardcoded per-token cost table for AI models. Should be extractable to config so users can update pricing as models change.
 
 ---
 
-### 1.5 Landing Page / Marketing Content
+### 1.4 Items That Are Fine As-Is (No Action Needed)
 
-| File | What to Extract |
-|------|----------------|
-| `config/app.config.ts:9-77` | Hero copy, feature descriptions, FAQ answers (mentions "MIT licensed", "Unblocks") |
-| `config/app.config.ts:81-83` | SEO title template with "MyApp" placeholder |
+The following were flagged in v1 of this report but are **working as designed** — they're user-owned configuration and framework features:
 
-The FAQ on lines 57-77 contains:
-- "Unblocks is MIT licensed" — branding + licensing claim
-- Product positioning text
-
----
-
-### 1.6 Marketplace Block — Proprietary Business Config
-
-| File | Lines | What |
-|------|-------|------|
-| `blocks/marketplace/types.ts:82` | 10% commission default | Business decision |
-| `blocks/marketplace/types.ts:85-88` | Min/max price ($1 - $10M) | Business decision |
-| `blocks/marketplace/types.ts:104-108` | Default categories (Digital, Services, Physical) | Business decision |
-| `blocks/marketplace/types.ts:114-118` | Payout config ($50 min, weekly schedule) | Business decision |
+| Item | Location | Why It's Fine |
+|------|----------|---------------|
+| Plan definitions (Free/Pro/Business) | `config/billing.config.ts` | User-owned config — developers define their own plans |
+| Plan limits & features | `config/billing.config.ts` | User-owned config — developers set their own limits |
+| Trial config (14 days, Pro default) | `config/billing.config.ts` | User-owned config |
+| Stripe keys from env vars | `config/billing.config.ts` | Uses env vars correctly |
+| Landing page copy, FAQ, SEO | `config/app.config.ts` | User-owned config — developers write their own copy |
+| Marketplace commission/pricing | `blocks/marketplace/types.ts` | Block config with sensible defaults — developers override |
+| AI provider/model defaults | `blocks/ai-wrapper/types.ts` | Block config with sensible defaults — developers override |
+| Stripe integration in core | `core/billing/*.ts` | Framework infrastructure — provides billing capability |
+| Plan check/enforcement logic | `core/billing/checkPlanLimit.ts` | Framework infrastructure — enforces user-defined plans |
+| Admin role checks | `core/admin/users.ts` | Framework infrastructure — standard RBAC |
+| Upload limits | `config/uploads.config.ts` | User-owned config |
+| Team limits | `config/teams.config.ts` | User-owned config |
 
 ---
 
-### 1.7 AI Wrapper Block — Provider Config
+### 1.5 Summary of Action Items
 
-| File | Lines | What |
-|------|-------|------|
-| `blocks/ai-wrapper/types.ts:94` | Default provider: OpenAI | Business decision |
-| `blocks/ai-wrapper/types.ts:97` | Default model: `gpt-4o` | Business decision |
-| `blocks/ai-wrapper/types.ts:103` | OpenAI base URL hardcoded | Vendor coupling |
-| `blocks/ai-wrapper/types.ts:107` | Anthropic base URL hardcoded | Vendor coupling |
+**Must do:**
+1. Create `proprietary/` folder (excluded from public repo) with license key validation logic
+2. Wire `showUnblocksAttribution` to license validation — no valid key = attribution always shows
+3. Fix hardcoded `$29` MRR estimate in `core/admin/metrics.ts:44` — compute from config
+4. Fix hardcoded `'pro'` fallback in `core/billing/handleWebhook.ts:75` — use configurable default
 
----
-
-### 1.8 Summary: Files to Move to Proprietary Folder
-
-**High priority (contains pricing/plans/business decisions):**
-1. `config/billing.config.ts` — Plan definitions, prices, limits, trial config
-2. `config/app.config.ts` — Landing page copy, branding, FAQ with licensing claims
-
-**In `core/` (cannot move, but contain proprietary defaults — need extraction strategy):**
-3. `core/billing/types.ts` — Default plan limits, trial defaults, behavior defaults
-4. `core/billing/handleWebhook.ts:75` — Hardcoded `'pro'` fallback
-5. `core/admin/metrics.ts:44` — Hardcoded `$29` MRR estimate
-6. `core/types.ts:57-58` — License key + attribution schema
-7. `core/env.ts:20` — License key env var
-
-**Block-level defaults (can move):**
-8. `blocks/marketplace/types.ts` — Commission rates, price ranges, categories, payout config
-9. `blocks/ai-wrapper/types.ts` — Provider defaults, model defaults, API base URLs
-
-**Suggested structure:**
-```
-proprietary/
-  billing-plans.ts       # Plan definitions, prices, limits (extracted from config/billing.config.ts)
-  landing-content.ts     # Hero, features, FAQ (extracted from config/app.config.ts)
-  marketplace-defaults.ts # Commission, categories, payouts
-  ai-defaults.ts         # Provider choices, model defaults
-  README.md              # Explains what's here and why
-```
+**Nice to have:**
+5. Extract AI model cost table from `blocks/ai-wrapper/usage.ts` to a config object
+6. Add `.gitignore` entry for `proprietary/` folder in the public repo template
 
 ---
 
