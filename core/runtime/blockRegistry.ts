@@ -5,6 +5,12 @@
  * from the private registry) call `registerBlock()` at import time. API routes
  * use `tryRequireBlock()` to gracefully handle missing blocks.
  *
+ * When a block is not found in the registry, `tryRequireBlock()` and
+ * `requireBlock()` attempt a dynamic `require()` of the corresponding
+ * `@unblocks/block-<id>` package. The package's entry point is expected to
+ * call `registerBlock()` as a side effect, which populates the registry for
+ * subsequent lookups.
+ *
  * This module is MIT-licensed and part of core. It provides the interface;
  * premium block packages provide the implementations.
  */
@@ -23,6 +29,26 @@ export interface BlockRegistration {
 }
 
 const registry = new Map<string, BlockRegistration>()
+
+/**
+ * Attempt to dynamically load a block package so its top-level
+ * `registerBlock()` side-effect populates the registry.
+ */
+function attemptAutoLoad(id: string): void {
+  if (registry.has(id)) return
+  try {
+    // Block packages are expected to call registerBlock() at import time.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require(`@unblocks/block-${id}`)
+  } catch (err: unknown) {
+    // MODULE_NOT_FOUND means the package is not installed — that's fine.
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
+      return
+    }
+    // Any other error (e.g. syntax error in the block) should surface.
+    throw err
+  }
+}
 
 /**
  * Register a premium block. Called by block packages at import time.
@@ -48,16 +74,23 @@ export function registerBlock(block: BlockRegistration): void {
 
 /**
  * Check if a block is installed and registered.
+ * Attempts to auto-load the package if not yet in the registry.
  */
 export function isBlockAvailable(id: string): boolean {
+  attemptAutoLoad(id)
   return registry.has(id)
 }
 
 /**
  * Get a block's exports. Returns null if the block is not installed.
  * Use this in routes/pages for graceful degradation.
+ *
+ * On first call for a given block, attempts to dynamically load the
+ * `@unblocks/block-<id>` package so its `registerBlock()` side-effect
+ * populates the registry.
  */
 export function tryRequireBlock<T = Record<string, unknown>>(id: string): T | null {
+  attemptAutoLoad(id)
   const block = registry.get(id)
   if (!block) return null
   return block.exports as T
@@ -68,6 +101,7 @@ export function tryRequireBlock<T = Record<string, unknown>>(id: string): T | nu
  * Use this when the block is required (not optional).
  */
 export function requireBlock<T = Record<string, unknown>>(id: string): T {
+  attemptAutoLoad(id)
   const block = registry.get(id)
   if (!block) {
     throw new Error(
@@ -81,6 +115,7 @@ export function requireBlock<T = Record<string, unknown>>(id: string): T {
  * Get block metadata (without exports).
  */
 export function getBlockInfo(id: string): Omit<BlockRegistration, 'exports' | 'schemas'> | null {
+  attemptAutoLoad(id)
   const block = registry.get(id)
   if (!block) return null
   return { id: block.id, name: block.name, version: block.version }
