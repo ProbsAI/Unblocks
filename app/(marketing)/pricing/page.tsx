@@ -3,6 +3,7 @@ import { Pricing } from '@/components/landing/Pricing'
 import { FAQ } from '@/components/landing/FAQ'
 import { Footer } from '@/components/landing/Footer'
 import { loadConfig } from '@unblocks/core/runtime/configLoader'
+import { canRemoveAttribution } from '@/proprietary/license'
 
 export const metadata = {
   title: 'Pricing',
@@ -12,6 +13,9 @@ export const metadata = {
 export default async function PricingPage() {
   const billingConfig = await loadConfig('billing')
   const appConfig = await loadConfig('app')
+
+  const showAttribution =
+    appConfig.footer.showUnblocksAttribution || !canRemoveAttribution()
 
   return (
     <div className="min-h-screen bg-background">
@@ -24,7 +28,7 @@ export default async function PricingPage() {
       </div>
       <Footer
         appName={appConfig.name}
-        showAttribution={appConfig.footer.showUnblocksAttribution}
+        showAttribution={showAttribution}
       />
     </div>
   )

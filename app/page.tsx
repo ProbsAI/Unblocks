@@ -6,9 +6,13 @@ import { FAQ } from '@/components/landing/FAQ'
 import { Footer } from '@/components/landing/Footer'
 import appConfig from '@/config/app.config'
 import billingConfig from '@/config/billing.config'
+import { canRemoveAttribution } from '@/proprietary/license'
 
 export default function HomePage() {
   const { landing, name, footer } = appConfig
+
+  // Attribution can only be hidden with a valid license key
+  const showAttribution = footer.showUnblocksAttribution || !canRemoveAttribution()
 
   return (
     <>
@@ -29,7 +33,7 @@ export default function HomePage() {
       </main>
       <Footer
         appName={name}
-        showAttribution={footer.showUnblocksAttribution}
+        showAttribution={showAttribution}
       />
     </>
   )
