@@ -40,6 +40,9 @@ core/db/migrations/meta/
 # Test coverage
 coverage/
 
+# Proprietary (exclude from public repo template)
+# proprietary/
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts
