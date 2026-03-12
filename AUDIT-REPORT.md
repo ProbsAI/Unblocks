@@ -8,71 +8,52 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 
 > **Corrected framing (v2):** Unblocks is an open-source SaaS foundation. The `config/`, `blocks/`, and `components/` directories are **user-owned by design** — plans, pricing, landing page copy, marketplace defaults, etc. are all things the developer is *supposed* to customize. These are features of the framework, not proprietary gates. The audit below focuses on (A) items that genuinely need attention and (B) hardcoded values in `core/` that should be configurable.
 
-### 1.1 License Key System — NEEDS IMPLEMENTATION
+### 1.1 License Key System — RESOLVED
 
-| File | Lines | What It Does |
-|------|-------|-------------|
-| `core/env.ts` | 20 | Defines `UNBLOCKS_LICENSE_KEY` as optional env var with Zod validation |
-| `core/types.ts` | 57-58 | `AppConfigSchema.footer` has `showUnblocksAttribution` (bool) and `unblocksLicenseKey` (string) |
-| `config/app.config.ts` | 91-93 | Sets `showUnblocksAttribution: true`, `unblocksLicenseKey: ''` |
-| `.env.example` | 37-39 | Documents `UNBLOCKS_LICENSE_KEY` as "controls footer attribution" |
+| File | What It Does |
+|------|-------------|
+| `core/env.ts:20` | Defines `UNBLOCKS_LICENSE_KEY` as optional env var with Zod validation |
+| `core/types.ts:57-58` | `AppConfigSchema.footer` has `showUnblocksAttribution` (bool) and `unblocksLicenseKey` (string) |
+| `config/app.config.ts:91-93` | Sets `showUnblocksAttribution: true`, `unblocksLicenseKey: ''` |
+| `proprietary/license/validate.ts` | Prefix-based license validation (`ub_pro_*`, `ub_ent_*`) with cached entitlements |
+| `proprietary/license/types.ts` | Three tiers: community (default), pro, enterprise with entitlement schema |
+| `proprietary/license/validate.test.ts` | Tests for all tiers, caching, and `canRemoveAttribution()` |
 
-**Status:** The license key is **defined but never validated anywhere**. No code reads `UNBLOCKS_LICENSE_KEY` from env, compares it to a server, or gates features on it. The field exists in the schema/config but has zero enforcement logic.
+**Status:** Implemented. The `proprietary/` folder contains license validation with three tiers. Keys are validated by prefix (`ub_pro_*` → Pro, `ub_ent_*` → Enterprise, else Community). Entitlements are cached after first check.
 
-**What the license key currently controls:** Nothing. The `showUnblocksAttribution` boolean directly controls footer display with no license check. Anyone can set it to `false`.
+**What the license key controls:** Attribution removal (Pro+Enterprise) and white-label branding (Enterprise only). Community tier cannot remove attribution regardless of config setting.
 
-**Action needed:**
-- Implement license key validation logic
-- Validation code should live in a **`proprietary/` folder** that is excluded from the public open-source repo (via `.gitignore` or separate build step)
-- The `proprietary/` folder will NOT be copied to fresh public repos
-- License validation should gate the `showUnblocksAttribution` toggle (and potentially other premium features in the future)
-
-**Proposed `proprietary/` structure:**
-```
-proprietary/              # NOT included in public repo
-  license/
-    validate.ts           # License key validation logic (server-side check)
-    types.ts              # License tiers, entitlements schema
-  README.md               # Documents what's here and why it's excluded
-```
+**Remaining TODO:** Replace prefix-based validation with server-side check against `https://api.unblocks.ai/v1/license/validate` when the license server is ready.
 
 ---
 
-### 1.2 "Powered by Unblocks" Attribution — NEEDS LICENSE GATING
+### 1.2 "Powered by Unblocks" Attribution — RESOLVED
 
-| File | Lines | What It Does |
-|------|-------|-------------|
-| `components/landing/Footer.tsx` | 29-38 | Renders "Built with Unblocks" link to `https://unblocks.ai` when `showAttribution` is true |
-| `app/page.tsx` | 32 | Passes `footer.showUnblocksAttribution` to Footer component |
-| `app/(marketing)/pricing/page.tsx` | 27 | Same pattern for pricing page |
+| File | What It Does |
+|------|-------------|
+| `components/landing/Footer.tsx:29-38` | Renders "Built with Unblocks" link when `showAttribution` is true |
+| `app/page.tsx:15` | `showAttribution = footer.showUnblocksAttribution \|\| !canRemoveAttribution()` |
+| `app/(marketing)/pricing/page.tsx:17-18` | Same license-gated logic for pricing page |
 
-**Status:** Currently honor-system. Anyone can set `showUnblocksAttribution: false` without a valid license.
-
-**Action needed:** Wire attribution toggle to license validation from `proprietary/license/validate.ts`. Without a valid license key, attribution should always render regardless of the config setting.
+**Status:** Wired to license validation. Both `app/page.tsx` and the pricing page import `canRemoveAttribution()` from `@/proprietary/license`. Attribution shows unless the config says false AND the license permits removal. Without a valid Pro/Enterprise key, attribution always renders.
 
 ---
 
-### 1.3 Hardcoded Values in `core/` That Should Be Configurable
+### 1.3 Hardcoded Values in `core/` — ALL RESOLVED
 
-These are the **only real issues** in core — specific business values that should come from config rather than being hardcoded:
+All previously-hardcoded values now read from config:
 
-#### `core/admin/metrics.ts` line 44
-```typescript
-const mrr = paidCount.count * 29 // Rough estimate using Pro plan price
-```
-- **Hardcoded $29** Pro plan price in MRR calculation. Should compute from actual plan prices in billing config.
+#### `core/admin/metrics.ts` — FIXED
+Uses `getAveragePaidPlanPrice()` which computes from `getAllPlans()` in billing config. No hardcoded dollar amounts.
 
-#### `core/billing/handleWebhook.ts:75`
-```typescript
-const planId = stripeSubscription.items.data[0]?.price.metadata?.planId ?? 'pro'
-```
-- Falls back to `'pro'` if no planId in Stripe metadata. Should fall back to a configurable default or the first paid plan.
+#### `core/billing/handleWebhook.ts` — FIXED
+Falls back to `getAllPlans().find(p => p.price.monthly > 0)?.id` (first paid plan from config) instead of hardcoded `'pro'`. Retains `'pro'` as ultimate fallback only if no paid plans exist in config.
 
 #### `core/billing/types.ts`
-- `PlanLimitsSchema` has default values (projects: 3, teamMembers: 1, etc.) — these are reasonable defaults for a free tier and work fine as Zod schema defaults. **No action needed** unless we want to make the default tier limits configurable separately.
+`PlanLimitsSchema` defaults (projects: 3, teamMembers: 1, etc.) are reasonable free-tier defaults. **No action needed.**
 
-#### `blocks/ai-wrapper/usage.ts`
-- Hardcoded per-token cost table for AI models. Should be extractable to config so users can update pricing as models change.
+#### `blocks/ai-wrapper/usage.ts` — FIXED
+`estimateCost()` reads `modelCosts` from `config/ai-wrapper.config` via dynamic require with graceful fallback. The `AIWrapperConfigSchema` in `blocks/ai-wrapper/types.ts` defines a `modelCosts` field with sensible defaults that users can override.
 
 ---
 
@@ -99,15 +80,16 @@ The following were flagged in v1 of this report but are **working as designed** 
 
 ### 1.5 Summary of Action Items
 
-**Must do:**
-1. Create `proprietary/` folder (excluded from public repo) with license key validation logic
-2. Wire `showUnblocksAttribution` to license validation — no valid key = attribution always shows
-3. Fix hardcoded `$29` MRR estimate in `core/admin/metrics.ts:44` — compute from config
-4. Fix hardcoded `'pro'` fallback in `core/billing/handleWebhook.ts:75` — use configurable default
+**All "must do" items resolved:**
+1. ~~Create `proprietary/` folder~~ — Done (`proprietary/license/`)
+2. ~~Wire attribution to license validation~~ — Done (`app/page.tsx`, pricing page)
+3. ~~Fix hardcoded $29 MRR~~ — Done (`getAveragePaidPlanPrice()`)
+4. ~~Fix hardcoded 'pro' fallback~~ — Done (`getAllPlans().find(...)`)
+5. ~~Extract AI model costs to config~~ — Done (`modelCosts` in AI wrapper config schema)
+6. ~~Add .gitignore entry for proprietary/~~ — Done (commented out for internal repo, uncomment for public template)
 
-**Nice to have:**
-5. Extract AI model cost table from `blocks/ai-wrapper/usage.ts` to a config object
-6. Add `.gitignore` entry for `proprietary/` folder in the public repo template
+**Remaining:**
+- Replace prefix-based license validation with server-side check when license server is ready
 
 ---
 
@@ -116,10 +98,10 @@ The following were flagged in v1 of this report but are **working as designed** 
 ### 2.1 Current State
 
 **Framework:** Vitest 2.1.0 with v8 coverage provider
-**Existing test files:** 10
-**Estimated overall coverage:** ~5-8%
+**Existing test files:** 20
+**Estimated overall coverage:** ~12-15%
 
-### 2.2 What Exists (10 test files)
+### 2.2 What Exists (20 test files)
 
 | Test File | Tests | Quality |
 |-----------|-------|---------|
@@ -130,11 +112,21 @@ The following were flagged in v1 of this report but are **working as designed** 
 | `core/auth/rateLimiter.test.ts` | 6 cases | Good |
 | `core/security/cookies.test.ts` | 17 cases | Excellent |
 | `core/security/csrf.test.ts` | 10 cases | Good |
+| `core/security/headers.test.ts` | — | Good |
 | `core/api/response.test.ts` | 9 cases | Good |
+| `core/api/validate.test.ts` | — | Good |
 | `core/uploads/validate.test.ts` | 16 cases | Good |
 | `core/jobs/scheduler.test.ts` | 14 cases | Good |
+| `core/billing/plans.test.ts` | — | Good |
+| `core/billing/checkPlanLimit.test.ts` | — | Good |
+| `core/admin/metrics.test.ts` | — | Good |
+| `core/errors/types.test.ts` | — | Good |
+| `core/errors/handler.test.ts` | — | Good |
+| `core/runtime/configLoader.test.ts` | — | Good |
+| `core/runtime/hookRunner.test.ts` | — | Good |
+| `proprietary/license/validate.test.ts` | — | Good |
 
-**Total existing: ~139 test cases across 10 files**
+**Total existing: ~200+ test cases across 20 files**
 
 ### 2.3 Test Infrastructure (blocks/testing/)
 
@@ -152,27 +144,28 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 | Module | Files | Tested | Coverage | Priority |
 |--------|-------|--------|----------|----------|
 | **core/auth** | 18 | 3 | ~17% | CRITICAL |
-| **core/billing** | 11 | 0 | 0% | CRITICAL |
+| **core/billing** | 11 | 2 | ~18% | CRITICAL |
 | **core/teams** | 7 | 0 | 0% | HIGH |
 | **core/jobs** (queue/worker) | 6 | 1 | ~17% | HIGH |
-| **core/security** (remaining) | 5 | 2 | ~40% | HIGH |
+| **core/security** | 5 | 3 | ~60% | MEDIUM |
 | **middleware.ts** | 1 | 0 | 0% | HIGH |
 | **core/notifications** | 6 | 0 | 0% | MEDIUM |
-| **core/admin** | 4 | 0 | 0% | MEDIUM |
+| **core/admin** | 4 | 1 | ~25% | MEDIUM |
 | **core/email** | 5 | 0 | 0% | MEDIUM |
-| **core/runtime** | 4 | 0 | 0% | MEDIUM |
+| **core/runtime** | 4 | 2 | ~50% | MEDIUM |
 | **core/uploads** (remaining) | 5 | 1 | ~20% | MEDIUM |
-| **core/api** (remaining) | 2 | 1 | ~50% | MEDIUM |
+| **core/api** | 2 | 2 | ~100% | LOW |
 | **lib/** | 2 | 0 | 0% | MEDIUM |
-| **core/errors** | 2 | 0 | 0% | LOW |
+| **core/errors** | 2 | 2 | ~100% | LOW |
 | **core/extensions** | 4 | 0 | 0% | LOW |
 | **core/db** | 3 | 0 | 0% | LOW |
+| **proprietary/license** | 3 | 1 | ~33% | MEDIUM |
 | **blocks/ai-wrapper** | 6 | 0 | 0% | MEDIUM |
 | **blocks/data-platform** | 6 | 0 | 0% | MEDIUM |
 | **blocks/marketplace** | 6 | 0 | 0% | MEDIUM |
 | **blocks/seed** | ~3 | 0 | 0% | LOW |
-| **app/api/** (all routes) | 50+ | 0 | 0% | CRITICAL |
-| **components/** | 40+ | 0 | 0% | LOW |
+| **app/api/** (all routes) | 42+ | 0 | 0% | CRITICAL |
+| **components/** | 25+ | 0 | 0% | LOW |
 
 ### 2.5 Critical Untested Functions
 
@@ -187,14 +180,15 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 - `passwordReset()` — password reset flow
 - `revokeSession()` — session revocation
 
-#### core/billing (CRITICAL — 8 untested functions)
+#### core/billing (CRITICAL — 6 untested functions)
 - `handleStripeWebhook()` — webhook event dispatch (checkout.completed, invoice.paid, invoice.failed, subscription.updated, subscription.deleted)
 - `createCheckout()` — Stripe checkout session creation
 - `customerPortal()` — customer portal session
 - `getSubscription()` — subscription retrieval
 - `cancelSubscription()` — subscription cancellation
 - `changePlan()` — plan upgrade/downgrade
-- `checkPlanLimit()` — the actual feature gate for plan limits
+- ~~`checkPlanLimit()`~~ — now tested in `core/billing/checkPlanLimit.test.ts`
+- ~~`plans.ts`~~ — now tested in `core/billing/plans.test.ts`
 - `customer.ts` — customer creation/retrieval
 
 #### core/teams (HIGH — 5 untested functions)
@@ -278,22 +272,22 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 - `core/jobs/worker.test.ts` — job processing, retry logic
 - `core/jobs/cleanup.test.ts` — retention, stale job handling
 
-**Runtime module** (3 files):
-- `core/runtime/configLoader.test.ts` — loading, validation, caching
-- `core/runtime/hookRunner.test.ts` — hook execution, error handling, timing
+**Runtime module** (1 remaining):
+- ~~`core/runtime/configLoader.test.ts`~~ — Done
+- ~~`core/runtime/hookRunner.test.ts`~~ — Done
 - `core/runtime/uiResolver.test.ts` — component resolution, fallbacks
 
 **Lib** (2 files):
 - `lib/serverAuth.test.ts` — getCurrentUser, requireAuth
 - `lib/routeHandler.test.ts` — withErrorHandler, error mapping
 
-**Security** (2 files):
-- `core/security/headers.test.ts` — CSP headers, security headers
+**Security** (1 remaining):
+- ~~`core/security/headers.test.ts`~~ — Done
 - `core/security/index.test.ts` — combined security middleware
 
-**Other core** (5 files):
-- `core/api/validate.test.ts` — body/query validation
-- `core/errors/handler.test.ts` — error-to-HTTP mapping
+**Other core** (2 remaining):
+- ~~`core/api/validate.test.ts`~~ — Done
+- ~~`core/errors/handler.test.ts`~~ — Done
 - `core/email/send.test.ts` — email sending (mock Resend)
 - `core/email/templates.test.ts` — template rendering
 - `core/notifications/create.test.ts` — notification creation + preferences
@@ -353,19 +347,25 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 
 ## Summary of Action Items
 
-### Proprietary Extraction (Report 1)
-1. Create `proprietary/` folder for business-specific config
-2. Extract plan definitions, pricing, limits from `config/billing.config.ts`
-3. Extract landing page copy and FAQ from `config/app.config.ts`
-4. Extract marketplace defaults from `blocks/marketplace/types.ts`
-5. Extract AI provider defaults from `blocks/ai-wrapper/types.ts`
-6. Fix hardcoded `$29` in `core/admin/metrics.ts:44`
-7. Fix hardcoded `'pro'` fallback in `core/billing/handleWebhook.ts:75`
-8. Decide on license key system: enforce, remove, or defer
+### Proprietary & Licensing (Report 1) — ALL RESOLVED
 
-### Test Coverage (Report 2)
-1. **Immediate:** Write tests for auth, billing, and teams core modules (~20 files)
-2. **Soon:** Write API route integration tests (~15 files)
-3. **Medium-term:** Write block tests + remaining core (~15 files)
-4. **Long-term:** Add E2E tests with Playwright (~20 files)
-5. **Infrastructure:** Set up test DB, enforce coverage thresholds in CI
+All action items from Report 1 have been completed:
+1. ~~Create `proprietary/` folder~~ — Done
+2. ~~Wire attribution to license validation~~ — Done
+3. ~~Fix hardcoded $29 MRR~~ — Done
+4. ~~Fix hardcoded 'pro' fallback~~ — Done
+5. ~~Extract AI model costs to config~~ — Done
+6. ~~Add .gitignore entry~~ — Done (commented, uncomment for public template)
+
+**One remaining TODO:** Server-side license validation (currently prefix-based).
+
+### Test Coverage (Report 2) — IN PROGRESS
+
+Coverage improved from 10 → 20 test files (~139 → ~200+ cases). Key additions: billing/plans, billing/checkPlanLimit, admin/metrics, errors/types, errors/handler, runtime/configLoader, runtime/hookRunner, security/headers, api/validate, proprietary/license.
+
+**Still needed:**
+1. **Critical:** Auth module DB-dependent tests (createUser, session, verifyCredentials), remaining billing tests (webhook, checkout, customer), teams module, middleware (~15 files)
+2. **High:** API route integration tests (~15 files)
+3. **Medium:** Block tests, email, notifications, extensions (~15 files)
+4. **Long-term:** E2E tests with Playwright, component tests (~20 files)
+5. **Infrastructure:** Test DB setup, CI test step, coverage thresholds
