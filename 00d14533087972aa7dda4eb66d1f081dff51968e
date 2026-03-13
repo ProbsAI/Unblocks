@@ -1,0 +1,42 @@
+=== AI PR Comments for PR #7 ===
+Synced: 2026-03-13T21:04:27Z
+
+## Reviews
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-13T21:04:09Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `b93895fc8d`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-13T21:04:10Z on .github/workflows/ci.yml:22 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Use lockfile-compatible install step in CI**
+
+`npm ci` is configured in this workflow, but this repository does not include a `package-lock.json`/`npm-shrinkwrap.json`, so the jobs fail before running checks. I verified the CLI behavior: `npm ci --dry-run` returns `The npm ci command can only install with an existing package-lock.json...`. As written, every push/PR run will fail at install time until a lockfile is committed or the install command is changed.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-13T21:04:10Z on blocks/ai-wrapper/usage.ts:120 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Read model pricing from the existing AI config path**
+
+This `require` points to `config/ai-wrapper.config`, but the repo’s AI config is `config/ai.config.ts` (used elsewhere via `loadConfig('ai')`), so this import path never resolves in the current project. In that case `configCosts` stays empty and all models fall back to `{ input: 0.1, output: 0.3 }`, which silently skews usage cost reporting for tracked completions.
+
+Useful? React with 👍 / 👎.
