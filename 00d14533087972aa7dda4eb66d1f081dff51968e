@@ -1,5 +1,5 @@
 === AI PR Comments for PR #7 ===
-Synced: 2026-03-13T21:04:27Z
+Synced: 2026-03-13T21:05:32Z
 
 ## Reviews
 
@@ -25,6 +25,64 @@ Codex can also answer questions or update the PR. Try commenting "@codex address
 
 </details>
 
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-13T21:05:21Z ---
+## Pull request overview
+
+Adds a proprietary licensing/entitlements module and wires attribution display to license state, while also addressing several audit items by making previously hardcoded values configurable and expanding automated tests/CI coverage.
+
+**Changes:**
+- Introduces `proprietary/license/*` with tiered entitlements and attribution gating via `canRemoveAttribution()`.
+- Replaces hardcoded billing/admin values with config-derived fallbacks (plan fallback in Stripe webhook handling; MRR estimate uses average paid-plan price).
+- Adds multiple Vitest unit tests and a GitHub Actions CI workflow (typecheck, tests, coverage run, build).
+
+### Reviewed changes
+
+Copilot reviewed 18 out of 19 changed files in this pull request and generated 3 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| proprietary/license/validate.ts | Implements license-key validation, entitlement caching, and attribution capability checks |
+| proprietary/license/validate.test.ts | Tests license validation behavior, caching, and attribution entitlement |
+| proprietary/license/types.ts | Defines license tiers and entitlement objects |
+| proprietary/license/index.ts | Barrel exports for proprietary license module |
+| proprietary/README.md | Documents purpose of proprietary folder and public-template guidance |
+| app/page.tsx | Gates footer attribution based on config + license entitlement |
+| app/(marketing)/pricing/page.tsx | Applies the same attribution gating on pricing page |
+| core/billing/handleWebhook.ts | Uses config-derived “first paid plan” fallback instead of hardcoding `pro` |
+| core/admin/metrics.ts | Computes MRR estimate from average paid-plan monthly price (config-driven) |
+| blocks/ai-wrapper/usage.ts | Moves model cost map toward config-driven values (dynamic require) |
+| blocks/ai-wrapper/types.ts | Adds `modelCosts` to AI wrapper config schema with defaults |
+| core/security/headers.test.ts | Adds unit tests for `SECURITY_HEADERS` |
+| core/runtime/hookRunner.test.ts | Adds tests for hook registration/execution/error behavior |
+| core/runtime/configLoader.test.ts | Adds tests for config loading, caching, and schema validation |
+| core/errors/types.test.ts | Adds tests for error types and their properties |
+| core/errors/handler.test.ts | Adds tests for error-to-response mapping and leakage prevention |
+| core/billing/plans.test.ts | Adds tests for plan retrieval helpers |
+| core/billing/checkPlanLimit.test.ts | Adds tests for plan-limit enforcement and fallbacks |
+| core/api/validate.test.ts | Adds tests for request body validation and Zod error mapping |
+| core/admin/metrics.test.ts | Adds tests for average paid plan price computation |
+| AUDIT-REPORT.md | Adds audit report describing licensing extraction + test coverage plan |
+| .gitignore | Adds commented guidance for excluding `proprietary/` in public templates |
+| .github/workflows/ci.yml | Adds CI workflow for typecheck, tests, coverage run, and build |
+</details>
+
+<details>
+<summary>Comments suppressed due to low confidence (1)</summary>
+
+**app/(marketing)/pricing/page.tsx:6**
+* This import hard-depends on `@/proprietary/license`, which conflicts with the guidance to exclude `proprietary/` for the public template. Without a stub/fallback, removing `proprietary/` will break the build for this route.
+```
+import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
+```
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
 ## Inline Comments
 
 --- inline by @chatgpt-codex-connector[bot] at 2026-03-13T21:04:10Z on .github/workflows/ci.yml:22 ---
@@ -40,3 +98,12 @@ Useful? React with 👍 / 👎.
 This `require` points to `config/ai-wrapper.config`, but the repo’s AI config is `config/ai.config.ts` (used elsewhere via `loadConfig('ai')`), so this import path never resolves in the current project. In that case `configCosts` stays empty and all models fall back to `{ input: 0.1, output: 0.3 }`, which silently skews usage cost reporting for tracked completions.
 
 Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on .github/workflows/ci.yml:39 ---
+The workflow uploads `coverage/`, but this job runs tests without `--coverage`, so the directory typically won’t exist and the artifact will be empty. Either run `npm run test -- --coverage` before uploading in this job, or move the upload step to the coverage job.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on .github/workflows/ci.yml:60 ---
+The "Coverage Check" job currently always passes because it only prints a target threshold. If this is meant to enforce coverage, add real Vitest coverage thresholds (or a script that fails when below target) so CI actually blocks regressions.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on app/page.tsx:10 ---
+This import hard-depends on `@/proprietary/license`, but `proprietary/README.md` instructs public-template consumers to exclude the entire `proprietary/` directory. If `proprietary/` is omitted, this will fail to compile; consider a public stub/fallback module or conditional integration so the public template builds without proprietary sources.
