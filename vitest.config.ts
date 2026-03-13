@@ -13,6 +13,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['core/**/*.ts', 'blocks/**/*.ts', 'lib/**/*.ts'],
       exclude: ['**/*.test.ts', '**/index.ts', '**/types.ts'],
+      reporter: ['text', 'json-summary', 'lcov'],
     },
   },
   resolve: {

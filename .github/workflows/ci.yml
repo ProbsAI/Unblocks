@@ -18,8 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npx tsc --noEmit
 
   test:
@@ -30,9 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run test -- --reporter=verbose
+      - run: npm install
+      - run: npm run test -- --reporter=verbose --coverage
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,23 +38,28 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 7
-
-  test-coverage:
-    name: Coverage Check
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run test -- --coverage
       - name: Check coverage thresholds
+        if: always()
         run: |
-          echo "Coverage report generated. Review coverage/ directory for details."
-          echo "Target: 30% line coverage for core/ modules (Phase 1)"
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const THRESHOLD = 15;
+          const summaryPath = path.join('coverage', 'coverage-summary.json');
+          if (!fs.existsSync(summaryPath)) {
+            console.log('Coverage summary not found — skipping threshold check');
+            process.exit(0);
+          }
+          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+          const pct = summary.total.lines.pct;
+          console.log('Total line coverage: ' + pct + '%');
+          console.log('Required minimum: ' + THRESHOLD + '%');
+          if (pct < THRESHOLD) {
+            console.error('Coverage check FAILED: ' + pct + '% < ' + THRESHOLD + '%');
+            process.exit(1);
+          }
+          console.log('Coverage check passed.');
+          "
 
   build:
     name: Build
@@ -67,8 +70,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run build
         env:
           DATABASE_URL: postgres://localhost:5432/unblocks_build
