@@ -6,6 +6,8 @@
 
 Unblocks is an AI-native open-source SaaS foundation. It provides auth, billing, email, teams, notifications, admin panel, background jobs, file uploads, and a landing page out of the box. Developers customize via config files and hooks — never by modifying core.
 
+**Architecture:** Open-core. This public MIT repo is the core — it works standalone. Premium blocks (AI wrapper, data platform, marketplace) are separate npm packages installed from a private registry. This repo is used as a git submodule in the private `Unblocks-pro` monorepo.
+
 **Phase:** V1C (vertical blocks)
 **Stack:** Next.js 15 App Router, TypeScript strict, Drizzle ORM + PostgreSQL, Stripe, Resend, Tailwind v4, Zod
 
@@ -36,12 +38,14 @@ core/                    # UNTOUCHABLE — pure TypeScript business logic
   extensions/            # Extension system: manifest, loader, registry
   index.ts               # Public API barrel
 
-blocks/                  # OPTIONAL — vertical domain blocks (V1C)
-  ai-wrapper/            # AI: OpenAI/Anthropic completion, usage tracking
-  data-platform/         # Data: pipelines, datasources, datasets
-  marketplace/           # Marketplace: listings, orders, reviews, sellers
+blocks/                  # COMMUNITY — open-source blocks (MIT)
   testing/               # Testing: helpers, factories, fixtures, mocks
   seed/                  # Sample data generation for development
+
+proprietary/             # STAGING — premium blocks (moved to private repo for release)
+  block-ai-wrapper/      # AI: OpenAI/Anthropic completion, usage tracking
+  block-data-platform/   # Data: pipelines, datasources, datasets
+  block-marketplace/     # Marketplace: listings, orders, reviews, sellers
 
 app/                     # Next.js 15 App Router — the "adapter" layer
   api/auth/              # Auth API routes (register, login, logout, OAuth, etc.)
@@ -186,6 +190,27 @@ await createNotification({
   userId, type: 'info', category: 'billing',
   title: 'Payment received', body: 'Your invoice has been paid.',
 })
+```
+
+### Block Registry Pattern (Premium Blocks)
+
+```typescript
+// In API routes — graceful degradation when block not installed
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
+const ai = tryRequireBlock<{ complete: Function }>('ai-wrapper')
+if (!ai) {
+  return errorResponse('BLOCK_NOT_AVAILABLE', 'AI wrapper block is not installed', 404)
+}
+const result = await ai.complete(body)
+```
+
+### License Feature Check Pattern
+
+```typescript
+import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
+if (!hasFeature('uploads.s3')) {
+  throw new PlanLimitError('S3 uploads require a Pro license')
+}
 ```
 
 ## Path Aliases

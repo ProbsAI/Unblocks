@@ -1,8 +1,8 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse } from '@unblocks/core/api'
-import { createPipeline, listPipelines } from '@/blocks/data-platform'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -23,13 +23,23 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const pipeline = await createPipeline(user.id, body)
+  const data = tryRequireBlock<{ createPipeline: Function }>('data-platform')
+  if (!data) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
+  }
 
+  const pipeline = await data.createPipeline(user.id, body)
   return successResponse(pipeline, undefined, 201)
 })
 
 export const GET = withErrorHandler(async () => {
   const user = await requireAuth()
-  const userPipelines = await listPipelines(user.id)
+
+  const data = tryRequireBlock<{ listPipelines: Function }>('data-platform')
+  if (!data) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
+  }
+
+  const userPipelines = await data.listPipelines(user.id)
   return successResponse(userPipelines)
 })
