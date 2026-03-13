@@ -15,15 +15,14 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 | `core/env.ts:20` | Defines `UNBLOCKS_LICENSE_KEY` as optional env var with Zod validation |
 | `core/types.ts:57-58` | `AppConfigSchema.footer` has `showUnblocksAttribution` (bool) and `unblocksLicenseKey` (string) |
 | `config/app.config.ts:91-93` | Sets `showUnblocksAttribution: true`, `unblocksLicenseKey: ''` |
-| `proprietary/license/validate.ts` | Prefix-based license validation (`ub_pro_*`, `ub_ent_*`) with cached entitlements |
-| `proprietary/license/types.ts` | Three tiers: community (default), pro, enterprise with entitlement schema |
-| `proprietary/license/validate.test.ts` | Tests for all tiers, caching, and `canRemoveAttribution()` |
+| `core/runtime/licenseValidator.ts` | 5-tier license validation with feature-based access control |
+| `core/runtime/licenseValidator.test.ts` | Tests for all tiers, caching, and `hasFeature()` |
 
-**Status:** Implemented. The `proprietary/` folder contains license validation with three tiers. Keys are validated by prefix (`ub_pro_*` → Pro, `ub_ent_*` → Enterprise, else Community). Entitlements are cached after first check.
+**Status:** Implemented in `core/runtime/licenseValidator.ts` (MIT-licensed, ships with public repo). Five tiers: community (free), builder ($9/mo), pro ($19/mo), team ($49/mo), enterprise (custom). Keys validated by prefix (`ub_builder_*`, `ub_pro_*`, `ub_team_*`, `ub_ent_*`). Feature-based access via `hasFeature(featureName)`.
 
-**What the license key controls:** Attribution removal (Pro+Enterprise) and white-label branding (Enterprise only). Community tier cannot remove attribution regardless of config setting.
+**What the license key controls:** Attribution removal (builder+), advanced admin (pro+), SSE notifications (pro+), S3 uploads (pro+), premium templates/themes (pro+), team seats (team+), SSO/audit/compliance (enterprise).
 
-**Remaining TODO:** Replace prefix-based validation with server-side check against `https://api.unblocks.ai/v1/license/validate` when the license server is ready.
+**Remaining TODO:** Replace prefix-based validation with server-side JWT/API check against `https://api.unblocks.ai/v1/license/validate` when the license server is ready.
 
 ---
 
@@ -35,7 +34,7 @@ Two-part audit: (1) Proprietary/licensing items to extract, and (2) Test coverag
 | `app/page.tsx:15` | `showAttribution = footer.showUnblocksAttribution \|\| !canRemoveAttribution()` |
 | `app/(marketing)/pricing/page.tsx:17-18` | Same license-gated logic for pricing page |
 
-**Status:** Wired to license validation. Both `app/page.tsx` and the pricing page import `canRemoveAttribution()` from `@/proprietary/license`. Attribution shows unless the config says false AND the license permits removal. Without a valid Pro/Enterprise key, attribution always renders.
+**Status:** Wired to license validation. Both `app/page.tsx` and the pricing page import `hasFeature()` from `@unblocks/core/runtime/licenseValidator`. Attribution shows unless the config says false AND `hasFeature('attribution.remove')` returns true. Without a valid Builder+ key, attribution always renders.
 
 ---
 
@@ -52,8 +51,8 @@ Falls back to `getAllPlans().find(p => p.price.monthly > 0)?.id` (first paid pla
 #### `core/billing/types.ts`
 `PlanLimitsSchema` defaults (projects: 3, teamMembers: 1, etc.) are reasonable free-tier defaults. **No action needed.**
 
-#### `blocks/ai-wrapper/usage.ts` — FIXED
-`estimateCost()` reads `modelCosts` from `config/ai-wrapper.config` via dynamic require with graceful fallback. The `AIWrapperConfigSchema` in `blocks/ai-wrapper/types.ts` defines a `modelCosts` field with sensible defaults that users can override.
+#### `proprietary/block-ai-wrapper/usage.ts` — FIXED
+`estimateCost()` reads `modelCosts` from config via dynamic require with graceful fallback. The `AIWrapperConfigSchema` in `proprietary/block-ai-wrapper/types.ts` defines a `modelCosts` field with sensible defaults that users can override. (Note: AI wrapper moved from `blocks/` to `proprietary/block-ai-wrapper/` as part of open-core architecture.)
 
 ---
 
@@ -68,8 +67,8 @@ The following were flagged in v1 of this report but are **working as designed** 
 | Trial config (14 days, Pro default) | `config/billing.config.ts` | User-owned config |
 | Stripe keys from env vars | `config/billing.config.ts` | Uses env vars correctly |
 | Landing page copy, FAQ, SEO | `config/app.config.ts` | User-owned config — developers write their own copy |
-| Marketplace commission/pricing | `blocks/marketplace/types.ts` | Block config with sensible defaults — developers override |
-| AI provider/model defaults | `blocks/ai-wrapper/types.ts` | Block config with sensible defaults — developers override |
+| Marketplace commission/pricing | `proprietary/block-marketplace/types.ts` | Block config with sensible defaults — developers override |
+| AI provider/model defaults | `proprietary/block-ai-wrapper/types.ts` | Block config with sensible defaults — developers override |
 | Stripe integration in core | `core/billing/*.ts` | Framework infrastructure — provides billing capability |
 | Plan check/enforcement logic | `core/billing/checkPlanLimit.ts` | Framework infrastructure — enforces user-defined plans |
 | Admin role checks | `core/admin/users.ts` | Framework infrastructure — standard RBAC |
@@ -98,7 +97,7 @@ The following were flagged in v1 of this report but are **working as designed** 
 ### 2.1 Current State
 
 **Framework:** Vitest 2.1.0 with v8 coverage provider
-**Existing test files:** 20
+**Existing test files:** 21
 **Estimated overall coverage:** ~12-15%
 
 ### 2.2 What Exists (20 test files)
@@ -124,9 +123,10 @@ The following were flagged in v1 of this report but are **working as designed** 
 | `core/errors/handler.test.ts` | — | Good |
 | `core/runtime/configLoader.test.ts` | — | Good |
 | `core/runtime/hookRunner.test.ts` | — | Good |
-| `proprietary/license/validate.test.ts` | — | Good |
+| `core/runtime/licenseValidator.test.ts` | — | Good |
+| `core/runtime/blockRegistry.test.ts` | — | Good |
 
-**Total existing: ~200+ test cases across 20 files**
+**Total existing: ~200+ test cases across 21 files**
 
 ### 2.3 Test Infrastructure (blocks/testing/)
 
@@ -152,17 +152,16 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 | **core/notifications** | 6 | 0 | 0% | MEDIUM |
 | **core/admin** | 4 | 1 | ~25% | MEDIUM |
 | **core/email** | 5 | 0 | 0% | MEDIUM |
-| **core/runtime** | 4 | 2 | ~50% | MEDIUM |
+| **core/runtime** | 6 | 4 | ~67% | MEDIUM |
 | **core/uploads** (remaining) | 5 | 1 | ~20% | MEDIUM |
 | **core/api** | 2 | 2 | ~100% | LOW |
 | **lib/** | 2 | 0 | 0% | MEDIUM |
 | **core/errors** | 2 | 2 | ~100% | LOW |
 | **core/extensions** | 4 | 0 | 0% | LOW |
 | **core/db** | 3 | 0 | 0% | LOW |
-| **proprietary/license** | 3 | 1 | ~33% | MEDIUM |
-| **blocks/ai-wrapper** | 6 | 0 | 0% | MEDIUM |
-| **blocks/data-platform** | 6 | 0 | 0% | MEDIUM |
-| **blocks/marketplace** | 6 | 0 | 0% | MEDIUM |
+| **proprietary/block-ai-wrapper** | 7 | 0 | 0% | MEDIUM |
+| **proprietary/block-data-platform** | 7 | 0 | 0% | MEDIUM |
+| **proprietary/block-marketplace** | 8 | 0 | 0% | MEDIUM |
 | **blocks/seed** | ~3 | 0 | 0% | LOW |
 | **app/api/** (all routes) | 42+ | 0 | 0% | CRITICAL |
 | **components/** | 25+ | 0 | 0% | LOW |
@@ -310,18 +309,18 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 - `app/api/jobs/route.test.ts`
 - `app/api/health/route.test.ts`
 
-#### Phase 3 — Blocks (estimate: ~12 test files)
+#### Phase 3 — Premium Blocks (estimate: ~12 test files)
 
-- `blocks/ai-wrapper/completion.test.ts`
-- `blocks/ai-wrapper/usage.test.ts`
-- `blocks/ai-wrapper/templates.test.ts`
-- `blocks/data-platform/pipelines.test.ts`
-- `blocks/data-platform/datasources.test.ts`
-- `blocks/data-platform/datasets.test.ts`
-- `blocks/marketplace/listings.test.ts`
-- `blocks/marketplace/orders.test.ts`
-- `blocks/marketplace/reviews.test.ts`
-- `blocks/marketplace/sellers.test.ts`
+- `proprietary/block-ai-wrapper/completion.test.ts`
+- `proprietary/block-ai-wrapper/usage.test.ts`
+- `proprietary/block-ai-wrapper/providers.test.ts`
+- `proprietary/block-data-platform/pipelines.test.ts`
+- `proprietary/block-data-platform/datasources.test.ts`
+- `proprietary/block-data-platform/datasets.test.ts`
+- `proprietary/block-marketplace/listings.test.ts`
+- `proprietary/block-marketplace/orders.test.ts`
+- `proprietary/block-marketplace/reviews.test.ts`
+- `proprietary/block-marketplace/seller.test.ts`
 - `blocks/seed/generators.test.ts`
 - `blocks/seed/seed.test.ts`
 
@@ -340,8 +339,8 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 3. **Email mocking** — `createEmailMock()` exists but unused
 4. **React Testing Library** — Not installed; needed for component tests
 5. **Playwright** — Not installed; needed for E2E tests
-6. **CI integration** — No test step in CI/CD config
-7. **Coverage thresholds** — No minimum coverage enforced
+6. ~~**CI integration**~~ — Done (`.github/workflows/ci.yml` runs tests + coverage)
+7. ~~**Coverage thresholds**~~ — Done (CI enforces 15% minimum line coverage via `coverage-summary.json`)
 
 ---
 
@@ -350,8 +349,8 @@ The infrastructure is solid but underutilized — most of these helpers have zer
 ### Proprietary & Licensing (Report 1) — ALL RESOLVED
 
 All action items from Report 1 have been completed:
-1. ~~Create `proprietary/` folder~~ — Done
-2. ~~Wire attribution to license validation~~ — Done
+1. ~~Create license validation~~ — Done (`core/runtime/licenseValidator.ts`, 5 tiers)
+2. ~~Wire attribution to license validation~~ — Done (`hasFeature('attribution.remove')`)
 3. ~~Fix hardcoded $29 MRR~~ — Done
 4. ~~Fix hardcoded 'pro' fallback~~ — Done
 5. ~~Extract AI model costs to config~~ — Done
@@ -361,11 +360,11 @@ All action items from Report 1 have been completed:
 
 ### Test Coverage (Report 2) — IN PROGRESS
 
-Coverage improved from 10 → 20 test files (~139 → ~200+ cases). Key additions: billing/plans, billing/checkPlanLimit, admin/metrics, errors/types, errors/handler, runtime/configLoader, runtime/hookRunner, security/headers, api/validate, proprietary/license.
+Coverage improved from 10 → 21 test files (~139 → ~200+ cases). Key additions: billing/plans, billing/checkPlanLimit, admin/metrics, errors/types, errors/handler, runtime/configLoader, runtime/hookRunner, runtime/licenseValidator, runtime/blockRegistry, security/headers, api/validate.
 
 **Still needed:**
 1. **Critical:** Auth module DB-dependent tests (createUser, session, verifyCredentials), remaining billing tests (webhook, checkout, customer), teams module, middleware (~15 files)
 2. **High:** API route integration tests (~15 files)
-3. **Medium:** Block tests, email, notifications, extensions (~15 files)
+3. **Medium:** Premium block tests, email, notifications, extensions (~15 files)
 4. **Long-term:** E2E tests with Playwright, component tests (~20 files)
-5. **Infrastructure:** Test DB setup, CI test step, coverage thresholds
+5. **Infrastructure:** Test DB setup (CI test step and coverage thresholds now done)
