@@ -6,13 +6,14 @@ import { FAQ } from '@/components/landing/FAQ'
 import { Footer } from '@/components/landing/Footer'
 import appConfig from '@/config/app.config'
 import billingConfig from '@/config/billing.config'
-import { canRemoveAttribution } from '@/proprietary/license'
+import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
 
 export default function HomePage() {
   const { landing, name, footer } = appConfig
+  const canRemoveAttribution = hasFeature('attribution.remove')
 
   // Attribution can only be hidden with a valid license key
-  const showAttribution = footer.showUnblocksAttribution || !canRemoveAttribution()
+  const showAttribution = footer.showUnblocksAttribution || !canRemoveAttribution
 
   return (
     <>

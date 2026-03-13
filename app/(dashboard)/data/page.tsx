@@ -1,4 +1,6 @@
 import { getCurrentUser } from '@/lib/serverAuth'
+import { redirect } from 'next/navigation'
+import { isBlockAvailable } from '@unblocks/core/runtime/blockRegistry'
 import { Card } from '@/components/ui/Card'
 import { PipelineList } from '@/components/data/PipelineList'
 
@@ -21,6 +23,10 @@ const mockDatasets = [
 
 export default async function DataPage() {
   await getCurrentUser()
+
+  if (!isBlockAvailable('data-platform')) {
+    redirect('/dashboard?block=data-platform&status=not-installed')
+  }
 
   return (
     <div className="space-y-6">

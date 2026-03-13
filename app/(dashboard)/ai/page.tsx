@@ -1,4 +1,6 @@
 import { getCurrentUser } from '@/lib/serverAuth'
+import { redirect } from 'next/navigation'
+import { isBlockAvailable } from '@unblocks/core/runtime/blockRegistry'
 import { Card } from '@/components/ui/Card'
 import { UsageChart } from '@/components/ai/UsageChart'
 
@@ -20,6 +22,10 @@ const mockCompletions = [
 
 export default async function AIPage() {
   await getCurrentUser()
+
+  if (!isBlockAvailable('ai-wrapper')) {
+    redirect('/dashboard?block=ai-wrapper&status=not-installed')
+  }
 
   const totalRequests = mockUsageByProvider.reduce((sum, p) => sum + p.requests, 0)
   const totalTokens = mockUsageByProvider.reduce((sum, p) => sum + p.tokens, 0)

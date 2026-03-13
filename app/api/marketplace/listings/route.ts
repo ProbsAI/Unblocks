@@ -1,8 +1,8 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse } from '@unblocks/core/api'
-import { createListing, searchListings } from '@/blocks/marketplace'
+import { successResponse, errorResponse } from '@unblocks/core/api'
+import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -20,15 +20,23 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const listing = await createListing(user.id, body)
+  const mp = tryRequireBlock<{ createListing: Function }>('marketplace')
+  if (!mp) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
+  }
 
+  const listing = await mp.createListing(user.id, body)
   return successResponse(listing, undefined, 201)
 })
 
 export const GET = withErrorHandler(async (request: Request) => {
-  const url = new URL(request.url)
+  const mp = tryRequireBlock<{ searchListings: Function }>('marketplace')
+  if (!mp) {
+    return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
+  }
 
-  const result = await searchListings({
+  const url = new URL(request.url)
+  const result = await mp.searchListings({
     query: url.searchParams.get('q') ?? undefined,
     category: url.searchParams.get('category') ?? undefined,
     limit: parseInt(url.searchParams.get('limit') ?? '20', 10),
