@@ -3,6 +3,7 @@ import { Pricing } from '@/components/landing/Pricing'
 import { FAQ } from '@/components/landing/FAQ'
 import { Footer } from '@/components/landing/Footer'
 import { loadConfig } from '@unblocks/core/runtime/configLoader'
+import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
 
 export const metadata = {
   title: 'Pricing',
@@ -24,7 +25,7 @@ export default async function PricingPage() {
       </div>
       <Footer
         appName={appConfig.name}
-        showAttribution={appConfig.footer.showUnblocksAttribution}
+        showAttribution={!hasFeature('attribution.remove')}
       />
     </div>
   )

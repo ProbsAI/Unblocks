@@ -25,12 +25,16 @@ Unblocks gives you auth, billing, email, teams, notifications, admin panel, back
 - **UI Override System** — Shadow components in `ui/` to customize without touching core
 - **Extension System** — Self-contained modules with manifests and dependency resolution
 
-### Blocks (V1C)
+### Community Blocks (V1C)
+- **Testing** — Test helpers, factories, fixtures, and mocks for writing comprehensive tests
+- **Seed** — Sample data generation for local development
+
+### Premium Blocks (Pro License)
 - **AI Wrapper** — OpenAI and Anthropic completion with usage tracking and cost estimation
 - **Data Platform** — Pipelines, data sources, and datasets with background job integration
 - **Marketplace** — Listings, orders, reviews, and seller profiles
-- **Testing** — Test helpers, factories, fixtures, and mocks for writing comprehensive tests
-- **Seed** — Sample data generation for local development
+
+> Premium blocks are installed via `npm install @unblocks/block-ai-wrapper` from the private registry. API routes gracefully return 404 when a block isn't installed — no build errors.
 
 ## Quick Start
 
