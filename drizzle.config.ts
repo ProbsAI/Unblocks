@@ -6,18 +6,22 @@ import { join, relative } from 'node:path'
 // dynamically from installed @unblocks/block-* packages.
 function discoverBlockSchemaPaths(): string[] {
   const baseDir = join(process.cwd(), 'node_modules', '@unblocks')
-  let entries: ReturnType<typeof readdirSync>
+  let dirNames: string[]
   try {
-    entries = readdirSync(baseDir, { withFileTypes: true })
+    dirNames = readdirSync(baseDir).filter((name) => {
+      try {
+        const stat = require('node:fs').statSync(join(baseDir, name))
+        return stat.isDirectory() && name.startsWith('block-')
+      } catch { return false }
+    })
   } catch {
     return []
   }
 
   const results: string[] = []
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !entry.name.startsWith('block-')) continue
+  for (const name of dirNames) {
     for (const ext of ['ts', 'js'] as const) {
-      const schemaPath = join(baseDir, entry.name, `schema.${ext}`)
+      const schemaPath = join(baseDir, name, `schema.${ext}`)
       if (!existsSync(schemaPath)) continue
       let rel = relative(process.cwd(), schemaPath).replace(/\\/g, '/')
       if (!rel.startsWith('.')) rel = './' + rel

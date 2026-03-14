@@ -43,11 +43,6 @@ const notificationTitles = [
   'System maintenance scheduled',
 ]
 
-const mimeTypes = [
-  'image/png', 'image/jpeg', 'application/pdf',
-  'text/csv', 'application/json', 'image/svg+xml',
-]
-
 let seedCounter = 0
 
 function pick<T>(arr: T[]): T {

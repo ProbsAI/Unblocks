@@ -9,7 +9,8 @@ import { loadConfig } from '../runtime/configLoader'
 import { getAllPlans, getPlanById, getFreePlan } from './plans'
 import { NotFoundError } from '../errors/types'
 
-const mockLoadConfig = vi.mocked(loadConfig)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockLoadConfig = vi.mocked(loadConfig) as unknown as ReturnType<typeof vi.fn>
 
 const freePlan: Plan = {
   id: 'free',
