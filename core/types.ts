@@ -32,15 +32,15 @@ export const AppConfigSchema = z.object({
 
   landing: z.object({
     hero: z.object({
-      title: z.string(),
-      subtitle: z.string(),
-      cta: CtaSchema,
+      title: z.string().default('Welcome'),
+      subtitle: z.string().default('Get started today.'),
+      cta: CtaSchema.default({ text: 'Get Started', href: '/signup' }),
       secondaryCta: CtaSchema.optional(),
-    }),
+    }).default({}),
     features: z.array(FeatureSchema).default([]),
     testimonials: z.array(TestimonialSchema).default([]),
     faq: z.array(FaqSchema).default([]),
-  }),
+  }).default({}),
 
   seo: z.object({
     titleTemplate: z.string().default('%s | MyApp'),

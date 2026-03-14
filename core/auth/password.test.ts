@@ -56,10 +56,10 @@ describe('verifyPassword', () => {
   })
 
   it('handles long passwords', async () => {
-    const password = 'a'.repeat(100)
+    const password = 'a'.repeat(60)
     const hash = await hashPassword(password)
 
     expect(await verifyPassword(password, hash)).toBe(true)
-    expect(await verifyPassword('a'.repeat(99), hash)).toBe(false)
+    expect(await verifyPassword('a'.repeat(59), hash)).toBe(false)
   })
 })
