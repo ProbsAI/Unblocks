@@ -24,6 +24,12 @@ const config: AIWrapperConfig = {
   trackUsage: true,
   cacheEnabled: false,
   cacheTtl: 3_600_000,
+  modelCosts: {
+    'gpt-4o': { input: 0.25, output: 1.0 },
+    'gpt-4o-mini': { input: 0.015, output: 0.06 },
+    'claude-sonnet-4-6': { input: 0.3, output: 1.5 },
+    'claude-opus-4-6': { input: 1.5, output: 7.5 },
+  },
 }
 
 export default config
