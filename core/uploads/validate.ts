@@ -74,8 +74,10 @@ export function isImageMimeType(mimeType: string): boolean {
  */
 export function sanitizeFilename(name: string): string {
   return name
+    .replace(/\.\./g, '')
+    .replace(/[/\\]/g, '_')
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .replace(/_{2,}/g, '_')
-    .replace(/^[._]/, '')
+    .replace(/^[._]+/, '')
     .slice(0, 200)
 }
