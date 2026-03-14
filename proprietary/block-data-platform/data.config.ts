@@ -1,4 +1,4 @@
-import type { DataPlatformConfig } from '@unblocks/blocks/data-platform/types'
+import type { DataPlatformConfig } from './types'
 
 const config: DataPlatformConfig = {
   enabled: true,

@@ -1,8 +1,18 @@
-import { loadConfig } from '../../core/runtime/configLoader'
 import { runHook } from '../../core/runtime/hookRunner'
 import { getProviderFn } from './providers'
 import { trackUsage } from './usage'
-import type { CompletionRequest, CompletionResponse, AIProvider } from './types'
+import { AIWrapperConfigSchema } from './types'
+import type { CompletionRequest, CompletionResponse, AIProvider, AIWrapperConfig } from './types'
+
+function loadAIConfig(): AIWrapperConfig {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('./ai.config')
+    return AIWrapperConfigSchema.parse(mod.default ?? mod)
+  } catch {
+    return AIWrapperConfigSchema.parse({})
+  }
+}
 
 /**
  * Send a completion request through the AI wrapper.
@@ -11,13 +21,13 @@ import type { CompletionRequest, CompletionResponse, AIProvider } from './types'
 export async function complete(
   request: CompletionRequest
 ): Promise<CompletionResponse> {
-  const config = loadConfig('ai') as ReturnType<typeof loadConfig>
+  const config = loadAIConfig()
 
   // Determine provider from model or config
   const provider = detectProvider(request.model, config.defaultProvider as AIProvider)
 
   // Get provider credentials
-  const { apiKey, baseUrl } = getProviderCredentials(provider, config)
+  const { apiKey, baseUrl } = getProviderCredentials(provider, config as unknown as Record<string, unknown>)
 
   if (!apiKey) {
     throw new Error(`No API key configured for provider: ${provider}`)
@@ -51,8 +61,8 @@ export async function complete(
     })
   }
 
-  // Fire hook
-  await runHook('onAICompletion', {
+  // Fire hook (use string to allow custom hook names from blocks)
+  await runHook('onAICompletion' as Parameters<typeof runHook>[0], {
     userId: request.userId,
     model: response.model,
     tokens: response.usage.totalTokens,

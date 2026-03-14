@@ -1,4 +1,4 @@
-import { eq, desc, and, or } from 'drizzle-orm'
+import { eq, desc, or } from 'drizzle-orm'
 import { getDb } from '../../core/db/client'
 import { orders, listings, sellerProfiles } from './schema'
 import { NotFoundError, ForbiddenError } from '../../core/errors/types'
@@ -50,7 +50,7 @@ export async function createOrder(
     })
     .returning()
 
-  await runHook('onMarketplaceOrder', {
+  await runHook('onMarketplaceOrder' as Parameters<typeof runHook>[0], {
     orderId: row.id,
     buyerId,
     sellerId: listing.sellerId,

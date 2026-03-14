@@ -1,4 +1,4 @@
-import { eq, desc, sql, and } from 'drizzle-orm'
+import { eq, desc, sql } from 'drizzle-orm'
 import { getDb } from '../../core/db/client'
 import { reviews, sellerProfiles, orders } from './schema'
 import { ForbiddenError, NotFoundError, ConflictError } from '../../core/errors/types'

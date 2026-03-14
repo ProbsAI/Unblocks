@@ -81,24 +81,18 @@ export async function searchListings(options?: {
   const limit = options?.limit ?? 20
   const offset = options?.offset ?? 0
 
-  let query = db
+  const conditions = [eq(listings.status, 'active')]
+  if (options?.category) {
+    conditions.push(eq(listings.category, options.category))
+  }
+  if (options?.query) {
+    conditions.push(like(listings.title, `%${options.query}%`))
+  }
+
+  const rows = await db
     .select()
     .from(listings)
-    .where(eq(listings.status, 'active'))
-
-  if (options?.category) {
-    query = query.where(
-      and(eq(listings.status, 'active'), eq(listings.category, options.category))
-    ) as typeof query
-  }
-
-  if (options?.query) {
-    query = query.where(
-      and(eq(listings.status, 'active'), like(listings.title, `%${options.query}%`))
-    ) as typeof query
-  }
-
-  const rows = await query
+    .where(and(...conditions))
     .orderBy(desc(listings.createdAt))
     .limit(limit)
     .offset(offset)

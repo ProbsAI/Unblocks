@@ -1,4 +1,4 @@
-import type { MarketplaceConfig } from '@unblocks/blocks/marketplace/types'
+import type { MarketplaceConfig } from './types'
 
 const config: MarketplaceConfig = {
   enabled: true,

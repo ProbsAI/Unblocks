@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const AuthConfigSchema = z.object({
   providers: z.object({
-    email: z.object({ enabled: z.boolean().default(true) }),
+    email: z.object({ enabled: z.boolean().default(true) }).default({}),
     google: z.object({
       enabled: z.boolean().default(false),
       clientId: z.string().default(''),

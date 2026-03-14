@@ -9,7 +9,7 @@ const magicLinkSchema = z.object({
 
 export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, magicLinkSchema)
-  const token = await createMagicLink(email)
+  await createMagicLink(email)
 
   // TODO: Wire to email system — send magic link to user
   // const appUrl = process.env.APP_URL ?? 'http://localhost:3000'

@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
+
+const env = process.env as Record<string, string | undefined>
 import {
   SESSION_COOKIE_NAME,
   CSRF_COOKIE_NAME,
@@ -20,10 +22,10 @@ describe('cookie constants', () => {
 })
 
 describe('getSessionCookieOptions', () => {
-  const originalEnv = process.env.NODE_ENV
+  const originalEnv = env.NODE_ENV
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv
+    env.NODE_ENV = originalEnv
   })
 
   it('returns httpOnly true', () => {
@@ -47,23 +49,23 @@ describe('getSessionCookieOptions', () => {
   })
 
   it('returns secure true in production', () => {
-    process.env.NODE_ENV = 'production'
+    env.NODE_ENV = 'production'
     const options = getSessionCookieOptions()
     expect(options.secure).toBe(true)
   })
 
   it('returns secure false in development', () => {
-    process.env.NODE_ENV = 'development'
+    env.NODE_ENV = 'development'
     const options = getSessionCookieOptions()
     expect(options.secure).toBe(false)
   })
 })
 
 describe('getCsrfCookieOptions', () => {
-  const originalEnv = process.env.NODE_ENV
+  const originalEnv = env.NODE_ENV
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv
+    env.NODE_ENV = originalEnv
   })
 
   it('returns httpOnly false so JS can read it', () => {
@@ -77,7 +79,7 @@ describe('getCsrfCookieOptions', () => {
   })
 
   it('returns secure true in production', () => {
-    process.env.NODE_ENV = 'production'
+    env.NODE_ENV = 'production'
     const options = getCsrfCookieOptions()
     expect(options.secure).toBe(true)
   })

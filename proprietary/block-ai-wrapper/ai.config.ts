@@ -1,4 +1,4 @@
-import type { AIWrapperConfig } from '@unblocks/blocks/ai-wrapper/types'
+import type { AIWrapperConfig } from './types'
 
 const config: AIWrapperConfig = {
   enabled: true,
