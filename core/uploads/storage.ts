@@ -91,7 +91,7 @@ function createS3Provider(): StorageProvider {
           'Content-Type': mimeType,
           'Content-Length': String(data.length),
         },
-        body: new Blob([data], { type: mimeType }),
+        body: new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)], { type: mimeType }),
       })
 
       if (!response.ok) {
