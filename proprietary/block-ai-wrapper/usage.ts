@@ -35,7 +35,7 @@ export async function trackUsage(input: TrackUsageInput): Promise<void> {
     promptTokens: input.promptTokens,
     completionTokens: input.completionTokens,
     totalTokens: input.totalTokens,
-    costCents: Math.round(costCents * 100),
+    costCents: Math.round(costCents),
     latencyMs: input.latencyMs,
     metadata: input.metadata,
   })
