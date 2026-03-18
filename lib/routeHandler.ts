@@ -1,8 +1,13 @@
 import { toErrorResponse } from '@unblocks/core/errors/handler'
 
-type RouteHandler<C = undefined> = (request: Request, context: C) => Promise<Response>
+type NextRouteContext = { params: Promise<Record<string, string | string[]>> }
 
-export function withErrorHandler<C = undefined>(handler: RouteHandler<C>): RouteHandler<C> {
+type RouteHandlerWithContext<C extends NextRouteContext> = (request: Request, context: C) => Promise<Response>
+type RouteHandlerNoContext = (...args: [Request, ...unknown[]]) => Promise<Response>
+
+export function withErrorHandler<C extends NextRouteContext>(handler: RouteHandlerWithContext<C>): (request: Request, context: C) => Promise<Response>
+export function withErrorHandler(handler: RouteHandlerNoContext): (request: Request, context: NextRouteContext) => Promise<Response>
+export function withErrorHandler(handler: Function): (request: Request, context: unknown) => Promise<Response> {
   return async (request, context) => {
     try {
       return await handler(request, context)
