@@ -1,8 +1,8 @@
 import { toErrorResponse } from '@unblocks/core/errors/handler'
 
-type RouteHandler = (request: Request, context?: unknown) => Promise<Response>
+type RouteHandler<C = undefined> = (request: Request, context: C) => Promise<Response>
 
-export function withErrorHandler(handler: RouteHandler): RouteHandler {
+export function withErrorHandler<C = undefined>(handler: RouteHandler<C>): RouteHandler<C> {
   return async (request, context) => {
     try {
       return await handler(request, context)
