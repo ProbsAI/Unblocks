@@ -91,7 +91,7 @@ function createS3Provider(): StorageProvider {
           'Content-Type': mimeType,
           'Content-Length': String(data.length),
         },
-        body: new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)], { type: mimeType }),
+        body: new Blob([bufferToArrayBuffer(data)], { type: mimeType }),
       })
 
       if (!response.ok) {
@@ -126,6 +126,12 @@ function createS3Provider(): StorageProvider {
       return getS3Url(s3Config.bucket, key, s3Config.region, s3Config.endpoint)
     },
   }
+}
+
+function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
+  const ab = new ArrayBuffer(buf.byteLength)
+  new Uint8Array(ab).set(buf)
+  return ab
 }
 
 function getS3Url(
