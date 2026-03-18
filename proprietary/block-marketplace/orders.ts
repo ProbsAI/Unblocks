@@ -50,7 +50,7 @@ export async function createOrder(
     })
     .returning()
 
-  await runHook('onMarketplaceOrder' as Parameters<typeof runHook>[0], {
+  await runHook('onMarketplaceOrder', {
     orderId: row.id,
     buyerId,
     sellerId: listing.sellerId,

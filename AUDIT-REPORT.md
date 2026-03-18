@@ -80,7 +80,7 @@ The following were flagged in v1 of this report but are **working as designed** 
 ### 1.5 Summary of Action Items
 
 **All "must do" items resolved:**
-1. ~~Create `proprietary/` folder~~ — Done (`proprietary/license/`)
+1. ~~Create `proprietary/` folder~~ — Done (`proprietary/` with block-specific subdirectories)
 2. ~~Wire attribution to license validation~~ — Done (`app/page.tsx`, pricing page)
 3. ~~Fix hardcoded $29 MRR~~ — Done (`getAveragePaidPlanPrice()`)
 4. ~~Fix hardcoded 'pro' fallback~~ — Done (`getAllPlans().find(...)`)

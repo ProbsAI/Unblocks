@@ -1,6 +1,7 @@
 import { eq, and, gte, sql } from 'drizzle-orm'
 import { getDb } from '../../core/db/client'
 import { aiUsage } from './schema'
+import { AIWrapperConfigSchema } from './types'
 import type { UsageRecord, AIProvider } from './types'
 
 interface TrackUsageInput {
@@ -114,14 +115,14 @@ function estimateCost(
   promptTokens: number,
   completionTokens: number
 ): number {
-  let configCosts: Record<string, { input: number; output: number }> = {}
+  let configCosts: Record<string, { input: number; output: number }>
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const configModule = require('../../config/ai-wrapper.config')
-    const config = configModule.default ?? configModule
-    configCosts = config?.modelCosts ?? {}
+    const mod = require('./ai.config')
+    const config = AIWrapperConfigSchema.parse(mod.default ?? mod)
+    configCosts = config.modelCosts
   } catch {
-    // No config file — use defaults from schema
+    configCosts = AIWrapperConfigSchema.parse({}).modelCosts
   }
 
   const modelCosts = configCosts[model] ?? { input: 0.1, output: 0.3 }

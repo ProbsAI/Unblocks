@@ -61,8 +61,8 @@ export async function complete(
     })
   }
 
-  // Fire hook (use string to allow custom hook names from blocks)
-  await runHook('onAICompletion' as Parameters<typeof runHook>[0], {
+  // Fire hook
+  await runHook('onAICompletion', {
     userId: request.userId,
     model: response.model,
     tokens: response.usage.totalTokens,
