@@ -8,12 +8,9 @@ function discoverBlockSchemaPaths(): string[] {
   const baseDir = join(process.cwd(), 'node_modules', '@unblocks')
   let dirNames: string[]
   try {
-    dirNames = readdirSync(baseDir).filter((name) => {
-      try {
-        const stat = require('node:fs').statSync(join(baseDir, name))
-        return stat.isDirectory() && name.startsWith('block-')
-      } catch { return false }
-    })
+    dirNames = readdirSync(baseDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith('block-'))
+      .map((entry) => entry.name)
   } catch {
     return []
   }

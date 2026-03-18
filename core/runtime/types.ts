@@ -38,6 +38,8 @@ export type HookName =
   | 'onTeamMemberRemoved'
   | 'onNotificationCreated'
   | 'onError'
+  | 'onAICompletion'
+  | 'onMarketplaceOrder'
 
 export type HookHandler = (args: unknown) => Promise<unknown>
 
