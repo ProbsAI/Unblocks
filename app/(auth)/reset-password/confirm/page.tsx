@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
 export default function ResetPasswordConfirmPage() {
+  return (
+    <Suspense fallback={<Card><p className="text-center text-muted-foreground">Loading…</p></Card>}>
+      <ResetPasswordConfirmForm />
+    </Suspense>
+  )
+}
+
+function ResetPasswordConfirmForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const [password, setPassword] = useState('')
