@@ -1,0 +1,547 @@
+=== AI PR Comments for PR #7 ===
+Synced: 2026-03-18T19:25:56Z
+
+## Reviews
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-13T21:04:09Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `b93895fc8d`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-13T21:05:21Z ---
+## Pull request overview
+
+Adds a proprietary licensing/entitlements module and wires attribution display to license state, while also addressing several audit items by making previously hardcoded values configurable and expanding automated tests/CI coverage.
+
+**Changes:**
+- Introduces `proprietary/license/*` with tiered entitlements and attribution gating via `canRemoveAttribution()`.
+- Replaces hardcoded billing/admin values with config-derived fallbacks (plan fallback in Stripe webhook handling; MRR estimate uses average paid-plan price).
+- Adds multiple Vitest unit tests and a GitHub Actions CI workflow (typecheck, tests, coverage run, build).
+
+### Reviewed changes
+
+Copilot reviewed 18 out of 19 changed files in this pull request and generated 3 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| proprietary/license/validate.ts | Implements license-key validation, entitlement caching, and attribution capability checks |
+| proprietary/license/validate.test.ts | Tests license validation behavior, caching, and attribution entitlement |
+| proprietary/license/types.ts | Defines license tiers and entitlement objects |
+| proprietary/license/index.ts | Barrel exports for proprietary license module |
+| proprietary/README.md | Documents purpose of proprietary folder and public-template guidance |
+| app/page.tsx | Gates footer attribution based on config + license entitlement |
+| app/(marketing)/pricing/page.tsx | Applies the same attribution gating on pricing page |
+| core/billing/handleWebhook.ts | Uses config-derived “first paid plan” fallback instead of hardcoding `pro` |
+| core/admin/metrics.ts | Computes MRR estimate from average paid-plan monthly price (config-driven) |
+| blocks/ai-wrapper/usage.ts | Moves model cost map toward config-driven values (dynamic require) |
+| blocks/ai-wrapper/types.ts | Adds `modelCosts` to AI wrapper config schema with defaults |
+| core/security/headers.test.ts | Adds unit tests for `SECURITY_HEADERS` |
+| core/runtime/hookRunner.test.ts | Adds tests for hook registration/execution/error behavior |
+| core/runtime/configLoader.test.ts | Adds tests for config loading, caching, and schema validation |
+| core/errors/types.test.ts | Adds tests for error types and their properties |
+| core/errors/handler.test.ts | Adds tests for error-to-response mapping and leakage prevention |
+| core/billing/plans.test.ts | Adds tests for plan retrieval helpers |
+| core/billing/checkPlanLimit.test.ts | Adds tests for plan-limit enforcement and fallbacks |
+| core/api/validate.test.ts | Adds tests for request body validation and Zod error mapping |
+| core/admin/metrics.test.ts | Adds tests for average paid plan price computation |
+| AUDIT-REPORT.md | Adds audit report describing licensing extraction + test coverage plan |
+| .gitignore | Adds commented guidance for excluding `proprietary/` in public templates |
+| .github/workflows/ci.yml | Adds CI workflow for typecheck, tests, coverage run, and build |
+</details>
+
+<details>
+<summary>Comments suppressed due to low confidence (1)</summary>
+
+**app/(marketing)/pricing/page.tsx:6**
+* This import hard-depends on `@/proprietary/license`, which conflicts with the guidance to exclude `proprietary/` for the public template. Without a stub/fallback, removing `proprietary/` will break the build for this route.
+```
+import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
+```
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-14T00:09:56Z ---
+## Pull request overview
+
+This PR implements outcomes from a licensing/proprietary audit by separating premium blocks into `proprietary/`, wiring attribution display to license validation, and significantly expanding automated test coverage with CI enforcement.
+
+**Changes:**
+- Move premium blocks into `proprietary/` and adjust their internal imports/config wiring.
+- Gate “Powered by Unblocks” attribution behind `hasFeature('attribution.remove')` while respecting app config.
+- Add/expand Vitest coverage reporting, many new unit tests, and a CI workflow with a minimum coverage check.
+
+### Reviewed changes
+
+Copilot reviewed 38 out of 39 changed files in this pull request and generated 9 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| vitest.config.ts | Adds additional coverage reporters (text/json-summary/lcov). |
+| proprietary/block-marketplace/reviews.ts | Cleans up unused Drizzle imports. |
+| proprietary/block-marketplace/orders.ts | Cleans up imports; fires marketplace hook after order creation. |
+| proprietary/block-marketplace/marketplace.config.ts | Switches premium block config type import to local `./types`. |
+| proprietary/block-marketplace/listings.ts | Refactors listing search query construction to compose conditions. |
+| proprietary/block-data-platform/data.config.ts | Switches premium block config type import to local `./types`. |
+| proprietary/block-ai-wrapper/usage.ts | Moves model cost lookup toward config-driven approach for usage cost estimation. |
+| proprietary/block-ai-wrapper/types.ts | Adds `modelCosts` to AI wrapper config schema with defaults. |
+| proprietary/block-ai-wrapper/completion.ts | Replaces core config loading with local schema-validated config loading; fires AI completion hook. |
+| proprietary/block-ai-wrapper/ai.config.ts | Switches premium block config type import to local `./types`. |
+| proprietary/README.md | Documents purpose of proprietary folder and how licensing/attribution integrate. |
+| lib/routeHandler.ts | Updates Next.js control-flow error detection and error handling wrapper typing. |
+| drizzle.config.ts | Adjusts block schema discovery logic under `node_modules/@unblocks`. |
+| core/uploads/storage.ts | Changes S3 PUT body to a `Uint8Array` wrapper. |
+| core/security/headers.test.ts | Adds tests asserting expected security headers are present. |
+| core/security/cookies.test.ts | Adjusts env handling in cookie option tests. |
+| core/runtime/hookRunner.test.ts | Adds unit tests for hook registration/execution/error behavior. |
+| core/runtime/configLoader.test.ts | Adds unit tests for config loading, caching, and schema validation. |
+| core/jobs/queue.ts | Removes unused type import. |
+| core/extensions/loader.ts | Removes unused type import. |
+| core/errors/types.test.ts | Adds unit tests for core error types. |
+| core/errors/handler.test.ts | Adds unit tests for error-to-response mapping and leakage prevention. |
+| core/billing/plans.test.ts | Adds unit tests for billing plan helpers (lookup/free plan). |
+| core/billing/handleWebhook.ts | Avoids hardcoded plan fallback by using first paid plan from config. |
+| core/billing/checkPlanLimit.test.ts | Adds unit tests for plan limit checks and fallback behavior. |
+| core/auth/types.ts | Makes email provider config defaultable for schema parsing. |
+| core/api/validate.test.ts | Adds unit tests for request body validation helper. |
+| core/admin/metrics.ts | Computes MRR estimate using average paid plan price from config instead of hardcoded value. |
+| core/admin/metrics.test.ts | Adds unit tests for average paid plan price computation. |
+| blocks/testing/setup.ts | Tweaks NODE_ENV assignment for TS typing in test setup. |
+| blocks/seed/seed.ts | Aligns seeded user/admin and file fields with current DB schema (metadata/storageKey/url). |
+| blocks/seed/generators.ts | Removes unused mime types list. |
+| app/page.tsx | Applies license + config based attribution display logic on homepage. |
+| app/api/teams/[id]/members/route.ts | Adds explicit TeamRole typing import and role casting for invite flow. |
+| app/api/auth/magic-link/route.ts | Removes unused token variable from magic-link creation route. |
+| app/(marketing)/pricing/page.tsx | Applies license + config based attribution display logic on pricing page. |
+| AUDIT-REPORT.md | Adds audit report documenting licensing/proprietary decisions and test coverage plan. |
+| .gitignore | Adds (commented) ignore entry guidance for `proprietary/` in public templates. |
+| .github/workflows/ci.yml | Adds CI workflow for typecheck, tests with coverage upload, and minimum coverage threshold check. |
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-14T01:53:14Z ---
+## Pull request overview
+
+This PR implements the “open-core” split by moving premium blocks into `proprietary/`, wiring attribution visibility to license validation, and substantially expanding Vitest coverage + CI enforcement to support the licensing/audit work.
+
+**Changes:**
+- Add proprietary block configs/types and adjust marketplace/listings queries + hooks.
+- Gate “Powered by Unblocks” attribution via `hasFeature('attribution.remove')` plus app config.
+- Add CI workflow + coverage reporters and introduce a broad set of new unit tests across `core/`.
+
+### Reviewed changes
+
+Copilot reviewed 43 out of 44 changed files in this pull request and generated 6 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| vitest.config.ts | Enables additional coverage reporters (text/json-summary/lcov). |
+| package.json | Adds `@vitest/coverage-v8` to support v8 coverage provider. |
+| proprietary/block-marketplace/reviews.ts | Removes unused Drizzle import. |
+| proprietary/block-marketplace/orders.ts | Removes unused import and updates hook invocation typing workaround. |
+| proprietary/block-marketplace/marketplace.config.ts | Switches config type import to local proprietary types. |
+| proprietary/block-marketplace/listings.ts | Refactors listing search to compose conditions with `and(...)`. |
+| proprietary/block-data-platform/data.config.ts | Switches config type import to local proprietary types. |
+| proprietary/block-ai-wrapper/usage.ts | Moves model pricing to config lookup for cost estimation. |
+| proprietary/block-ai-wrapper/types.ts | Adds `modelCosts` to config schema with defaults. |
+| proprietary/block-ai-wrapper/completion.ts | Loads AI wrapper config locally and fires completion hook. |
+| proprietary/block-ai-wrapper/ai.config.ts | Updates config type import + adds `modelCosts` overrides. |
+| proprietary/README.md | Documents proprietary directory purpose and public-template guidance. |
+| lib/routeHandler.ts | Replaces Next internal helpers with digest-based control-flow detection. |
+| drizzle.config.ts | Changes block schema discovery logic for installed `@unblocks/block-*` packages. |
+| core/uploads/storage.ts | Changes S3 upload body type to `Uint8Array`. |
+| core/security/headers.test.ts | Adds tests for `SECURITY_HEADERS`. |
+| core/security/cookies.test.ts | Cleans up env handling in cookie option tests. |
+| core/runtime/hookRunner.test.ts | Adds unit tests for hook registration/execution/error handling. |
+| core/runtime/configLoader.test.ts | Adds tests for config loading, caching, and schema validation. |
+| core/jobs/queue.ts | Removes unused type import. |
+| core/extensions/loader.ts | Removes unused type import. |
+| core/errors/types.test.ts | Adds unit tests for error classes. |
+| core/errors/handler.test.ts | Adds unit tests for error-to-response mapping and non-leakage. |
+| core/billing/plans.test.ts | Adds tests for plan helpers using mocked config loader. |
+| core/billing/handleWebhook.ts | Removes hardcoded plan fallback by deriving from config. |
+| core/billing/checkPlanLimit.test.ts | Adds tests for plan limit checks (DB + plan fallback behavior). |
+| core/auth/types.ts | Makes `providers.email` defaultable when omitted from config. |
+| core/api/validate.test.ts | Adds tests for request body validation helper. |
+| core/admin/metrics.ts | Replaces hardcoded MRR estimate with average paid-plan price from config. |
+| core/admin/metrics.test.ts | Adds tests for average paid plan price computation. |
+| blocks/testing/setup.ts | Adjusts env assignment typing for tests. |
+| blocks/seed/seed.ts | Updates seeded user/admin representation and file fields to match schema. |
+| blocks/seed/generators.ts | Removes unused MIME list and uses extension→MIME mapping. |
+| app/page.tsx | Uses config + license feature gate to decide attribution visibility. |
+| app/api/teams/[id]/members/route.ts | Adds `TeamRole` type import and casts role for invite call. |
+| app/api/auth/magic-link/route.ts | Stops assigning unused `token` from `createMagicLink`. |
+| app/(marketing)/pricing/page.tsx | Uses config + license feature gate for attribution visibility. |
+| AUDIT-REPORT.md | Adds detailed audit report for licensing/proprietary extraction and testing gaps. |
+| .gitignore | Adds commented-out `proprietary/` ignore guidance for public templates. |
+| .github/workflows/ci.yml | Adds CI jobs for typecheck, tests+coverage artifact, threshold check, and build. |
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-18T18:55:09Z ---
+## Pull request overview
+
+This PR implements the results of a proprietary/licensing audit by moving premium blocks under `proprietary/`, wiring attribution display to license validation, removing a couple of hardcoded billing assumptions, and significantly expanding automated test coverage (with CI + coverage reporting).
+
+**Changes:**
+- Add/adjust proprietary block configs (local type imports, AI wrapper model cost config, marketplace/data platform config updates) and document proprietary repo handling.
+- Improve platform behavior/config defaults (landing config defaults, upload filename sanitization, S3 upload body handling, Next control-flow error detection, billing fallbacks).
+- Expand test suite + CI: many new Vitest unit tests, coverage reporters, and a GitHub Actions workflow with a minimum coverage check.
+
+### Reviewed changes
+
+Copilot reviewed 44 out of 45 changed files in this pull request and generated 6 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| `vitest.config.ts` | Adds additional coverage reporters (incl. lcov) to support CI artifacts/threshold checks. |
+| `package.json` | Adds `@vitest/coverage-v8` dev dependency for Vitest v8 coverage. |
+| `.github/workflows/ci.yml` | Introduces CI pipeline for lint/typecheck, tests+coverage, and build. |
+| `.gitignore` | Documents how to exclude `proprietary/` when generating a public template repo. |
+| `proprietary/README.md` | Documents purpose/handling of proprietary directory and licensing integration. |
+| `proprietary/block-ai-wrapper/types.ts` | Adds configurable `modelCosts` to AI wrapper config schema. |
+| `proprietary/block-ai-wrapper/ai.config.ts` | Updates AI wrapper config to import local types + sets model costs overrides. |
+| `proprietary/block-ai-wrapper/completion.ts` | Switches AI config loading approach and fires `onAICompletion` hook. |
+| `proprietary/block-ai-wrapper/usage.ts` | Reads model costs from AI config for cost estimation. |
+| `proprietary/block-marketplace/*.ts` | Removes unused imports and improves listings query composition. |
+| `proprietary/block-*/**/*.config.ts` | Updates config type imports to local `./types` (supports proprietary extraction). |
+| `core/types.ts` | Adds defaults for landing hero fields/structure to reduce required config. |
+| `core/auth/types.ts` | Defaults `providers.email` object so `enabled` default applies when omitted. |
+| `core/uploads/validate.ts` | Strengthens filename sanitization against traversal/separators. |
+| `core/uploads/storage.ts` | Adjusts S3 upload body to a `Uint8Array` view for fetch compatibility. |
+| `lib/routeHandler.ts` | Removes Next internal imports and adds digest-based Next control-flow error detection. |
+| `core/billing/handleWebhook.ts` | Avoids hardcoded plan fallback by using billing config’s paid plans. |
+| `core/admin/metrics.ts` | Computes MRR estimate using average paid-plan pricing from config instead of a constant. |
+| `core/runtime/types.ts` | Adds new hook names (`onAICompletion`, `onMarketplaceOrder`). |
+| `core/runtime/*.test.ts` | Adds/updates runtime tests (hook runner, config loader, registry reset). |
+| `core/security/*.test.ts` | Adds headers unit tests; refactors cookie test env handling. |
+| `core/errors/*.test.ts` | Adds unit tests for error types and error response mapping. |
+| `core/billing/*.test.ts` | Adds unit tests for billing plans + plan limit enforcement. |
+| `core/api/validate.test.ts` | Adds tests for request body validation and error details. |
+| `core/admin/metrics.test.ts` | Adds tests for the new average paid plan price helper. |
+| `blocks/testing/setup.ts` | Tweaks test env var assignment to satisfy typing. |
+| `blocks/seed/*` | Updates seed data to match schema fields (`metadata` role, file storage fields). |
+| `app/page.tsx` | Gates attribution display based on config + license feature. |
+| `app/(marketing)/pricing/page.tsx` | Mirrors attribution gating logic on pricing page. |
+| `app/api/auth/magic-link/route.ts` | Avoids returning/holding magic-link token to reduce enumeration risk. |
+| `app/api/teams/[id]/members/route.ts` | Adjusts role typing at invite callsite. |
+| `AUDIT-REPORT.md` | Adds comprehensive audit report and test coverage plan/status. |
+| `drizzle.config.ts` | Minor refactor to simplify schema path discovery over installed block packages. |
+| `core/jobs/queue.ts` / `core/extensions/loader.ts` | Removes unused type imports to satisfy `noUnusedLocals`. |
+</details>
+
+<details>
+<summary>Comments suppressed due to low confidence (1)</summary>
+
+**proprietary/block-ai-wrapper/usage.ts:132**
+* `modelCosts` are documented/treated as “cents per 1K tokens”, but `trackUsage()` stores `costCents: Math.round(costCents * 100)` earlier in this file, which implies `estimateCost()` is returning dollars (or that the DB unit is hundredths of a cent). Please align units across config, `estimateCost()`, and `ai_usage.cost_cents` so reported costs are correct.
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-18T19:07:45Z ---
+## Pull request overview
+
+This PR formalizes an “open-core” split by introducing a `proprietary/` area for premium blocks, wiring attribution hiding to license validation, and significantly expanding Vitest coverage + CI reporting to support the audit effort documented in `AUDIT-REPORT.md`.
+
+**Changes:**
+- Adds CI + coverage reporting (Vitest v8 coverage, reporters, GitHub Actions workflow) and multiple new unit tests across `core/`.
+- Moves/configures premium blocks under `proprietary/` and updates configs/imports accordingly.
+- Removes remaining hardcoded pricing assumptions by deriving values from billing config (MRR estimate + webhook fallback plan).
+
+### Reviewed changes
+
+Copilot reviewed 44 out of 45 changed files in this pull request and generated 5 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| vitest.config.ts | Enables additional coverage reporters (text/json-summary/lcov). |
+| proprietary/block-marketplace/reviews.ts | Cleans up unused Drizzle imports. |
+| proprietary/block-marketplace/orders.ts | Cleans up unused Drizzle imports. |
+| proprietary/block-marketplace/marketplace.config.ts | Switches config typing import to local `./types`. |
+| proprietary/block-marketplace/listings.ts | Refactors listing search query building to compose conditions array. |
+| proprietary/block-data-platform/data.config.ts | Switches config typing import to local `./types`. |
+| proprietary/block-ai-wrapper/usage.ts | Cost tracking uses config-driven model costs and updates cost rounding logic. |
+| proprietary/block-ai-wrapper/types.ts | Adds `modelCosts` to config schema with defaults. |
+| proprietary/block-ai-wrapper/completion.ts | Loads AI config locally and fires `onAICompletion` hook; replaces config loader usage. |
+| proprietary/block-ai-wrapper/ai.config.ts | Switches type import to local `./types` and sets `modelCosts`. |
+| proprietary/README.md | Documents purpose of `proprietary/` and how to exclude it for public templates. |
+| package.json | Adds `@vitest/coverage-v8` dev dependency. |
+| lib/routeHandler.ts | Generalizes route handler typing and replaces Next internal error helpers with digest-based detection. |
+| drizzle.config.ts | Improves block schema discovery logic by pre-filtering block dir names. |
+| core/uploads/validate.ts | Hardens filename sanitization against traversal/path separators and leading dot/underscore runs. |
+| core/uploads/storage.ts | Changes S3 upload body to `Blob` and adds buffer-to-ArrayBuffer helper. |
+| core/types.ts | Adds defaults for landing config objects/fields for more resilient config loading. |
+| core/security/headers.test.ts | Adds unit tests for security header constants. |
+| core/security/cookies.test.ts | Refactors env handling for NODE_ENV-dependent cookie options. |
+| core/runtime/types.ts | Adds new hook names (`onAICompletion`, `onMarketplaceOrder`). |
+| core/runtime/hookRunner.test.ts | Adds unit tests covering hook registration/execution/error behavior. |
+| core/runtime/configLoader.test.ts | Adds unit tests for config loading, caching, and schema validation. |
+| core/runtime/blockRegistry.test.ts | Ensures registry is reset between tests. |
+| core/jobs/queue.ts | Removes unused type import. |
+| core/extensions/loader.ts | Removes unused type import. |
+| core/errors/types.test.ts | Adds unit tests for error types. |
+| core/errors/handler.test.ts | Adds unit tests for error-to-response mapping. |
+| core/billing/plans.test.ts | Adds unit tests for plan lookup and free-plan selection behavior. |
+| core/billing/handleWebhook.ts | Replaces hardcoded `'pro'` fallback with “first paid plan” from config. |
+| core/billing/checkPlanLimit.test.ts | Adds unit tests for plan limit enforcement and fallback behavior. |
+| core/auth/types.ts | Makes `providers.email` optional via default object. |
+| core/auth/password.test.ts | Adjusts “long password” test case lengths. |
+| core/api/validate.test.ts | Adds unit tests for request body validation helper. |
+| core/admin/metrics.ts | Uses average paid plan price from config instead of hardcoded $29 MRR estimate. |
+| core/admin/metrics.test.ts | Adds unit tests for average paid plan price computation. |
+| blocks/testing/setup.ts | Adjusts NODE_ENV assignment typing for tests. |
+| blocks/seed/seed.ts | Aligns seeded user/admin flagging and file storage fields with current schema. |
+| blocks/seed/generators.ts | Removes unused mime type constant list. |
+| app/page.tsx | Gates attribution hiding behind both config and license feature. |
+| app/api/teams/[id]/members/route.ts | Adjusts role typing passed into `inviteMember`. |
+| app/api/auth/magic-link/route.ts | Avoids unused token variable (preserves anti-enumeration response). |
+| app/(marketing)/pricing/page.tsx | Applies same attribution gating logic as homepage. |
+| AUDIT-REPORT.md | Adds detailed audit report (licensing/proprietary + coverage plan). |
+| .gitignore | Documents ignoring `proprietary/` for public template creation (commented). |
+| .github/workflows/ci.yml | Adds CI workflow for typecheck, tests + coverage, and build. |
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-18T19:25:42Z ---
+## Pull request overview
+
+This PR formalizes an “open-core” split by moving premium blocks into `proprietary/`, wiring license-gated attribution behavior, and improving observability and safety via more test coverage and CI coverage reporting.
+
+**Changes:**
+- Add `proprietary/` premium block area with local config/type imports, plus documentation for excluding it from public templates.
+- Replace remaining hardcoded billing/admin estimates with config-driven values; tighten uploads filename sanitization; adjust Next route error handling.
+- Expand Vitest coverage reporting, add many new unit tests, and introduce a CI workflow with coverage threshold enforcement.
+
+### Reviewed changes
+
+Copilot reviewed 45 out of 46 changed files in this pull request and generated 8 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| vitest.config.ts | Adds coverage reporters (text/json-summary/lcov). |
+| proprietary/block-marketplace/reviews.ts | Cleans up Drizzle imports. |
+| proprietary/block-marketplace/orders.ts | Cleans up Drizzle imports. |
+| proprietary/block-marketplace/marketplace.config.ts | Switches `MarketplaceConfig` import to local `./types`. |
+| proprietary/block-marketplace/listings.ts | Refactors search query building to compose conditions. |
+| proprietary/block-data-platform/data.config.ts | Switches `DataPlatformConfig` import to local `./types`. |
+| proprietary/block-ai-wrapper/usage.ts | Reads model costs from AI wrapper config; adjusts cost rounding. |
+| proprietary/block-ai-wrapper/types.ts | Adds `modelCosts` to AI wrapper config schema with defaults. |
+| proprietary/block-ai-wrapper/completion.ts | Adds local config loader for AI wrapper; updates error rethrow logic. |
+| proprietary/block-ai-wrapper/ai.config.ts | Switches `AIWrapperConfig` import to local `./types`; adds `modelCosts`. |
+| proprietary/README.md | Documents purpose of `proprietary/` and public-template guidance. |
+| package.json | Adds `@vitest/coverage-v8` dev dependency. |
+| lib/routeHandler.ts | Updates Next.js control-flow error detection and handler typing/overloads. |
+| drizzle.config.ts | Improves block schema discovery logic/readability. |
+| core/uploads/validate.ts | Strengthens filename sanitization against traversal/path separators. |
+| core/uploads/storage.ts | Adjusts S3 upload body type; adds Buffer→ArrayBuffer helper. |
+| core/types.ts | Adds defaults for landing config shapes to avoid required fields. |
+| core/security/headers.test.ts | Adds tests for `SECURITY_HEADERS`. |
+| core/security/cookies.test.ts | Refactors env mutation approach in tests. |
+| core/runtime/types.ts | Adds new hook names for AI completion and marketplace orders. |
+| core/runtime/hookRunner.test.ts | Adds unit tests for hook runner behavior and error handling. |
+| core/runtime/configLoader.test.ts | Adds tests for config loader defaults/caching/validation. |
+| core/runtime/blockRegistry.test.ts | Ensures registry reset between tests. |
+| core/jobs/queue.ts | Removes unused type import. |
+| core/extensions/loader.ts | Removes unused type import. |
+| core/errors/types.test.ts | Adds unit tests for error types. |
+| core/errors/handler.test.ts | Adds unit tests for error-to-response mapping. |
+| core/billing/plans.test.ts | Adds unit tests for plan helpers. |
+| core/billing/handleWebhook.ts | Uses first paid plan from config as fallback instead of hardcoding. |
+| core/billing/checkPlanLimit.test.ts | Adds unit tests for plan limit enforcement behavior. |
+| core/auth/types.ts | Adds `.default({})` for `providers.email` config shape. |
+| core/auth/password.test.ts | Adjusts “long password” test case values. |
+| core/api/validate.test.ts | Adds tests for request body validation behavior. |
+| core/admin/metrics.ts | Computes MRR estimate from average paid plan price (config-driven). |
+| core/admin/metrics.test.ts | Adds unit tests for average paid plan price calculation. |
+| blocks/testing/setup.ts | Adjusts env assignment typing for test setup. |
+| blocks/seed/seed.ts | Fixes seeded user/admin fields and file storage fields to match schema. |
+| blocks/seed/generators.ts | Removes unused mimeTypes list (uses mapping instead). |
+| app/page.tsx | Enforces attribution visibility unless license allows removal. |
+| app/api/teams/[id]/members/route.ts | Adds `TeamRole` import and casts role when inviting. |
+| app/api/auth/magic-link/route.ts | Avoids returning token to reduce email enumeration signal. |
+| app/(marketing)/pricing/page.tsx | Applies same attribution gating logic as home page. |
+| app/(auth)/reset-password/confirm/page.tsx | Wraps searchParams usage in Suspense for Next app router. |
+| AUDIT-REPORT.md | Adds March 2026 audit report (licensing/proprietary + test coverage). |
+| .gitignore | Documents ignoring `proprietary/` for public templates (commented). |
+| .github/workflows/ci.yml | Adds CI workflow (typecheck, test+coverage, build) with coverage threshold check. |
+</details>
+
+---
+
+You can also share your feedback on Copilot code review. [Take the survey](https://www.surveymonkey.com/r/XP6L3XJ).
+
+## Inline Comments
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-13T21:04:10Z on .github/workflows/ci.yml:22 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Use lockfile-compatible install step in CI**
+
+`npm ci` is configured in this workflow, but this repository does not include a `package-lock.json`/`npm-shrinkwrap.json`, so the jobs fail before running checks. I verified the CLI behavior: `npm ci --dry-run` returns `The npm ci command can only install with an existing package-lock.json...`. As written, every push/PR run will fail at install time until a lockfile is committed or the install command is changed.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-13T21:04:10Z on proprietary/block-ai-wrapper/usage.ts:120 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Read model pricing from the existing AI config path**
+
+This `require` points to `config/ai-wrapper.config`, but the repo’s AI config is `config/ai.config.ts` (used elsewhere via `loadConfig('ai')`), so this import path never resolves in the current project. In that case `configCosts` stays empty and all models fall back to `{ input: 0.1, output: 0.3 }`, which silently skews usage cost reporting for tracked completions.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on .github/workflows/ci.yml:39 ---
+The workflow uploads `coverage/`, but this job runs tests without `--coverage`, so the directory typically won’t exist and the artifact will be empty. Either run `npm run test -- --coverage` before uploading in this job, or move the upload step to the coverage job.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on .github/workflows/ci.yml:60 ---
+The "Coverage Check" job currently always passes because it only prints a target threshold. If this is meant to enforce coverage, add real Vitest coverage thresholds (or a script that fails when below target) so CI actually blocks regressions.
+
+--- inline by @Copilot at 2026-03-13T21:05:21Z on app/page.tsx:10 ---
+This import hard-depends on `@/proprietary/license`, but `proprietary/README.md` instructs public-template consumers to exclude the entire `proprietary/` directory. If `proprietary/` is omitted, this will fail to compile; consider a public stub/fallback module or conditional integration so the public template builds without proprietary sources.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on drizzle.config.ts:16 ---
+`discoverBlockSchemaPaths()` switched from `readdirSync(..., { withFileTypes: true })` to `readdirSync()` + `statSync()` per entry, which adds extra filesystem calls and is slower on large `node_modules` trees. Consider reverting to `withFileTypes: true` (and typing `Dirent[]`) to keep this O(n) without per-entry stats.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on core/uploads/storage.ts:94 ---
+`data` is already a `Buffer` (which is a `Uint8Array`). `new Uint8Array(data)` creates a copy, which can double memory usage for large uploads. If this change was only to satisfy fetch typings, prefer passing the Buffer directly or creating a zero-copy view over the same underlying ArrayBuffer instead of copying.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on proprietary/block-ai-wrapper/completion.ts:31 ---
+`getProviderCredentials` is already operating on a structured AI wrapper config, but this call forces `config` into `unknown as Record<string, unknown>`, which discards type safety and can hide shape mismatches. Prefer updating `getProviderCredentials` to accept `AIWrapperConfig` (or the `providers` sub-object) so the function is type-checked end-to-end.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on proprietary/block-ai-wrapper/completion.ts:66 ---
+`runHook` is typed to accept only `HookName`, and `onAICompletion` is not part of the `HookName` union in `core/runtime/types.ts`. The `as Parameters<typeof runHook>[0]` assertion just silences the compiler and makes hook usage inconsistent. Either add `onAICompletion` to `HookName` (and document args), or widen the hook API to allow custom string hook names in a type-safe way.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on proprietary/block-marketplace/orders.ts:54 ---
+Same as above: `onMarketplaceOrder` is not included in the `HookName` union, so this type assertion bypasses the hook API contract. Prefer extending `HookName` (or widening the API) rather than casting, so hook registration/calls remain consistent and type-checked.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on app/api/teams/[id]/members/route.ts:37 ---
+`validateBody()` should already infer `body.role` as `'admin' | 'member'` from the Zod enum, which is assignable to `TeamRole`. The `as TeamRole` assertion is likely unnecessary and reduces type-safety if the schema changes. Prefer removing the assertion and letting TypeScript enforce that the validated role matches `TeamRole`.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on proprietary/block-ai-wrapper/usage.ts:123 ---
+`estimateCost()` attempts to load `../../config/ai-wrapper.config`, but there is no `config/ai-wrapper.config.*` in this repo, so this will always fall back to the catch path and ignore the configured/default model pricing. Update this to load the actual AI wrapper config source (e.g. the local `ai.config` parsed via `AIWrapperConfigSchema`) so cost estimation reflects real modelCosts.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on proprietary/block-ai-wrapper/usage.ts:128 ---
+The comment says “use defaults from schema”, but the catch path currently leaves `configCosts` empty and falls back to a hardcoded `{ input: 0.1, output: 0.3 }`, bypassing the `AIWrapperConfigSchema` defaults you just defined. Consider parsing an empty config via `AIWrapperConfigSchema` and reading `modelCosts` from that result so defaults stay in one place.
+
+--- inline by @Copilot at 2026-03-14T00:09:56Z on lib/routeHandler.ts:6 ---
+`RouteHandler` now takes `context: any`, which removes useful type checking for route params and can mask runtime mistakes. Prefer a generic context type (e.g. `RouteHandler<C = { params: Promise<Record<string,string>> }>`), or at least `unknown` with a narrowed shape where needed, instead of `any`.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on drizzle.config.ts:16 ---
+`discoverBlockSchemaPaths()` now does an extra `statSync` for every entry and uses `require('node:fs')` inside an ES-module-style file. This is slower than using `readdirSync(baseDir, { withFileTypes: true })` (which already provides `isDirectory()`), and the `require` can be brittle depending on how drizzle-kit loads the config. Consider reverting to `withFileTypes: true` and/or importing `statSync` normally.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on core/uploads/storage.ts:94 ---
+`body: new Uint8Array(data)` creates a new copy of the Buffer for every S3 upload. Since `data` is already a `Buffer` (a `Uint8Array`), this extra allocation/copy is unnecessary and can significantly increase memory usage for large uploads. Prefer passing `data` directly (or otherwise avoid copying) unless there's a confirmed compatibility issue with `fetch`.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on AUDIT-REPORT.md:83 ---
+This report references `proprietary/license/` as the location used to create the proprietary folder, but the repository structure only has `proprietary/block-*` directories (no `proprietary/license/`). Update this path to avoid misleading readers.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on proprietary/block-ai-wrapper/usage.ts:127 ---
+`estimateCost()` attempts to load `../../config/ai-wrapper.config`, but there is no `config/ai-wrapper.config.*` in this repo, so this will always fall back. Also, the fallback does not use the schema defaults (it only uses `{ input: 0.1, output: 0.3 }`), which contradicts the comment and makes pricing estimates inaccurate for known models. Consider reusing the same config-loading approach as `completion.ts` (parse `./ai.config` with `AIWrapperConfigSchema`) and defaulting to `AIWrapperConfigSchema.parse({}).modelCosts` when no config is present.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on proprietary/block-ai-wrapper/completion.ts:66 ---
+`runHook` is typed to accept only `HookName` values from `core/runtime/types.ts`, but `'onAICompletion'` is not part of that union. The cast to `Parameters<typeof runHook>[0]` bypasses type-safety and can hide typos. Prefer updating `HookName` to include this hook (and any other block-defined hooks) or widening the hook name type to allow custom hooks without casts.
+
+--- inline by @Copilot at 2026-03-14T01:53:14Z on proprietary/block-marketplace/orders.ts:54 ---
+`runHook` is typed to accept only `HookName` values from `core/runtime/types.ts`, but `'onMarketplaceOrder'` is not part of that union. The cast bypasses type checking and may mask typos. Prefer adding this hook name to the `HookName` union (or widening the type for block-defined hooks) so call sites don't need unsafe casts.
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on app/api/teams/[id]/members/route.ts:37 ---
+`body.role as TeamRole` should be avoidable here and weakens type-safety (casts can hide future schema/type drift). Consider typing `inviteSchema` so `validateBody()` returns `{ role: TeamRole }` (or defining a `z.enum` typed as the subset of `TeamRole` you allow) and then pass `body.role` directly.
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on core/billing/handleWebhook.ts:76 ---
+`firstPaidPlan` is selected using `p.price.monthly > 0`, which will treat a yearly-only paid plan (monthly=0, yearly>0) as “free” and may fall back to `'pro'` incorrectly when Stripe metadata is missing. Consider treating a plan as paid when either monthly or yearly price is > 0 (or use the subscription interval to decide).
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on proprietary/block-ai-wrapper/completion.ts:11 ---
+`loadAIConfig()` catches all errors and silently falls back to defaults, which can mask an invalid `ai.config` (e.g. schema validation errors) and later surface as a confusing “No API key configured” error. Consider only swallowing module-not-found and rethrowing validation/parse errors with details.
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on proprietary/block-ai-wrapper/completion.ts:31 ---
+The `config as unknown as Record<string, unknown>` double-cast when calling `getProviderCredentials` is an unsafe workaround for a typing mismatch. Consider changing `getProviderCredentials` to accept `AIWrapperConfig` (or at least `{ providers: ... }`) so credentials access is type-safe and the cast can be removed.
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on proprietary/block-ai-wrapper/usage.ts:123 ---
+`estimateCost()` loads and parses `ai.config` each time it runs. Even with `require` module caching, repeated Zod parsing adds overhead on hot paths (usage tracking). Consider memoizing the parsed config/modelCosts at module scope and reusing it.
+
+--- inline by @Copilot at 2026-03-18T18:55:09Z on lib/routeHandler.ts:7 ---
+`RouteHandler`’s `context` was widened to `any`, which removes useful typing for route params and can hide mistakes. Consider making `withErrorHandler` generic over the context type (e.g., `<C>(handler: (req, ctx: C) => ...)`) or using `unknown` plus narrowings, so callers keep strong typings without `any`.
+
+--- inline by @Copilot at 2026-03-18T19:07:45Z on proprietary/block-ai-wrapper/usage.ts:123 ---
+`estimateCost()` re-requires and Zod-parses `ai.config` on every call. Since `trackUsage()` calls this per completion, this adds avoidable overhead. Consider caching the parsed config (or just `modelCosts`) at module scope and only reloading on explicit invalidation/testing.
+
+--- inline by @Copilot at 2026-03-18T19:07:45Z on core/uploads/storage.ts:94 ---
+The S3 `put()` now wraps the `Buffer` in a `Blob` via `bufferToArrayBuffer`, which creates an extra full copy of the upload payload. This can significantly increase memory usage for large uploads. If `fetch` accepts `Buffer`/`Uint8Array` in your target runtime, prefer passing `data` directly (or use a zero-copy `ArrayBuffer` slice).
+
+--- inline by @Copilot at 2026-03-18T19:07:45Z on core/uploads/storage.ts:134 ---
+`bufferToArrayBuffer()` allocates and copies the entire buffer. If you must provide an `ArrayBuffer`, you can avoid the copy by slicing the underlying buffer using `buf.buffer` with `byteOffset/byteLength` (ensuring the returned view matches the exact range).
+
+--- inline by @Copilot at 2026-03-18T19:07:45Z on core/security/cookies.test.ts:5 ---
+There is an `import` statement after a non-import statement (`const env = ...`). In TS/ESM this is a syntax error and will prevent the test file from compiling. Move the `env` declaration below all imports (or remove it and mutate `process.env.NODE_ENV` directly).
+
+--- inline by @Copilot at 2026-03-18T19:07:45Z on proprietary/block-ai-wrapper/completion.ts:31 ---
+`getProviderCredentials` is typed to accept `Record<string, unknown>`, forcing an `as unknown as ...` cast at the call site. This defeats type safety and can hide config shape errors. Consider changing `getProviderCredentials` to accept `AIWrapperConfig` (or at least `Pick<AIWrapperConfig, 'providers'>`) and remove the cast.
+
+--- inline by @Copilot at 2026-03-18T19:25:42Z on lib/routeHandler.ts:6 ---
+This `NextRouteContext` constraint (`params: Promise<Record<string, ...>>`) is unlikely to match typical Next.js route contexts like `{ params: Promise<{ id: string }> }` because `{ id: string }` is not assignable to `Record<string, ...>` (missing index signature). As a result, handlers for dynamic routes won’t match the typed overload and will fall back to the untyped `Function` overload. Consider loosening the constraint to `params: Promise<Record<string, string | string[]> | { [key: string]: string | string[] }>` or, better, making `NextRouteContext` generic over the params object (`type NextRouteContext<P> = { params: Promise<P> }`).
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on core/uploads/storage.ts:135 ---
+`createS3Provider().put` now converts the `Buffer` into an `ArrayBuffer` and then a `Blob`, which copies the full payload in memory. For large uploads this can significantly increase memory usage and latency. If the goal is to satisfy `fetch` typings, consider using `new Blob([data], { type: mimeType })` (no manual copy) or using `data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)` to create a zero-copy `ArrayBuffer` view.
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on proprietary/block-ai-wrapper/usage.ts:126 ---
+`estimateCost()` loads and Zod-parses `ai.config` on every call, and the blanket `catch` will silently fall back to defaults even when the config file exists but is invalid. This can hide configuration errors and adds avoidable per-request overhead. Consider caching the parsed config/modelCosts (module-level) and only falling back on `MODULE_NOT_FOUND` while surfacing schema validation errors (or at least logging them).
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on proprietary/block-ai-wrapper/completion.ts:14 ---
+`loadAIConfig()` swallows all errors (including schema validation errors) and silently falls back to defaults. If `ai.config.ts` exists but is misconfigured, this makes failures hard to detect and can lead to unexpected provider/limit behavior. Prefer only falling back when the module can’t be found, and otherwise surface (or log) Zod validation errors.
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on proprietary/block-ai-wrapper/completion.ts:30 ---
+The cast `config as unknown as Record<string, unknown>` to call `getProviderCredentials()` indicates the helper’s type signature no longer matches the parsed config shape. This weakens type safety and can mask missing provider fields. Update `getProviderCredentials` to accept `AIWrapperConfig` (or `Pick<AIWrapperConfig, 'providers'>`) instead of casting at the call site.
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on app/api/teams/[id]/members/route.ts:37 ---
+`body.role` is already inferred from the Zod schema as `'admin' | 'member'`, which is assignable to `TeamRole`. The `as TeamRole` cast is unnecessary and can hide mismatches if either the schema or `TeamRole` changes. Prefer passing `body.role` directly (or aligning the schema to `TeamRole` if there’s a real mismatch).
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on core/security/cookies.test.ts:5 ---
+`cookies.test.ts` currently has an `import` statement after a runtime statement (`const env = ...`). In ESM/TypeScript this is a syntax error (“Imports must be at top level”) and the test file won’t compile. Move the `const env = ...` line below all imports (or inline `process.env` where needed).
+
+--- inline by @Copilot at 2026-03-18T19:25:43Z on lib/routeHandler.ts:11 ---
+`withErrorHandler` falls back to `handler: Function` in the implementation signature, which removes type safety for all callers that don’t match the overloads and can hide incorrect handler signatures. Prefer typing the implementation as a generic callable (e.g., `(...args: any[]) => Promise<Response>`) and keeping the overload constraints broad enough to match Next route contexts without needing `Function`.
