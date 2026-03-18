@@ -1,7 +1,6 @@
 import { toErrorResponse } from '@unblocks/core/errors/handler'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RouteHandler = (request: Request, context: any) => Promise<Response>
+type RouteHandler = (request: Request, context?: unknown) => Promise<Response>
 
 export function withErrorHandler(handler: RouteHandler): RouteHandler {
   return async (request, context) => {
