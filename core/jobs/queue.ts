@@ -1,7 +1,7 @@
 import { eq, and, lte, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { jobs } from '../db/schema/jobs'
-import type { JobDefinition, JobRecord, JobPriority } from './types'
+import type { JobDefinition, JobRecord } from './types'
 import { loadConfig } from '../runtime/configLoader'
 
 /**

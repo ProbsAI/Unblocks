@@ -3,7 +3,19 @@ import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { subscriptions } from '../db/schema/subscriptions'
 import { teams } from '../db/schema/teams'
+import { getAllPlans } from '../billing/plans'
 import type { AdminMetrics } from './types'
+
+/**
+ * Compute the average monthly price across all paid plans from config.
+ */
+export function getAveragePaidPlanPrice(): number {
+  const plans = getAllPlans()
+  const paidPlans = plans.filter((p) => p.price.monthly > 0)
+  if (paidPlans.length === 0) return 0
+  const total = paidPlans.reduce((sum, p) => sum + p.price.monthly, 0)
+  return total / paidPlans.length
+}
 
 /**
  * Get system-wide admin metrics.
@@ -39,9 +51,9 @@ export async function getMetrics(): Promise<AdminMetrics> {
     .select({ count: sql<number>`count(*)` })
     .from(teams)
 
-  // MRR calculation is approximate — real MRR comes from Stripe
-  // This counts paid active subscriptions and estimates based on plan config
-  const mrr = paidCount.count * 29 // Rough estimate using Pro plan price
+  // MRR estimate using average paid plan price from billing config
+  const avgPrice = getAveragePaidPlanPrice()
+  const mrr = paidCount.count * avgPrice
 
   return {
     totalUsers: userCount.count,

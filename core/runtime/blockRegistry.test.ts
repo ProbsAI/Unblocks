@@ -133,6 +133,8 @@ describe('getBlockSchemas', () => {
 })
 
 describe('resetBlockRegistry', () => {
+  beforeEach(() => resetBlockRegistry())
+
   it('clears all registered blocks', () => {
     registerBlock(fakeBlock)
     expect(getRegisteredBlocks()).toHaveLength(1)

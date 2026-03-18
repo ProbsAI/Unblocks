@@ -9,8 +9,11 @@ import billingConfig from '@/config/billing.config'
 import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
 
 export default function HomePage() {
-  const { landing, name } = appConfig
+  const { landing, name, footer } = appConfig
   const canRemoveAttribution = hasFeature('attribution.remove')
+
+  // Attribution can only be hidden with a valid license key
+  const showAttribution = footer.showUnblocksAttribution || !canRemoveAttribution
 
   return (
     <>
@@ -31,7 +34,7 @@ export default function HomePage() {
       </main>
       <Footer
         appName={name}
-        showAttribution={!canRemoveAttribution}
+        showAttribution={showAttribution}
       />
     </>
   )

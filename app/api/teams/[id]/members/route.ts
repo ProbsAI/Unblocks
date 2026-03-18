@@ -4,6 +4,7 @@ import { validateBody } from '@unblocks/core/api'
 import { successResponse } from '@unblocks/core/api'
 import { getTeamMembers, getUserTeamRole, inviteMember } from '@unblocks/core/teams'
 import { ForbiddenError } from '@unblocks/core/errors/types'
+import type { TeamRole } from '@unblocks/core/teams/types'
 import { z } from 'zod'
 
 const inviteSchema = z.object({
@@ -33,7 +34,7 @@ export const POST = withErrorHandler(
     const { id } = await params
     const body = await validateBody(request, inviteSchema)
 
-    const invitation = await inviteMember(id, body.email, body.role, user.id)
+    const invitation = await inviteMember(id, body.email, body.role as TeamRole, user.id)
 
     return successResponse(invitation, undefined, 201)
   }

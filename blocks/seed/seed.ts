@@ -59,7 +59,7 @@ export async function seed(rawConfig?: Partial<SeedConfig>): Promise<SeedResult>
         name: generateUserName(i),
         passwordHash: '$2a$12$seedhashedpasswordplaceholder.placeholder',
         emailVerified: true,
-        isAdmin,
+        metadata: isAdmin ? { role: 'admin' } : {},
       })
       .returning({ id: users.id })
 
@@ -155,8 +155,8 @@ export async function seed(rawConfig?: Partial<SeedConfig>): Promise<SeedResult>
       originalName: name,
       mimeType: generateFileMimeType(name),
       size: generateFileSize(),
-      storageProvider: 'local',
-      storagePath: `/uploads/seed/${name}`,
+      storageKey: `seed/${name}`,
+      url: `/uploads/seed/${name}`,
     })
   }
 

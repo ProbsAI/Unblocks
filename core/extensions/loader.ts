@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { ExtensionManifestSchema } from './types'
-import type { LoadedExtension, ExtensionManifest } from './types'
+import type { LoadedExtension } from './types'
 
 const EXTENSIONS_DIR = './extensions'
 

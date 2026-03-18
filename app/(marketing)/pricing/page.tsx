@@ -14,6 +14,9 @@ export default async function PricingPage() {
   const billingConfig = await loadConfig('billing')
   const appConfig = await loadConfig('app')
 
+  const showAttribution =
+    appConfig.footer.showUnblocksAttribution || !hasFeature('attribution.remove')
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar appName={appConfig.name} />
@@ -25,7 +28,7 @@ export default async function PricingPage() {
       </div>
       <Footer
         appName={appConfig.name}
-        showAttribution={!hasFeature('attribution.remove')}
+        showAttribution={showAttribution}
       />
     </div>
   )
