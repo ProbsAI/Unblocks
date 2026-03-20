@@ -21,7 +21,7 @@ beforeEach(() => {
 })
 
 describe('sendViaResend', () => {
-  it('sends email via Resend API', async () => {
+  it('calls Resend emails.send with correct parameters', async () => {
     mockSend.mockResolvedValue({ error: null })
 
     await sendViaResend({
@@ -33,38 +33,89 @@ describe('sendViaResend', () => {
 
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
+        from: 'App <no-reply@app.com>',
         to: 'user@example.com',
         subject: 'Test Subject',
         html: '<p>Hello</p>',
-        from: 'App <no-reply@app.com>',
       })
     )
   })
 
-  it('throws on Resend API error', async () => {
-    mockSend.mockResolvedValue({ error: { message: 'Invalid API key' } })
-
-    await expect(
-      sendViaResend({
-        to: 'user@example.com',
-        subject: 'Test',
-        html: '<p>Hi</p>',
-      })
-    ).rejects.toThrow('Failed to send email: Invalid API key')
-  })
-
-  it('uses default from when not provided', async () => {
+  it('passes headers when provided', async () => {
     mockSend.mockResolvedValue({ error: null })
 
     await sendViaResend({
       to: 'user@example.com',
       subject: 'Test',
-      html: '<p>Hi</p>',
+      html: '<p>Hello</p>',
+      from: { name: 'App', email: 'no-reply@app.com' },
+      headers: { 'X-Custom': 'value' },
+    })
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { 'X-Custom': 'value' },
+      })
+    )
+  })
+
+  it('uses default from address when from is not provided', async () => {
+    mockSend.mockResolvedValue({ error: null })
+
+    await sendViaResend({
+      to: 'user@example.com',
+      subject: 'Test',
+      html: '<p>Hello</p>',
     })
 
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         from: 'MyApp <no-reply@example.com>',
+      })
+    )
+  })
+
+  it('throws error when Resend returns an error', async () => {
+    mockSend.mockResolvedValue({
+      error: { message: 'Invalid API key' },
+    })
+
+    await expect(
+      sendViaResend({
+        to: 'user@example.com',
+        subject: 'Test',
+        html: '<p>Hello</p>',
+        from: { name: 'App', email: 'no-reply@app.com' },
+      })
+    ).rejects.toThrow('Failed to send email: Invalid API key')
+  })
+
+  it('does not throw when send succeeds with null error', async () => {
+    mockSend.mockResolvedValue({ error: null })
+
+    await expect(
+      sendViaResend({
+        to: 'user@example.com',
+        subject: 'Test',
+        html: '<p>Hello</p>',
+        from: { name: 'App', email: 'no-reply@app.com' },
+      })
+    ).resolves.toBeUndefined()
+  })
+
+  it('formats from address as "Name <email>"', async () => {
+    mockSend.mockResolvedValue({ error: null })
+
+    await sendViaResend({
+      to: 'user@example.com',
+      subject: 'Test',
+      html: '<p>Hello</p>',
+      from: { name: 'My Company', email: 'info@company.com' },
+    })
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: 'My Company <info@company.com>',
       })
     )
   })
