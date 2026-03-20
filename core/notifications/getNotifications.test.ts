@@ -34,15 +34,26 @@ const fakeRow = {
   createdAt: new Date('2026-01-01'),
 }
 
-function createChainableMock(resolvedValue: unknown) {
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {}
-  chain.offset = vi.fn().mockResolvedValue(resolvedValue)
-  chain.limit = vi.fn(() => ({ offset: chain.offset }))
-  chain.orderBy = vi.fn(() => ({ limit: chain.limit }))
-  chain.where = vi.fn(() => ({ orderBy: chain.orderBy, limit: chain.limit }))
-  chain.from = vi.fn(() => ({ where: chain.where }))
-  chain.select = vi.fn(() => ({ from: chain.from }))
-  return chain
+function buildListAndCountDb(rows: unknown[], total: number) {
+  const offsetMock = vi.fn().mockResolvedValue(rows)
+  const limitMock = vi.fn().mockReturnValue({ offset: offsetMock })
+  const orderByMock = vi.fn().mockReturnValue({ limit: limitMock })
+  const listWhereMock = vi.fn().mockReturnValue({ orderBy: orderByMock })
+  const listFromMock = vi.fn().mockReturnValue({ where: listWhereMock })
+
+  const countWhereMock = vi.fn().mockResolvedValue([{ count: total }])
+  const countFromMock = vi.fn().mockReturnValue({ where: countWhereMock })
+
+  let callIdx = 0
+  const db = {
+    select: vi.fn(() => {
+      callIdx++
+      if (callIdx === 1) return { from: listFromMock }
+      return { from: countFromMock }
+    }),
+  }
+
+  return { db, limitMock, offsetMock }
 }
 
 describe('getNotifications', () => {
@@ -51,23 +62,8 @@ describe('getNotifications', () => {
   })
 
   it('returns notifications with total count', async () => {
-    const listChain = createChainableMock([fakeRow])
-    const countChain = createChainableMock([{ count: 1 }])
-
-    let selectCallCount = 0
-    const db = {
-      select: vi.fn((...args: unknown[]) => {
-        selectCallCount++
-        if (selectCallCount === 1) return listChain.select(...args)
-        return countChain.select(...args)
-      }),
-    };
-    (getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
-
-    // Mock Promise.all by making each chain resolve properly
-    // The function uses Promise.all so we need both chains to work
-    listChain.from.mockReturnValue({ where: vi.fn().mockReturnValue({ orderBy: vi.fn().mockReturnValue({ limit: vi.fn().mockReturnValue({ offset: vi.fn().mockResolvedValue([fakeRow]) }) }) }) })
-    countChain.from.mockReturnValue({ where: vi.fn().mockResolvedValue([{ count: 1 }]) })
+    const { db } = buildListAndCountDb([fakeRow], 1)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
 
     const result = await getNotifications('user-1')
 
@@ -77,24 +73,8 @@ describe('getNotifications', () => {
   })
 
   it('uses default limit of 50 and offset of 0', async () => {
-    const offsetMock = vi.fn().mockResolvedValue([])
-    const limitMock = vi.fn().mockReturnValue({ offset: offsetMock })
-    const orderByMock = vi.fn().mockReturnValue({ limit: limitMock })
-    const whereMock1 = vi.fn().mockReturnValue({ orderBy: orderByMock })
-    const fromMock1 = vi.fn().mockReturnValue({ where: whereMock1 })
-
-    const whereMock2 = vi.fn().mockResolvedValue([{ count: 0 }])
-    const fromMock2 = vi.fn().mockReturnValue({ where: whereMock2 })
-
-    let callIdx = 0
-    const db = {
-      select: vi.fn(() => {
-        callIdx++
-        if (callIdx === 1) return { from: fromMock1 }
-        return { from: fromMock2 }
-      }),
-    };
-    (getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+    const { db, limitMock, offsetMock } = buildListAndCountDb([], 0)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
 
     await getNotifications('user-1')
 
@@ -103,24 +83,8 @@ describe('getNotifications', () => {
   })
 
   it('supports custom limit and offset', async () => {
-    const offsetMock = vi.fn().mockResolvedValue([])
-    const limitMock = vi.fn().mockReturnValue({ offset: offsetMock })
-    const orderByMock = vi.fn().mockReturnValue({ limit: limitMock })
-    const whereMock1 = vi.fn().mockReturnValue({ orderBy: orderByMock })
-    const fromMock1 = vi.fn().mockReturnValue({ where: whereMock1 })
-
-    const whereMock2 = vi.fn().mockResolvedValue([{ count: 0 }])
-    const fromMock2 = vi.fn().mockReturnValue({ where: whereMock2 })
-
-    let callIdx = 0
-    const db = {
-      select: vi.fn(() => {
-        callIdx++
-        if (callIdx === 1) return { from: fromMock1 }
-        return { from: fromMock2 }
-      }),
-    };
-    (getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+    const { db, limitMock, offsetMock } = buildListAndCountDb([], 0)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
 
     await getNotifications('user-1', { limit: 10, offset: 20 })
 
@@ -129,31 +93,69 @@ describe('getNotifications', () => {
   })
 
   it('filters unread only when requested', async () => {
-    const offsetMock = vi.fn().mockResolvedValue([])
-    const limitMock = vi.fn().mockReturnValue({ offset: offsetMock })
-    const orderByMock = vi.fn().mockReturnValue({ limit: limitMock })
-    const whereMock1 = vi.fn().mockReturnValue({ orderBy: orderByMock })
-    const fromMock1 = vi.fn().mockReturnValue({ where: whereMock1 })
-
-    const whereMock2 = vi.fn().mockResolvedValue([{ count: 0 }])
-    const fromMock2 = vi.fn().mockReturnValue({ where: whereMock2 })
-
-    let callIdx = 0
-    const db = {
-      select: vi.fn(() => {
-        callIdx++
-        if (callIdx === 1) return { from: fromMock1 }
-        return { from: fromMock2 }
-      }),
-    };
-    (getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+    const { db } = buildListAndCountDb([], 0)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
 
     const { and } = await import('drizzle-orm')
 
     await getNotifications('user-1', { unreadOnly: true })
 
-    // When unreadOnly is true, `and` should be called to combine conditions
+    // When unreadOnly is true, `and` should be called to combine userId + read conditions
     expect(and).toHaveBeenCalled()
+  })
+
+  it('does not use and() when unreadOnly is false', async () => {
+    const { db } = buildListAndCountDb([fakeRow], 1)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+
+    const { and } = await import('drizzle-orm')
+    vi.mocked(and).mockClear()
+
+    await getNotifications('user-1', { unreadOnly: false })
+
+    // and() should NOT be called when unreadOnly is false (only eq for userId)
+    expect(and).not.toHaveBeenCalled()
+  })
+
+  it('maps row metadata null to empty object', async () => {
+    const rowWithNullMeta = { ...fakeRow, metadata: null }
+    const { db } = buildListAndCountDb([rowWithNullMeta], 1)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+
+    const result = await getNotifications('user-1')
+
+    expect(result.notifications[0].metadata).toEqual({})
+  })
+
+  it('returns correct notification shape', async () => {
+    const { db } = buildListAndCountDb([fakeRow], 1)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+
+    const result = await getNotifications('user-1')
+
+    expect(result.notifications[0]).toEqual({
+      id: 'notif-1',
+      userId: 'user-1',
+      category: 'billing',
+      type: 'info',
+      title: 'Title',
+      body: 'Body',
+      actionUrl: null,
+      read: false,
+      readAt: null,
+      metadata: {},
+      createdAt: new Date('2026-01-01'),
+    })
+  })
+
+  it('returns empty array and zero total when no results', async () => {
+    const { db } = buildListAndCountDb([], 0)
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+
+    const result = await getNotifications('user-1')
+
+    expect(result.notifications).toEqual([])
+    expect(result.total).toBe(0)
   })
 })
 
@@ -182,5 +184,20 @@ describe('deleteNotification', () => {
 
     const result = await deleteNotification('nonexistent', 'user-1')
     expect(result).toBe(false)
+  })
+
+  it('scopes delete to both notificationId and userId', async () => {
+    const returningMock = vi.fn().mockResolvedValue([{ id: 'notif-1' }])
+    const whereMock = vi.fn().mockReturnValue({ returning: returningMock })
+    const deleteMock = vi.fn().mockReturnValue({ where: whereMock })
+    const db = { delete: deleteMock };
+    (getDb as ReturnType<typeof vi.fn>).mockReturnValue(db)
+
+    const { and } = await import('drizzle-orm')
+
+    await deleteNotification('notif-1', 'user-1')
+
+    // and() is used to combine id + userId conditions
+    expect(and).toHaveBeenCalled()
   })
 })

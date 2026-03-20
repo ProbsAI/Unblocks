@@ -4,6 +4,7 @@ vi.mock('../runtime/configLoader', () => ({
   loadConfig: vi.fn().mockReturnValue({
     provider: 'resend',
     from: {
+      default: { name: 'MyApp', email: 'hello@example.com' },
       transactional: { name: 'MyApp', email: 'no-reply@example.com' },
     },
   }),
@@ -26,6 +27,7 @@ describe('sendEmail', () => {
     ;(loadConfig as ReturnType<typeof vi.fn>).mockReturnValue({
       provider: 'resend',
       from: {
+        default: { name: 'MyApp', email: 'hello@example.com' },
         transactional: { name: 'MyApp', email: 'no-reply@example.com' },
       },
     })
@@ -34,7 +36,7 @@ describe('sendEmail', () => {
     )
   })
 
-  it('loads email config and sends via resend provider', async () => {
+  it('loads email config', async () => {
     await sendEmail({
       to: 'user@example.com',
       subject: 'Test',
@@ -42,10 +44,19 @@ describe('sendEmail', () => {
     })
 
     expect(loadConfig).toHaveBeenCalledWith('email')
+  })
+
+  it('sends via resend provider when configured', async () => {
+    await sendEmail({
+      to: 'user@example.com',
+      subject: 'Test Subject',
+      html: '<p>Hello</p>',
+    })
+
     expect(sendViaResend).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'user@example.com',
-        subject: 'Test',
+        subject: 'Test Subject',
         html: '<p>Hello</p>',
       })
     )
@@ -58,7 +69,8 @@ describe('sendEmail', () => {
       html: '<p>Hello</p>',
     })
 
-    expect(sendViaResend).toHaveBeenCalledWith(
+    expect(runBeforeHook).toHaveBeenCalledWith(
+      'beforeEmailSend',
       expect.objectContaining({
         from: { name: 'MyApp', email: 'no-reply@example.com' },
       })
@@ -73,7 +85,8 @@ describe('sendEmail', () => {
       from: { name: 'Custom', email: 'custom@example.com' },
     })
 
-    expect(sendViaResend).toHaveBeenCalledWith(
+    expect(runBeforeHook).toHaveBeenCalledWith(
+      'beforeEmailSend',
       expect.objectContaining({
         from: { name: 'Custom', email: 'custom@example.com' },
       })
@@ -92,6 +105,7 @@ describe('sendEmail', () => {
       expect.objectContaining({
         to: 'user@example.com',
         subject: 'Test',
+        headers: {},
       })
     )
   })
@@ -115,6 +129,27 @@ describe('sendEmail', () => {
       expect.objectContaining({
         subject: 'Modified Subject',
         headers: { 'X-Custom': 'value' },
+      })
+    )
+  })
+
+  it('passes hook-modified recipient to provider', async () => {
+    ;(runBeforeHook as ReturnType<typeof vi.fn>).mockImplementation(
+      (_name: string, args: Record<string, unknown>) => ({
+        ...args,
+        to: 'redirected@example.com',
+      })
+    )
+
+    await sendEmail({
+      to: 'original@example.com',
+      subject: 'Test',
+      html: '<p>Hello</p>',
+    })
+
+    expect(sendViaResend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'redirected@example.com',
       })
     )
   })

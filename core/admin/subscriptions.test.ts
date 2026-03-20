@@ -205,6 +205,38 @@ describe('listSubscriptions', () => {
     expect(mainChain.offset).toHaveBeenCalledWith(50)
   })
 
+  it('uses default limit of 50 and offset of 0', async () => {
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.innerJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue([])
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 0 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    await listSubscriptions()
+
+    expect(mainChain.limit).toHaveBeenCalledWith(50)
+    expect(mainChain.offset).toHaveBeenCalledWith(0)
+  })
+
   it('maps subscription rows to AdminSubscription format', async () => {
     const now = new Date()
     const periodEnd = new Date('2026-05-01')
@@ -259,5 +291,103 @@ describe('listSubscriptions', () => {
     expect(sub.currentPeriodEnd).toBe(periodEnd)
     expect(sub.cancelAtPeriodEnd).toBe(true)
     expect(sub.createdAt).toBe(now)
+  })
+
+  it('maps multiple subscription rows correctly', async () => {
+    const now = new Date()
+    const rows = [
+      {
+        subscription: {
+          id: 'sub-1',
+          userId: 'u1',
+          plan: 'pro',
+          status: 'active',
+          interval: 'monthly',
+          currentPeriodEnd: now,
+          cancelAtPeriodEnd: false,
+          createdAt: now,
+        },
+        userEmail: 'alice@example.com',
+      },
+      {
+        subscription: {
+          id: 'sub-2',
+          userId: 'u2',
+          plan: 'enterprise',
+          status: 'canceled',
+          interval: null,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: true,
+          createdAt: now,
+        },
+        userEmail: 'bob@example.com',
+      },
+    ]
+
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.innerJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue(rows)
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 2 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    const result = await listSubscriptions()
+
+    expect(result.subscriptions).toHaveLength(2)
+    expect(result.subscriptions[0].userEmail).toBe('alice@example.com')
+    expect(result.subscriptions[1].plan).toBe('enterprise')
+    expect(result.subscriptions[1].interval).toBeNull()
+    expect(result.subscriptions[1].cancelAtPeriodEnd).toBe(true)
+    expect(result.total).toBe(2)
+  })
+
+  it('returns empty list when no subscriptions exist', async () => {
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.innerJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue([])
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 0 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    const result = await listSubscriptions()
+
+    expect(result.subscriptions).toEqual([])
+    expect(result.total).toBe(0)
   })
 })

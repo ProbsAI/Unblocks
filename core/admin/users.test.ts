@@ -86,7 +86,7 @@ describe('requireAdmin', () => {
     await expect(requireAdmin('user-1')).resolves.toBeUndefined()
   })
 
-  it('throws ForbiddenError when user has no admin role', async () => {
+  it('throws ForbiddenError when user has non-admin role', async () => {
     const chain = createMockChain()
     chain.limit = vi.fn().mockResolvedValue([{ metadata: { role: 'user' } }])
     mockGetDb.mockReturnValue(chain as never)
@@ -94,7 +94,7 @@ describe('requireAdmin', () => {
     await expect(requireAdmin('user-1')).rejects.toThrow('Admin access required')
   })
 
-  it('throws ForbiddenError when user has no metadata', async () => {
+  it('throws ForbiddenError when user has null metadata', async () => {
     const chain = createMockChain()
     chain.limit = vi.fn().mockResolvedValue([{ metadata: null }])
     mockGetDb.mockReturnValue(chain as never)
@@ -117,6 +117,19 @@ describe('requireAdmin', () => {
 
     await expect(requireAdmin('user-1')).rejects.toThrow('Admin access required')
   })
+
+  it('queries the correct user by id', async () => {
+    const chain = createMockChain()
+    chain.limit = vi.fn().mockResolvedValue([{ metadata: { role: 'admin' } }])
+    mockGetDb.mockReturnValue(chain as never)
+
+    await requireAdmin('specific-user-id')
+
+    expect(chain.select).toHaveBeenCalled()
+    expect(chain.from).toHaveBeenCalled()
+    expect(chain.where).toHaveBeenCalled()
+    expect(chain.limit).toHaveBeenCalledWith(1)
+  })
 })
 
 describe('listUsers', () => {
@@ -136,7 +149,6 @@ describe('listUsers', () => {
       subscriptionStatus: 'active',
     }
 
-    // We need two separate chains: one for the main query, one for the count query
     const mainChain = createMockChain()
     const countChain = createMockChain()
 
@@ -167,7 +179,9 @@ describe('listUsers', () => {
     expect(result.users).toHaveLength(1)
     expect(result.users[0].id).toBe('u1')
     expect(result.users[0].email).toBe('test@example.com')
+    expect(result.users[0].name).toBe('Test User')
     expect(result.users[0].plan).toBe('pro')
+    expect(result.users[0].subscriptionStatus).toBe('active')
     expect(result.total).toBe(1)
   })
 
@@ -208,6 +222,38 @@ describe('listUsers', () => {
     expect(countChain.where).toHaveBeenCalled()
   })
 
+  it('does not apply where clause without search', async () => {
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.leftJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue([])
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 0 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    await listUsers()
+
+    expect(mainChain.where).not.toHaveBeenCalled()
+    expect(countChain.where).not.toHaveBeenCalled()
+  })
+
   it('uses custom limit and offset', async () => {
     const mainChain = createMockChain()
     const countChain = createMockChain()
@@ -238,6 +284,70 @@ describe('listUsers', () => {
 
     expect(mainChain.limit).toHaveBeenCalledWith(10)
     expect(mainChain.offset).toHaveBeenCalledWith(20)
+  })
+
+  it('uses default limit 50 and offset 0', async () => {
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.leftJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue([])
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 0 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    await listUsers()
+
+    expect(mainChain.limit).toHaveBeenCalledWith(50)
+    expect(mainChain.offset).toHaveBeenCalledWith(0)
+  })
+
+  it('returns empty list when no users exist', async () => {
+    const mainChain = createMockChain()
+    const countChain = createMockChain()
+
+    let selectCallCount = 0
+    const mockDb = {
+      select: vi.fn().mockImplementation(() => {
+        selectCallCount++
+        if (selectCallCount === 1) {
+          return mainChain
+        }
+        return countChain
+      }),
+    }
+
+    mainChain.from = vi.fn().mockReturnValue(mainChain)
+    mainChain.leftJoin = vi.fn().mockReturnValue(mainChain)
+    mainChain.orderBy = vi.fn().mockReturnValue(mainChain)
+    mainChain.limit = vi.fn().mockReturnValue(mainChain)
+    mainChain.offset = vi.fn().mockResolvedValue([])
+
+    countChain.from = vi.fn().mockReturnValue(countChain)
+    countChain.then = vi.fn((resolve) => resolve([{ count: 0 }]))
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    const result = await listUsers()
+
+    expect(result.users).toEqual([])
+    expect(result.total).toBe(0)
   })
 })
 
@@ -279,24 +389,31 @@ describe('updateUserStatus', () => {
       expect.objectContaining({ status: 'active' })
     )
   })
+
+  it('sets updatedAt to current date', async () => {
+    const chain = createMockChain()
+    chain.where = vi.fn().mockResolvedValue(undefined)
+    mockGetDb.mockReturnValue(chain as never)
+
+    const before = new Date()
+    await updateUserStatus('user-1', 'active')
+
+    const setArg = chain.set.mock.calls[0][0]
+    expect(setArg.updatedAt).toBeInstanceOf(Date)
+    expect(setArg.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+  })
 })
 
 describe('setUserAdmin', () => {
   it('sets user as admin when isAdmin is true', async () => {
-    // First call: select to get current metadata
     const selectChain = createMockChain()
     selectChain.limit = vi.fn().mockResolvedValue([{ metadata: { theme: 'dark' } }])
 
-    // Second call: update
     const updateChain = createMockChain()
     updateChain.where = vi.fn().mockResolvedValue(undefined)
 
-    let callCount = 0
     const mockDb = {
-      select: vi.fn().mockImplementation(() => {
-        callCount++
-        return selectChain
-      }),
+      select: vi.fn().mockReturnValue(selectChain),
       update: vi.fn().mockReturnValue(updateChain),
     }
 
@@ -334,7 +451,7 @@ describe('setUserAdmin', () => {
     )
   })
 
-  it('handles user with no existing metadata', async () => {
+  it('handles user with null metadata', async () => {
     const selectChain = createMockChain()
     selectChain.limit = vi.fn().mockResolvedValue([{ metadata: null }])
 
@@ -355,5 +472,75 @@ describe('setUserAdmin', () => {
         metadata: { role: 'admin' },
       })
     )
+  })
+
+  it('handles missing user with undefined metadata', async () => {
+    const selectChain = createMockChain()
+    selectChain.limit = vi.fn().mockResolvedValue([])
+
+    const updateChain = createMockChain()
+    updateChain.where = vi.fn().mockResolvedValue(undefined)
+
+    const mockDb = {
+      select: vi.fn().mockReturnValue(selectChain),
+      update: vi.fn().mockReturnValue(updateChain),
+    }
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    await setUserAdmin('nonexistent', true)
+
+    expect(updateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { role: 'admin' },
+      })
+    )
+  })
+
+  it('preserves existing metadata fields when toggling admin', async () => {
+    const selectChain = createMockChain()
+    selectChain.limit = vi.fn().mockResolvedValue([
+      { metadata: { role: 'user', theme: 'dark', lang: 'en' } },
+    ])
+
+    const updateChain = createMockChain()
+    updateChain.where = vi.fn().mockResolvedValue(undefined)
+
+    const mockDb = {
+      select: vi.fn().mockReturnValue(selectChain),
+      update: vi.fn().mockReturnValue(updateChain),
+    }
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    await setUserAdmin('user-1', true)
+
+    expect(updateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { role: 'admin', theme: 'dark', lang: 'en' },
+      })
+    )
+  })
+
+  it('sets updatedAt when changing admin status', async () => {
+    const selectChain = createMockChain()
+    selectChain.limit = vi.fn().mockResolvedValue([{ metadata: {} }])
+
+    const updateChain = createMockChain()
+    updateChain.where = vi.fn().mockResolvedValue(undefined)
+
+    const mockDb = {
+      select: vi.fn().mockReturnValue(selectChain),
+      update: vi.fn().mockReturnValue(updateChain),
+    }
+
+    mockGetDb.mockReturnValue(mockDb as never)
+
+    const before = new Date()
+    await setUserAdmin('user-1', true)
+
+    const setArg = updateChain.set.mock.calls[0][0]
+    expect(setArg.updatedAt).toBeInstanceOf(Date)
+    expect(setArg.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
   })
 })
