@@ -1,0 +1,61 @@
+=== AI PR Comments for PR #11 ===
+Synced: 2026-03-20T20:27:16Z
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T20:21:35Z ---
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-20T20:27:03Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `c82922d2af`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-03-20T20:21:35Z on core/security/encryption-integration.test.ts:9 ---
+## Unused variable, import, function or class
+
+Unused import vi.
+
+---
+
+In general, unused imports should be removed to keep the code clean and to avoid confusion about expected behavior. Since <code>vi</code> is not used anywhere in this test file, the best fix is to remove <code>vi</code> from the named imports from <code>vitest</code>.</p>
+<p>Concretely, in <code>core/security/encryption-integration.test.ts</code>, on the import line at the top of the file, update the import from <code>vitest</code> to drop <code>vi</code> while leaving the other imports unchanged. No additional methods, imports, or definitions are needed; this is purely a cleanup change that does not affect functionality.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/env.ts:17 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require ENCRYPTION_KEY during env validation**
+
+`ENCRYPTION_KEY` is still optional here, but this commit now calls `encrypt()`/`blindIndex()` unconditionally in core paths like `createUser`, `createSession`, `enqueueJob`, `uploadFile`, and notification creation (`core/security/encryption.ts`, `core/security/blindIndex.ts`). With the current `.env.example`, the app can boot successfully and then start returning 500s on the first signup/login/upload/job instead of failing fast at startup.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/schema/users.ts:16 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Generate a migration for the new encrypted columns**
+
+This adds new columns such as `email_encrypted`/`email_hash` and the same commit immediately starts writing them from auth, billing, upload, notification, and job code, but there is no corresponding migration under `core/db/migrations` even though `drizzle.config.ts` points there. Any installation upgrading from the previous schema via the documented `npm run db:migrate` flow will hit `column ... does not exist` as soon as one of these write paths executes.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/client.ts:21 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Stop forcing TLS on the documented Docker Postgres setup**
+
+The repo’s documented database setup is the plain Postgres container in `docker-compose.yml`, and `npm run start` runs the app with `NODE_ENV=production`. In that supported path, this code now always passes `ssl: { rejectUnauthorized: true }`, so production-mode smoke tests or self-hosted deployments using the stock `DATABASE_URL` can no longer connect unless users discover the undocumented `DATABASE_SSLMODE=disable` override.
+
+Useful? React with 👍 / 👎.
