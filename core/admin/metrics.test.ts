@@ -99,17 +99,11 @@ describe('getMetrics', () => {
       [{ count: counts.teams }],
     ]
 
-    mockWhere.mockImplementation(() => results[callIndex++])
-    mockFrom.mockReturnValue({ where: mockWhere })
-    // For queries without .where (total users, total subs, total teams)
-    // The mock chain: select().from() should return a thenable or the mockFrom should handle both
     mockFrom.mockImplementation(() => {
-      const current = callIndex
+      const current = callIndex++
       return {
-        where: () => {
-          return results[current]
-        },
-        then: (resolve: (v: unknown) => void) => resolve(results[callIndex++]),
+        where: () => results[current],
+        then: (resolve: (v: unknown) => void) => resolve(results[current]),
       }
     })
 

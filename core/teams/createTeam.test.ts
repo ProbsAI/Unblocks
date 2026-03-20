@@ -38,8 +38,7 @@ function createMockDb() {
   const mockReturning = vi.fn()
   const mockValues = vi.fn(() => ({ returning: mockReturning }))
   const mockInsert = vi.fn(() => ({ values: mockValues }))
-  const mockLimit = vi.fn()
-  const mockWhere = vi.fn(() => ({ limit: mockLimit }))
+  const mockWhere = vi.fn()
   const mockFrom = vi.fn(() => ({ where: mockWhere }))
   const mockSelect = vi.fn(() => ({ from: mockFrom }))
 
@@ -48,7 +47,6 @@ function createMockDb() {
     mockSelect,
     mockFrom,
     mockWhere,
-    mockLimit,
     mockInsert,
     mockValues,
     mockReturning,
@@ -61,17 +59,17 @@ describe('createTeam', () => {
   })
 
   it('creates team successfully, adds owner as member, and fires hook', async () => {
-    const { db, mockLimit, mockReturning, mockValues } = createMockDb()
+    const { db, mockWhere, mockReturning, mockValues } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
       allowTeamCreation: true,
       maxTeamsPerUser: 5,
     })
 
-    // Count query returns 0 teams
-    mockLimit.mockResolvedValueOnce([{ count: 0 }])
-    // Slug uniqueness check returns empty
-    mockLimit.mockResolvedValueOnce([])
+    // Count query: select().from().where() — awaited directly, destructured
+    mockWhere.mockReturnValueOnce([{ count: 0 }])
+    // Slug uniqueness check: select().from().where().limit(1)
+    mockWhere.mockReturnValueOnce({ limit: vi.fn().mockReturnValue([]) })
 
     const teamRow = {
       id: 'team-1',
@@ -114,7 +112,7 @@ describe('createTeam', () => {
   })
 
   it('throws ForbiddenError when max teams exceeded', async () => {
-    const { db, mockLimit } = createMockDb()
+    const { db, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
       allowTeamCreation: true,
@@ -122,14 +120,14 @@ describe('createTeam', () => {
     })
 
     // Count query returns 2 (at max)
-    mockLimit.mockResolvedValueOnce([{ count: 2 }])
+    mockWhere.mockReturnValueOnce([{ count: 2 }])
 
     await expect(createTeam('user-1', 'user@test.com', 'Team', 'team'))
       .rejects.toThrow('You can create a maximum of 2 teams')
   })
 
   it('throws ConflictError when slug already exists', async () => {
-    const { db, mockLimit } = createMockDb()
+    const { db, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
       allowTeamCreation: true,
@@ -137,16 +135,16 @@ describe('createTeam', () => {
     })
 
     // Count query returns 0
-    mockLimit.mockResolvedValueOnce([{ count: 0 }])
+    mockWhere.mockReturnValueOnce([{ count: 0 }])
     // Slug uniqueness check returns existing team
-    mockLimit.mockResolvedValueOnce([{ id: 'existing-team' }])
+    mockWhere.mockReturnValueOnce({ limit: vi.fn().mockReturnValue([{ id: 'existing-team' }]) })
 
     await expect(createTeam('user-1', 'user@test.com', 'Team', 'my-team'))
       .rejects.toThrow('A team with this slug already exists')
   })
 
   it('normalizes slug to lowercase and replaces special chars with hyphens', async () => {
-    const { db, mockLimit, mockReturning, mockValues, mockWhere } = createMockDb()
+    const { db, mockReturning, mockValues, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
       allowTeamCreation: true,
@@ -154,9 +152,9 @@ describe('createTeam', () => {
     })
 
     // Count query
-    mockLimit.mockResolvedValueOnce([{ count: 0 }])
+    mockWhere.mockReturnValueOnce([{ count: 0 }])
     // Slug uniqueness check
-    mockLimit.mockResolvedValueOnce([])
+    mockWhere.mockReturnValueOnce({ limit: vi.fn().mockReturnValue([]) })
 
     const teamRow = {
       id: 'team-2',
