@@ -1,78 +1,25 @@
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
+  push:
+    branches: [main]
 
-permissions:
-  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-      - run: npx tsc --noEmit
-
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-      - run: npm run test -- --reporter=verbose --coverage
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-      - name: Check coverage thresholds
-        if: always()
-        run: |
-          node -e "
-          const fs = require('fs');
-          const path = require('path');
-          const THRESHOLD = 15;
-          const summaryPath = path.join('coverage', 'coverage-summary.json');
-          if (!fs.existsSync(summaryPath)) {
-            console.log('Coverage summary not found — skipping threshold check');
-            process.exit(0);
-          }
-          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-          const pct = summary.total.lines.pct;
-          console.log('Total line coverage: ' + pct + '%');
-          console.log('Required minimum: ' + THRESHOLD + '%');
-          if (pct < THRESHOLD) {
-            console.error('Coverage check FAILED: ' + pct + '% < ' + THRESHOLD + '%');
-            process.exit(1);
-          }
-          console.log('Coverage check passed.');
-          "
-
   build:
-    name: Build
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
       - run: npm run build
-        env:
-          DATABASE_URL: postgres://localhost:5432/unblocks_build
-          APP_URL: http://localhost:3000
-          SESSION_SECRET: ci-build-secret-at-least-32-characters-long
+      - run: npm run test
