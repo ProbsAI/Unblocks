@@ -77,7 +77,7 @@ describe('inviteMember', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('successfully creates an invitation', async () => {
-    const { db, mockLimit, mockReturning } = createMockDb()
+    const { db, mockLimit, mockReturning: _mockReturning } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('owner')
     vi.mocked(loadConfig).mockReturnValue({

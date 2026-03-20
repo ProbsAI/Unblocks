@@ -17,7 +17,7 @@ const mockListFrom = vi.fn().mockReturnValue({ where: mockListWhere })
 const mockListSelect = vi.fn().mockReturnValue({ from: mockListFrom })
 
 const mockDeleteWhere = vi.fn()
-const mockDeleteFrom = vi.fn().mockReturnValue({ where: mockDeleteWhere })
+const _mockDeleteFrom = vi.fn().mockReturnValue({ where: mockDeleteWhere })
 const mockDbDelete = vi.fn().mockReturnValue({ where: mockDeleteWhere })
 
 vi.mock('../db/client', () => ({
@@ -169,7 +169,7 @@ describe('uploadFile', () => {
   })
 
   it('should pass teamId when provided', async () => {
-    const result = await uploadFile(
+    await uploadFile(
       'user-1',
       Buffer.from('data'),
       'photo.png',
