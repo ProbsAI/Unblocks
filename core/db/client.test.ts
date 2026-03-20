@@ -28,7 +28,7 @@ describe('getPool SSL configuration', () => {
   })
 
   it('enforces SSL with rejectUnauthorized=true in production', () => {
-    process.env.NODE_ENV = 'production'
+    (process.env as Record<string, string>).NODE_ENV ='production'
 
     getPool()
 
@@ -40,7 +40,7 @@ describe('getPool SSL configuration', () => {
   })
 
   it('does not set SSL in development by default', () => {
-    process.env.NODE_ENV = 'development'
+    (process.env as Record<string, string>).NODE_ENV ='development'
 
     getPool()
 
@@ -52,7 +52,7 @@ describe('getPool SSL configuration', () => {
   })
 
   it('disables SSL when DATABASE_SSLMODE=disable even in production', () => {
-    process.env.NODE_ENV = 'production'
+    (process.env as Record<string, string>).NODE_ENV ='production'
     process.env.DATABASE_SSLMODE = 'disable'
 
     getPool()
@@ -65,7 +65,7 @@ describe('getPool SSL configuration', () => {
   })
 
   it('returns the same pool instance on subsequent calls', () => {
-    process.env.NODE_ENV = 'development'
+    (process.env as Record<string, string>).NODE_ENV ='development'
 
     const pool1 = getPool()
     const pool2 = getPool()
