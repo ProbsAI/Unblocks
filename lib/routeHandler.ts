@@ -7,7 +7,7 @@ type RouteHandlerNoContext = (...args: [Request, ...unknown[]]) => Promise<Respo
 
 export function withErrorHandler<C extends NextRouteContext>(handler: RouteHandlerWithContext<C>): (request: Request, context: C) => Promise<Response>
 export function withErrorHandler(handler: RouteHandlerNoContext): (request: Request, context: NextRouteContext) => Promise<Response>
-export function withErrorHandler(handler: Function): (request: Request, context: unknown) => Promise<Response> {
+export function withErrorHandler(handler: (...args: unknown[]) => Promise<Response>): (request: Request, context: unknown) => Promise<Response> {
   return async (request, context) => {
     try {
       return await handler(request, context)

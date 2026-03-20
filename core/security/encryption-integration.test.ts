@@ -6,7 +6,7 @@
  * a running database — they mock the DB layer and assert that
  * encrypted values are passed to insert/update calls.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { encrypt, decrypt, encryptNullable } from './encryption'
 import { blindIndex } from './blindIndex'
 

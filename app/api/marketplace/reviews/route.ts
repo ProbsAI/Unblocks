@@ -16,7 +16,7 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const mp = tryRequireBlock<{ createReview: Function }>('marketplace')
+  const mp = tryRequireBlock<{ createReview: (...args: unknown[]) => Promise<unknown> }>('marketplace')
   if (!mp) {
     return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
   }
@@ -26,7 +26,7 @@ export const POST = withErrorHandler(async (request: Request) => {
 })
 
 export const GET = withErrorHandler(async (request: Request) => {
-  const mp = tryRequireBlock<{ getListingReviews: Function }>('marketplace')
+  const mp = tryRequireBlock<{ getListingReviews: (...args: unknown[]) => Promise<unknown> }>('marketplace')
   if (!mp) {
     return errorResponse('BLOCK_NOT_AVAILABLE', 'Marketplace block is not installed', 404)
   }

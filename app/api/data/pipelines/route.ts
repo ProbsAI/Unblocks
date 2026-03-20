@@ -23,7 +23,7 @@ export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
   const body = await validateBody(request, createSchema)
 
-  const data = tryRequireBlock<{ createPipeline: Function }>('data-platform')
+  const data = tryRequireBlock<{ createPipeline: (...args: unknown[]) => Promise<unknown> }>('data-platform')
   if (!data) {
     return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
   }
@@ -35,7 +35,7 @@ export const POST = withErrorHandler(async (request: Request) => {
 export const GET = withErrorHandler(async () => {
   const user = await requireAuth()
 
-  const data = tryRequireBlock<{ listPipelines: Function }>('data-platform')
+  const data = tryRequireBlock<{ listPipelines: (...args: unknown[]) => Promise<unknown> }>('data-platform')
   if (!data) {
     return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
   }

@@ -6,7 +6,7 @@ import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 export const GET = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
 
-  const ai = tryRequireBlock<{ getUserUsage: Function; getUsageHistory: Function }>('ai-wrapper')
+  const ai = tryRequireBlock<{ getUserUsage: (...args: unknown[]) => Promise<unknown>; getUsageHistory: (...args: unknown[]) => Promise<unknown> }>('ai-wrapper')
   if (!ai) {
     return errorResponse('BLOCK_NOT_AVAILABLE', 'AI wrapper block is not installed', 404)
   }
