@@ -181,6 +181,14 @@ describe('changePlan', () => {
   })
 
   it('defaults to monthly interval', async () => {
+    mockGetPlanById.mockReturnValue({
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: { monthly: 50, yearly: 500 },
+      stripePriceId: { monthly: 'price_ent_m', yearly: 'price_ent_y' },
+      limits: { projects: 999, teamMembers: 100, storageGb: 1000, apiRequestsPerDay: 100000 },
+      features: [],
+    })
     setupSelectChain([{
       id: 'sub-1',
       plan: 'pro',
