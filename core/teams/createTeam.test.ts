@@ -81,10 +81,11 @@ describe('createTeam', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     }
-    // Insert team returning
+    // Insert team: values().returning()
+    mockValues.mockReturnValueOnce({ returning: mockReturning })
     mockReturning.mockResolvedValueOnce([teamRow])
-    // Insert member (no returning needed, just resolve)
-    mockValues.mockResolvedValueOnce(undefined)
+    // Insert member: values() — no .returning() needed
+    mockValues.mockReturnValueOnce(Promise.resolve(undefined))
 
     vi.mocked(runHook).mockResolvedValue(undefined)
 
@@ -166,8 +167,9 @@ describe('createTeam', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     }
+    mockValues.mockReturnValueOnce({ returning: mockReturning })
     mockReturning.mockResolvedValueOnce([teamRow])
-    mockValues.mockResolvedValueOnce(undefined)
+    mockValues.mockReturnValueOnce(Promise.resolve(undefined))
     vi.mocked(runHook).mockResolvedValue(undefined)
 
     const result = await createTeam('user-1', 'user@test.com', 'My Team!', 'My Team!')
