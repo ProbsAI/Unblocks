@@ -3,6 +3,8 @@ import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { accounts } from '../db/schema/accounts'
 import { runHook } from '../runtime/hookRunner'
+import { encrypt, encryptNullable } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 interface GoogleUserInfo {
@@ -100,10 +102,15 @@ export async function handleOAuthCallback(
     .limit(1)
 
   if (existingAccount) {
-    // Update tokens
+    // Update tokens (store encrypted)
     await db
       .update(accounts)
-      .set({ accessToken, refreshToken })
+      .set({
+        accessToken,
+        accessTokenEncrypted: encrypt(accessToken),
+        refreshToken,
+        refreshTokenEncrypted: encryptNullable(refreshToken),
+      })
       .where(eq(accounts.id, existingAccount.id))
 
     // Return existing user
@@ -138,10 +145,12 @@ export async function handleOAuthCallback(
     userId = existingUser.id
     // Update user info if not set
     if (!existingUser.name || !existingUser.avatarUrl) {
+      const updatedName = existingUser.name ?? userInfo.name
       await db
         .update(users)
         .set({
-          name: existingUser.name ?? userInfo.name,
+          name: updatedName,
+          nameEncrypted: encryptNullable(updatedName),
           avatarUrl: existingUser.avatarUrl ?? userInfo.avatarUrl,
           emailVerified: true,
           updatedAt: new Date(),
@@ -149,12 +158,16 @@ export async function handleOAuthCallback(
         .where(eq(users.id, existingUser.id))
     }
   } else {
-    // Create new user
+    // Create new user with encrypted PII
+    const emailLower = userInfo.email.toLowerCase()
     const [newUser] = await db
       .insert(users)
       .values({
-        email: userInfo.email.toLowerCase(),
+        email: emailLower,
+        emailEncrypted: encrypt(emailLower),
+        emailHash: blindIndex(emailLower),
         name: userInfo.name,
+        nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,
         emailVerified: true,
       })
@@ -177,13 +190,15 @@ export async function handleOAuthCallback(
     })
   }
 
-  // Link OAuth account
+  // Link OAuth account (store encrypted tokens)
   await db.insert(accounts).values({
     userId,
     provider,
     providerAccountId,
     accessToken,
+    accessTokenEncrypted: encrypt(accessToken),
     refreshToken,
+    refreshTokenEncrypted: encryptNullable(refreshToken),
   })
 
   const [dbUser] = await db

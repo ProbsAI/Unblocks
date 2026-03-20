@@ -5,6 +5,7 @@ import { subscriptions } from '../db/schema/subscriptions'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
 import { getAllPlans } from './plans'
+import { encryptNullable } from '../security/encryption'
 
 export async function handleStripeWebhook(
   payload: string,
@@ -81,6 +82,7 @@ async function handleSubscriptionUpdate(
 
   const subData = {
     stripeSubscriptionId: stripeSubscription.id,
+    stripeSubscriptionIdEncrypted: encryptNullable(stripeSubscription.id),
     stripePriceId: priceId,
     plan: planId,
     status: stripeSubscription.status,

@@ -8,6 +8,14 @@ const envSchema = z.object({
     .string()
     .min(32, 'SESSION_SECRET must be at least 32 characters'),
 
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(
+      /^[0-9a-f]{64}(,[0-9a-f]{64})*$/,
+      'ENCRYPTION_KEY must be one or more 64-char hex strings (comma-separated for key rotation). Generate with: openssl rand -hex 32'
+    )
+    .optional(),
+
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

@@ -4,18 +4,24 @@ import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { AuthError } from '../errors/types'
+import { encrypt } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 
 export async function createEmailVerificationToken(
   email: string
 ): Promise<string> {
   const db = getDb()
+  const emailLower = email.toLowerCase()
 
   const token = generateRandomToken()
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
   await db.insert(verificationTokens).values({
     token,
-    email: email.toLowerCase(),
+    tokenHash: blindIndex(token),
+    tokenEncrypted: encrypt(token),
+    email: emailLower,
+    emailEncrypted: encrypt(emailLower),
     type: 'email_verification',
     expiresAt,
   })

@@ -5,6 +5,8 @@ import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { hashPassword } from './password'
 import { AuthError } from '../errors/types'
+import { encrypt } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 
 export async function requestPasswordReset(
   email: string
@@ -25,7 +27,10 @@ export async function requestPasswordReset(
 
   await db.insert(verificationTokens).values({
     token,
+    tokenHash: blindIndex(token),
+    tokenEncrypted: encrypt(token),
     email: dbUser.email,
+    emailEncrypted: encrypt(dbUser.email),
     type: 'password_reset',
     expiresAt,
   })
