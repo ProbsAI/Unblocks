@@ -1,0 +1,29 @@
+=== AI PR Comments for PR #8 ===
+Synced: 2026-03-20T14:15:28Z
+
+## Reviews
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T13:32:37Z ---
+## Pull request overview
+
+Removes fixed pricing amounts from the `licenseValidator.ts` header comment tier descriptions to avoid embedding potentially stale pricing in the public repository.
+
+**Changes:**
+- Stripped monthly dollar amounts from the tier descriptions in the file header comment.
+- Kept tier feature descriptions intact while making pricing non-specific.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T14:15:18Z ---
+## Pull request overview
+
+Copilot reviewed 2 out of 2 changed files in this pull request and generated 2 comments.
+
+## Inline Comments
+
+--- inline by @Copilot at 2026-03-20T14:15:18Z on .github/workflows/ci.yml:22 ---
+`npm ci` requires an existing lockfile (package-lock.json or npm-shrinkwrap.json). This repo doesn't include one, so this workflow will fail at install time. Either commit a lockfile or switch the install step to `npm install` (and consider adding a lockfile for reproducible CI builds).
+```suggestion
+      - run: npm install
+```
+
+--- inline by @Copilot at 2026-03-20T14:15:18Z on .github/workflows/ci.yml:4 ---
+PR description says this change is only stripping pricing from a comment header, but this PR also introduces a new CI workflow. Please update the PR description to mention the CI addition (or split the workflow into a separate PR) so reviewers understand the full scope.
