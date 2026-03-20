@@ -7,9 +7,9 @@
  *
  * Tiers:
  *   community  — free, all MIT features
- *   builder    — $9/mo, attribution removal
- *   pro        — $19/mo, advanced admin, SSE, S3, premium templates/themes
- *   team       — $49/mo, pro + team seats + priority
+ *   builder    — attribution removal
+ *   pro        — advanced admin, SSE, S3, premium templates/themes
+ *   team       — pro + team seats + priority
  *   enterprise — custom, team + SSO, audit, compliance
  */
 
