@@ -1,0 +1,342 @@
+=== AI PR Comments for PR #11 ===
+Synced: 2026-03-20T23:46:52Z
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T20:21:35Z ---
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-20T20:27:03Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `c82922d2af`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T20:27:48Z ---
+## Pull request overview
+
+This PR introduces application-level encryption helpers (AES-256-GCM + blind indexing) and wires them into multiple modules that handle sensitive values, alongside DB schema extensions and CI/linting updates.
+
+**Changes:**
+- Add `encrypt/decrypt` (AES-256-GCM) and `blindIndex` utilities, with tests.
+- Persist encrypted counterparts (and some hashes) for various PII/token fields across auth, billing, uploads, notifications, jobs, and team invites.
+- Update linting (ESLint flat config) and simplify CI workflow steps.
+
+### Reviewed changes
+
+Copilot reviewed 62 out of 62 changed files in this pull request and generated 12 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| package.json | Switch lint script to ESLint; add ESLint deps. |
+| eslint.config.mjs | Add ESLint flat config compatible with Next presets. |
+| core/uploads/upload.ts | Store encrypted filename/originalName/storageKey alongside plaintext. |
+| core/teams/inviteMember.ts | Store encrypted email/token + token blind index. |
+| core/security/index.ts | Export encryption + blind index helpers from security barrel. |
+| core/security/encryption.ts | Add AES-256-GCM encrypt/decrypt utilities with key rotation support. |
+| core/security/encryption.test.ts | Unit tests for encryption helpers. |
+| core/security/encryption-integration.test.ts | “Integration” style tests for realistic round-trips/tamper detection. |
+| core/security/blindIndex.ts | Add HMAC-based blind index helper derived from ENCRYPTION_KEY. |
+| core/security/blindIndex.test.ts | Unit tests for blind index helper. |
+| core/runtime/licenseValidator.ts | Remove pricing amounts from tier doc comment. |
+| core/notifications/create.ts | Store encrypted notification title/body. |
+| core/jobs/queue.ts | Store encrypted JSON payload alongside raw payload. |
+| core/env.ts | Add ENCRYPTION_KEY env validation (currently optional). |
+| core/db/schema/verificationTokens.ts | Add encrypted/token-hash columns to verification tokens table. |
+| core/db/schema/users.ts | Add encrypted email/name and email hash columns. |
+| core/db/schema/teams.ts | Add encrypted email/token + token-hash columns to team invitations. |
+| core/db/schema/subscriptions.ts | Add encrypted Stripe customer/subscription ID columns. |
+| core/db/schema/sessions.ts | Add encrypted token + token-hash columns to sessions. |
+| core/db/schema/notifications.ts | Add encrypted title/body columns. |
+| core/db/schema/jobs.ts | Add encrypted payload column. |
+| core/db/schema/files.ts | Add encrypted filename/originalName/storageKey columns. |
+| core/db/schema/accounts.ts | Add encrypted access/refresh token columns. |
+| core/db/client.ts | Enforce SSL-by-default in production (configurable via DATABASE_SSLMODE). |
+| core/db/client.test.ts | Tests for `getPool()` SSL configuration behavior. |
+| core/billing/handleWebhook.ts | Encrypt subscription ID when updating subscription records. |
+| core/billing/handleWebhook.test.ts | Add tests for webhook handling logic. |
+| core/billing/getSubscription.test.ts | Add tests for subscription lookup mapping behavior. |
+| core/billing/customerPortal.test.ts | Add tests for billing portal session creation. |
+| core/billing/customer.ts | Encrypt Stripe customer ID when persisting to DB. |
+| core/billing/customer.test.ts | Add tests for Stripe customer creation/update flows. |
+| core/billing/createCheckout.test.ts | Add tests for checkout session creation. |
+| core/billing/changePlan.test.ts | Add tests for plan change behavior. |
+| core/billing/cancelSubscription.test.ts | Add tests for cancellation behavior. |
+| core/auth/verifyCredentials.test.ts | Add tests for credential verification behavior. |
+| core/auth/validateSession.test.ts | Add tests for session validation behavior. |
+| core/auth/revokeSession.test.ts | Add tests for revocation behavior. |
+| core/auth/permissions.test.ts | Add tests for user lookup helpers. |
+| core/auth/passwordReset.ts | Encrypt/blind-index password reset tokens + encrypt email on token record. |
+| core/auth/passwordReset.test.ts | Add tests for password reset flows. |
+| core/auth/oauth.ts | Encrypt OAuth tokens; encrypt + blind-index user email; encrypt user name. |
+| core/auth/oauth.test.ts | Add tests for OAuth URL/code exchange/user info/callback flows. |
+| core/auth/magicLink.ts | Encrypt/blind-index magic link tokens + encrypt/blind-index user email. |
+| core/auth/magicLink.test.ts | Add tests for magic link flows. |
+| core/auth/emailVerification.ts | Encrypt/blind-index verification tokens + encrypt email on token record. |
+| core/auth/emailVerification.test.ts | Add tests for email verification flows. |
+| core/auth/createUser.ts | Encrypt/blind-index email and encrypt name during user creation. |
+| core/auth/createUser.test.ts | Add tests for user creation behavior. |
+| core/auth/createSession.ts | Encrypt/blind-index stored session token. |
+| core/auth/createSession.test.ts | Add tests for session creation behavior. |
+| .github/workflows/ci.yml | Simplify CI into one job running lint/build/test; adjust triggers + concurrency. |
+| .env.example | Document ENCRYPTION_KEY usage and rotation. |
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T23:02:54Z ---
+## Pull request overview
+
+Copilot reviewed 62 out of 62 changed files in this pull request and generated 5 comments.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T23:16:23Z ---
+## Pull request overview
+
+Copilot reviewed 62 out of 62 changed files in this pull request and generated 11 comments.
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:24:14Z ---
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:28:09Z ---
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T23:31:19Z ---
+## Pull request overview
+
+Copilot reviewed 79 out of 79 changed files in this pull request and generated 2 comments.
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:36:46Z ---
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:46:42Z ---
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-03-20T20:21:35Z on core/security/encryption-integration.test.ts:9 ---
+## Unused variable, import, function or class
+
+Unused import vi.
+
+---
+
+In general, unused imports should be removed to keep the code clean and to avoid confusion about expected behavior. Since <code>vi</code> is not used anywhere in this test file, the best fix is to remove <code>vi</code> from the named imports from <code>vitest</code>.</p>
+<p>Concretely, in <code>core/security/encryption-integration.test.ts</code>, on the import line at the top of the file, update the import from <code>vitest</code> to drop <code>vi</code> while leaving the other imports unchanged. No additional methods, imports, or definitions are needed; this is purely a cleanup change that does not affect functionality.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/env.ts:17 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require ENCRYPTION_KEY during env validation**
+
+`ENCRYPTION_KEY` is still optional here, but this commit now calls `encrypt()`/`blindIndex()` unconditionally in core paths like `createUser`, `createSession`, `enqueueJob`, `uploadFile`, and notification creation (`core/security/encryption.ts`, `core/security/blindIndex.ts`). With the current `.env.example`, the app can boot successfully and then start returning 500s on the first signup/login/upload/job instead of failing fast at startup.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/schema/users.ts:16 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Generate a migration for the new encrypted columns**
+
+This adds new columns such as `email_encrypted`/`email_hash` and the same commit immediately starts writing them from auth, billing, upload, notification, and job code, but there is no corresponding migration under `core/db/migrations` even though `drizzle.config.ts` points there. Any installation upgrading from the previous schema via the documented `npm run db:migrate` flow will hit `column ... does not exist` as soon as one of these write paths executes.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/client.ts:21 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Stop forcing TLS on the documented Docker Postgres setup**
+
+The repo’s documented database setup is the plain Postgres container in `docker-compose.yml`, and `npm run start` runs the app with `NODE_ENV=production`. In that supported path, this code now always passes `ssl: { rejectUnauthorized: true }`, so production-mode smoke tests or self-hosted deployments using the stock `DATABASE_URL` can no longer connect unless users discover the undocumented `DATABASE_SSLMODE=disable` override.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/oauth.test.ts:101 ---
+`handleOAuthCallback()` now encrypts PII/tokens and generates blind indexes, which requires `process.env.ENCRYPTION_KEY`. This suite does not set that env var, so calls to `handleOAuthCallback()` will throw. Add a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so these tests can execute the new code paths.
+```suggestion
+  setupUpdateChain()
+  process.env.ENCRYPTION_KEY = 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/createSession.test.ts:45 ---
+`createSession()` now calls `encrypt()` / `blindIndex()` for the stored token, which requires `process.env.ENCRYPTION_KEY`. This suite doesn’t set `ENCRYPTION_KEY`, so any call to `createSession()` will throw. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so the suite passes and validates behavior.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY = 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/billing/handleWebhook.test.ts:72 ---
+`handleStripeWebhook()` now calls `encryptNullable()` when updating subscription data, which requires `process.env.ENCRYPTION_KEY`. This suite sets `STRIPE_WEBHOOK_SECRET` but not `ENCRYPTION_KEY`, so subscription-event tests will throw when they hit the update path. Set a test `ENCRYPTION_KEY` in this `beforeEach` (or in the global Vitest setup).
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/env.ts:17 ---
+`ENCRYPTION_KEY` is marked optional in the env schema, but the new `encrypt()` / `blindIndex()` helpers throw if `process.env.ENCRYPTION_KEY` is missing. Since multiple runtime code paths now call these helpers unconditionally, a deployment without `ENCRYPTION_KEY` will crash at runtime. Either make `ENCRYPTION_KEY` required in `core/env.ts`, or gate encryption/indexing behind a feature flag / no-op implementation when the key is not configured.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/emailVerification.test.ts:73 ---
+`createEmailVerificationToken()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This test suite doesn’t configure `ENCRYPTION_KEY`, so the first call to `createEmailVerificationToken()` will throw. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so the tests can run.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY =
+    process.env.ENCRYPTION_KEY ?? 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/billing/customer.test.ts:87 ---
+`getOrCreateCustomer()` now calls `encrypt()` for Stripe customer IDs, which requires `process.env.ENCRYPTION_KEY`. This test suite doesn’t set `ENCRYPTION_KEY`, so tests that execute `getOrCreateCustomer()` will throw. Configure a test key in `beforeEach` (or global Vitest setup) to exercise the updated code paths.
+```suggestion
+  setupUpdateChain()
+  process.env.ENCRYPTION_KEY = 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on .env.example:20 ---
+Typo in the key-rotation comment: "comma-separate" should be "comma-separated".
+```suggestion
+# Key rotation: comma-separated keys (newest first), e.g. newkey,oldkey
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/security/encryption.ts:31 ---
+`getEncryptionKeys()` validates key *string length* but not that the value is valid hex or that `Buffer.from(key, 'hex')` actually yields a 32-byte buffer. With non-hex characters, Node will silently truncate/produce a shorter buffer and `createCipheriv` will throw later with a less actionable error. Consider validating via a hex regex (or checking `buffer.length === 32`) and throwing a clear error here.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/security/encryption-integration.test.ts:7 ---
+The file header comment says these tests "mock the DB layer and assert that encrypted values are passed to insert/update calls", but the tests in this file only exercise `encrypt/decrypt` and `blindIndex` directly and do not mock any DB/module wiring. Please either update the comment to match what’s actually tested, or add the wiring-level assertions described here.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/createUser.test.ts:70 ---
+`createUser()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This test suite does not set it, so it will fail once the function runs. Add a test key (e.g. in this suite’s `beforeEach`, or preferably in the global Vitest setup) so these tests exercise the new behavior without throwing.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY ?? 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/magicLink.test.ts:104 ---
+`createMagicLink()` / `verifyMagicLink()` now call `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This suite doesn’t set that env var, so these tests will throw before reaching assertions. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) to keep the suite passing.
+```suggestion
+  selectCallCount = 0
+  process.env.ENCRYPTION_KEY = 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/passwordReset.test.ts:88 ---
+`requestPasswordReset()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This suite doesn’t set `ENCRYPTION_KEY`, so the tests will throw when executing the function. Configure a test `ENCRYPTION_KEY` in `beforeEach` (or the global Vitest setup) to keep this suite passing.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/db/schema/users.ts:19 ---
+New encrypted/hash columns are being added to the users table schema and are now written to by core/auth flows. Ensure the corresponding database migration is included/applied before deploying, otherwise inserts/updates that include these columns will fail at runtime with “column does not exist”.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption.ts:31 ---
+getEncryptionKeys() validates only the string length, but not that each key is valid hex. Buffer.from(key, 'hex') can silently produce an unexpected buffer for non-hex input, leading to crypto errors later. Add a strict hex validation (and/or assert decoded length === 32 bytes) before accepting a key.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption.ts:61 ---
+encrypt() always prefixes ciphertext with keyIndex "0" even when ENCRYPTION_KEY contains multiple keys. That makes the documented `keyIndex:<iv>:<authTag>:<ciphertext>` format misleading and prevents decrypt() from using the index as an accurate hint after key rotation (it will always try key 0 first). Consider encoding a stable key identifier/fingerprint (or the actual key slot used) instead of hardcoding 0, or update the format/docs accordingly.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/blindIndex.ts:22 ---
+blindIndex() derives its HMAC key from only the *primary* ENCRYPTION_KEY and doesn’t validate the key format/length. If/when ENCRYPTION_KEY is rotated (new key prepended), blindIndex outputs will change and any stored hashes (e.g., emailHash/tokenHash) will no longer match lookups unless you migrate/backfill or support multi-key verification. Recommend (1) validating the key like encryption.ts does, and (2) adding a rotation strategy for blind indexes (e.g., store key id alongside the hash or provide a helper to compute candidate hashes for all configured keys during lookup).
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption-integration.test.ts:8 ---
+The file header comment says these are integration tests that “mock the DB layer and assert that encrypted values are passed to insert/update calls”, but the test body only exercises encrypt/decrypt/blindIndex directly and doesn’t mock any modules/DB calls. Please either update the comment to match the current scope, or add the described wiring-level assertions.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/security/blindIndex.ts:38 ---
+blindIndex() always lowercases the input. That’s appropriate for case-insensitive identifiers like email, but it reduces entropy and changes semantics for case-sensitive values (e.g., JWTs/tokens/IDs), which this PR also hashes. Consider moving normalization to the caller (or provide a separate helper like blindIndexEmail that lowercases) so tokens can be indexed without modification.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/auth/passwordReset.ts:36 ---
+Password reset tokens are still persisted in plaintext (`token`) alongside `tokenHash` / `tokenEncrypted`. This means a DB compromise can still be used to reset accounts. Consider verifying/resetting by `tokenHash` and not storing the raw token (or at least stop writing it for new rows once lookups are updated).
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/auth/emailVerification.ts:27 ---
+Email verification tokens are still stored in plaintext (`token`) even though `tokenHash` / `tokenEncrypted` are available. If the goal is to protect verification links at rest, consider updating verification to query by `tokenHash` and avoiding persistence of the raw token value.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/auth/oauth.ts:111 ---
+OAuth access/refresh tokens are still persisted in plaintext (`accessToken`, `refreshToken`) alongside encrypted copies. If the intent is to protect credentials at rest, consider switching reads/updates to only store encrypted (and/or hashed for lookup) values and avoid persisting the raw tokens in DB.
+```suggestion
+        accessTokenEncrypted: encrypt(accessToken),
+```
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on lib/routeHandler.ts:11 ---
+The implementation signature uses `any[]` and disables the eslint rule. You can avoid the suppression by using `unknown[]` (or a tuple like `[Request, unknown]`) for the implementation signature; it still accepts arbitrary handler shapes while keeping type safety and lint clean.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/auth/createSession.ts:29 ---
+This stores the session JWT in plaintext (`token`) even though `tokenHash` / `tokenEncrypted` are now available. Keeping the raw token in the DB largely negates the benefit of encrypting/hashing session credentials at rest. Consider storing only a hash/encrypted form (and returning the in-memory token to the caller) and updating revocation/lookups to use the hash instead of the plaintext token column.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/auth/magicLink.ts:63 ---
+Verification tokens are still stored in plaintext (`token`) even though `tokenHash` / `tokenEncrypted` are being written. As long as the system continues to persist and query by the raw token, a DB leak still exposes usable magic links. Consider switching verification to query by `tokenHash` (computed from the presented token) and eventually removing/avoiding the plaintext token column for new rows.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/teams/inviteMember.ts:86 ---
+Team invitation tokens are still persisted in plaintext (`token`) even though `tokenHash` / `tokenEncrypted` are written. If an attacker gets DB read access, they can accept pending invites. Consider switching accept/lookups to use `tokenHash` and stop storing the raw token once that migration is complete.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/db/client.ts:22 ---
+This introduces `DATABASE_SSLMODE=disable` as an opt-out, but it isn’t documented in `.env.example` and isn’t part of the validated env schema (core/env.ts). Consider documenting it (and/or adding it to env validation) so operators know how to configure SSL behavior intentionally.
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/jobs/queue.ts:45 ---
+`payloadData` is asserted as `Record<string, unknown>`, but `JobDefinition<T>.payload` can be any JSON-serializable value (string/array/etc.). This cast hides type mismatches and makes it easy to accidentally pass values that don’t match the DB shape. Consider keeping the payload typed as `unknown`/`T` (no cast) and encrypting `JSON.stringify(definition.payload)` (with an explicit error if serialization fails).
+
+--- inline by @Copilot at 2026-03-20T23:16:23Z on core/billing/handleWebhook.test.ts:307 ---
+The comment says “some future timestamp”, but `1707350400` corresponds to early 2024 and isn’t necessarily in the future. Consider either updating the comment or using a timestamp relative to `Date.now()` to keep the test description accurate over time.
+
+--- inline by @github-code-quality[bot] at 2026-03-20T23:24:14Z on core/uploads/upload.test.ts:20 ---
+## Unused variable, import, function or class
+
+Unused variable mockDeleteFrom.
+
+---
+
+<p>In general, unused variables in tests should be removed to keep the test suite clear and to avoid confusion about which mocks are actually involved in behavior under test. Since <code>mockDeleteFrom</code> is not referenced anywhere in the provided snippet and there is already another delete-related mock (<code>mockDbDelete</code>) being used for the delete call chain, the best fix is to delete the unused <code>mockDeleteFrom</code> declaration.</p>
+<p>Concretely, in <code>core/uploads/upload.test.ts</code>, remove the single line that declares <code>mockDeleteFrom</code>:</p>
+<ul>
+<li>Delete line 20: <code>const mockDeleteFrom = vi.fn().mockReturnValue({ where: mockDeleteWhere })</code><br>
+No imports or additional definitions are required for this change, and it does not alter any existing functionality, because the variable was never used.</li>
+</ul>
+
+--- inline by @github-code-quality[bot] at 2026-03-20T23:24:14Z on core/uploads/upload.test.ts:174 ---
+## Unused variable, import, function or class
+
+Unused variable result.
+
+---
+
+In general, unused variable warnings in tests should be fixed either by using the variable (if an assertion is missing) or by removing the variable binding and keeping only the awaited call if its side effects are what the test cares about.</p>
+<p>Here, the <code>"should pass teamId when provided"</code> test is checking that <code>uploadFile</code> calls the database insert with a <code>teamId</code> field. The test doesn’t need the returned <code>result</code>, only that the call happens. Therefore, the best minimal change is to remove the <code>const result =</code> prefix and just await <code>uploadFile(...)</code> directly. This preserves all existing behavior and assertions while eliminating the unused variable.</p>
+<p>Concretely, in <code>core/uploads/upload.test.ts</code>, replace the lines where <code>result</code> is declared and assigned (174–180) with an equivalent <code>await uploadFile(...)</code> call without assigning it to a variable. No imports or additional definitions are needed.
+
+--- inline by @github-code-quality[bot] at 2026-03-20T23:28:09Z on core/uploads/upload.test.ts:172 ---
+## Unused variable, import, function or class
+
+Unused variable result.
+
+---
+
+In general, unused variables should either be removed or, if they are meant to signal intentional ignoring, renamed using a conventional placeholder (like <code>_</code>) but only when required for API shape. In this test, the variable <code>result</code> is not needed at all, because no subsequent code refers to it.</p>
+<p>The best fix here is to keep the <code>await uploadFile(...)</code> call (so the test still waits for the upload to complete and for side effects like the DB insert to occur) but drop the <code>const result =</code> binding. Specifically, in <code>core/uploads/upload.test.ts</code>, in the <code>"should pass teamId when provided"</code> test (around line 172), replace the declaration <code>const result = await uploadFile(...)</code> with just <code>await uploadFile(...)</code>. No new imports or definitions are needed.
+
+--- inline by @Copilot at 2026-03-20T23:31:19Z on core/db/schema/users.ts:19 ---
+This change adds new DB columns (e.g., `email_encrypted`, `email_hash`) that are now written to by core code paths. The repository currently has no `core/db/migrations` directory checked in, so running against an existing database will fail once these inserts reference columns that don’t exist. Please generate and commit the corresponding Drizzle migration(s) (or otherwise update the documented migration workflow) as part of this PR.
+
+--- inline by @Copilot at 2026-03-20T23:31:19Z on core/jobs/queue.ts:46 ---
+`JSON.stringify(payloadData)` can return `undefined` (e.g., when an extension enqueues a job with `payload` undefined), which will then be passed into `encrypt(...)` and throw because it expects a string. Please normalize the payload before encrypting (e.g., default to `{}`/`null`, and ensure you always pass a string to `encrypt`), and avoid the `as Record<string, unknown>` cast since job payloads can be non-object JSON values.
+
+--- inline by @github-code-quality[bot] at 2026-03-20T23:36:46Z on core/teams/inviteMember.test.ts:80 ---
+## Unused variable, import, function or class
+
+Unused variable mockReturning.
+
+---
+
+<p>In general, unused variables should be removed from destructuring assignments or other declarations to keep tests clear and avoid warnings. Here, the best fix is to stop destructuring <code>mockReturning</code> from the object returned by <code>createMockDb()</code> in this test, since the test uses a separate <code>mockReturning2</code> and never touches <code>mockReturning</code>.</p>
+<p>Specifically:</p>
+<ul>
+<li>In <code>core/teams/inviteMember.test.ts</code>, within the <code>"successfully creates an invitation"</code> test case, update the destructuring assignment at line 80 from <code>const { db, mockLimit, mockReturning } = createMockDb()</code> to <code>const { db, mockLimit } = createMockDb()</code>.</li>
+<li>No extra imports or new functions are required, and this does not alter any runtime behavior because <code>mockReturning</code> was not used.</li>
+</ul>
+
+--- inline by @github-code-quality[bot] at 2026-03-20T23:46:42Z on core/admin/metrics.test.ts:90 ---
+## Unused variable, import, function or class
+
+Unused variable mockWhere.
+
+---
+
+<p>In general, to fix an unused variable error you either remove the variable if it is truly redundant, or you update the code to actually use it in a meaningful way. The safest approach, when aiming not to change behavior, is to delete the unused declaration as long as it is not part of any public API or used via reflection or similar dynamic patterns.</p>
+<p>Here, <code>mockWhere</code> is declared but never used; the mock logic for the DB uses <code>mockFrom</code> and <code>mockSelect</code> only. Removing <code>mockWhere</code> will not change how <code>setupDbMock</code> behaves. Therefore, the best minimal fix is to delete the <code>const mockWhere = vi.fn()</code> line from <code>setupDbMock</code> in <code>core/admin/metrics.test.ts</code>, leaving the rest of the function intact.</p>
+<p>Concretely:</p>
+<ul>
+<li>In <code>core/admin/metrics.test.ts</code>, inside the <code>describe('getMetrics', ...)</code> block, in the <code>setupDbMock</code> function, remove the line <code>const mockWhere = vi.fn()</code>.</li>
+<li>No new imports or definitions are required, and no other code needs adjustment.</li>
+</ul>
