@@ -97,6 +97,14 @@ describe('createCheckoutSession', () => {
   })
 
   it('throws when checkout session has no URL', async () => {
+    mockGetPlanById.mockReturnValue({
+      id: 'pro',
+      name: 'Pro',
+      price: { monthly: 20, yearly: 200 },
+      stripePriceId: { monthly: 'price_pro_monthly', yearly: 'price_pro_yearly' },
+      limits: {},
+      features: [],
+    })
     mockCheckoutCreate.mockResolvedValue({ url: null })
 
     await expect(
@@ -105,6 +113,14 @@ describe('createCheckoutSession', () => {
   })
 
   it('includes success and cancel URLs', async () => {
+    mockGetPlanById.mockReturnValue({
+      id: 'pro',
+      name: 'Pro',
+      price: { monthly: 20, yearly: 200 },
+      stripePriceId: { monthly: 'price_pro_monthly', yearly: 'price_pro_yearly' },
+      limits: {},
+      features: [],
+    })
     mockCheckoutCreate.mockResolvedValue({
       url: 'https://checkout.stripe.com/session',
     })
