@@ -1,5 +1,5 @@
 === AI PR Comments for PR #11 ===
-Synced: 2026-03-20T23:28:19Z
+Synced: 2026-03-20T23:31:29Z
 
 ## Reviews
 
@@ -113,6 +113,11 @@ Copilot reviewed 62 out of 62 changed files in this pull request and generated 1
 --- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:24:14Z ---
 
 --- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T23:28:09Z ---
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T23:31:19Z ---
+## Pull request overview
+
+Copilot reviewed 79 out of 79 changed files in this pull request and generated 2 comments.
 
 ## Inline Comments
 
@@ -296,3 +301,9 @@ Unused variable result.
 
 In general, unused variables should either be removed or, if they are meant to signal intentional ignoring, renamed using a conventional placeholder (like <code>_</code>) but only when required for API shape. In this test, the variable <code>result</code> is not needed at all, because no subsequent code refers to it.</p>
 <p>The best fix here is to keep the <code>await uploadFile(...)</code> call (so the test still waits for the upload to complete and for side effects like the DB insert to occur) but drop the <code>const result =</code> binding. Specifically, in <code>core/uploads/upload.test.ts</code>, in the <code>"should pass teamId when provided"</code> test (around line 172), replace the declaration <code>const result = await uploadFile(...)</code> with just <code>await uploadFile(...)</code>. No new imports or definitions are needed.
+
+--- inline by @Copilot at 2026-03-20T23:31:19Z on core/db/schema/users.ts:19 ---
+This change adds new DB columns (e.g., `email_encrypted`, `email_hash`) that are now written to by core code paths. The repository currently has no `core/db/migrations` directory checked in, so running against an existing database will fail once these inserts reference columns that don’t exist. Please generate and commit the corresponding Drizzle migration(s) (or otherwise update the documented migration workflow) as part of this PR.
+
+--- inline by @Copilot at 2026-03-20T23:31:19Z on core/jobs/queue.ts:46 ---
+`JSON.stringify(payloadData)` can return `undefined` (e.g., when an extension enqueues a job with `payload` undefined), which will then be passed into `encrypt(...)` and throw because it expects a string. Please normalize the payload before encrypting (e.g., default to `{}`/`null`, and ensure you always pass a string to `encrypt`), and avoid the `as Record<string, unknown>` cast since job payloads can be non-object JSON values.
