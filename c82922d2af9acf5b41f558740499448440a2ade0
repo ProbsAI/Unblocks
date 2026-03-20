@@ -1,0 +1,18 @@
+=== AI PR Comments for PR #11 ===
+Synced: 2026-03-20T20:21:47Z
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T20:21:35Z ---
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-03-20T20:21:35Z on core/security/encryption-integration.test.ts:9 ---
+## Unused variable, import, function or class
+
+Unused import vi.
+
+---
+
+In general, unused imports should be removed to keep the code clean and to avoid confusion about expected behavior. Since <code>vi</code> is not used anywhere in this test file, the best fix is to remove <code>vi</code> from the named imports from <code>vitest</code>.</p>
+<p>Concretely, in <code>core/security/encryption-integration.test.ts</code>, on the import line at the top of the file, update the import from <code>vitest</code> to drop <code>vi</code> while leaving the other imports unchanged. No additional methods, imports, or definitions are needed; this is purely a cleanup change that does not affect functionality.
