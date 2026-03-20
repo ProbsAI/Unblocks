@@ -47,13 +47,10 @@ vi.mock('./validate', () => ({
   isImageMimeType: vi.fn((t: string) => t.startsWith('image/')),
 }))
 
-const mockStoragePut = vi.fn().mockResolvedValue('http://localhost/file')
-const mockStorageDelete = vi.fn()
-
 vi.mock('./storage', () => ({
   getStorageProvider: vi.fn().mockReturnValue({
-    put: mockStoragePut,
-    delete: mockStorageDelete,
+    put: vi.fn().mockResolvedValue('http://localhost/file'),
+    delete: vi.fn(),
   }),
   createStorageKey: vi.fn().mockReturnValue('2024/01/uuid.png'),
 }))
@@ -85,6 +82,7 @@ vi.mock('../errors/types', () => ({
 import { uploadFile, getFile, listFiles, deleteFile } from './upload'
 import { getDb } from '../db/client'
 import { runHook } from '../runtime/hookRunner'
+import { getStorageProvider } from './storage'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -126,7 +124,7 @@ describe('uploadFile', () => {
     const result = await uploadFile('user-1', data, 'photo.png', 'image/png')
 
     // Storage put was called
-    expect(mockStoragePut).toHaveBeenCalledWith(
+    expect(vi.mocked(getStorageProvider)().put).toHaveBeenCalledWith(
       '2024/01/uuid.png',
       data,
       'image/png'
@@ -263,7 +261,7 @@ describe('deleteFile', () => {
     await deleteFile('file-1', 'user-1')
 
     // Storage delete was called
-    expect(mockStorageDelete).toHaveBeenCalledWith('2024/01/uuid.png')
+    expect(vi.mocked(getStorageProvider)().delete).toHaveBeenCalledWith('2024/01/uuid.png')
 
     // DB delete was called
     expect(mockDbDelete).toHaveBeenCalled()
