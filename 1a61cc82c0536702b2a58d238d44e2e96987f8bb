@@ -1,0 +1,218 @@
+=== AI PR Comments for PR #11 ===
+Synced: 2026-03-20T23:03:05Z
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-03-20T20:21:35Z ---
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-20T20:27:03Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `c82922d2af`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T20:27:48Z ---
+## Pull request overview
+
+This PR introduces application-level encryption helpers (AES-256-GCM + blind indexing) and wires them into multiple modules that handle sensitive values, alongside DB schema extensions and CI/linting updates.
+
+**Changes:**
+- Add `encrypt/decrypt` (AES-256-GCM) and `blindIndex` utilities, with tests.
+- Persist encrypted counterparts (and some hashes) for various PII/token fields across auth, billing, uploads, notifications, jobs, and team invites.
+- Update linting (ESLint flat config) and simplify CI workflow steps.
+
+### Reviewed changes
+
+Copilot reviewed 62 out of 62 changed files in this pull request and generated 12 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| package.json | Switch lint script to ESLint; add ESLint deps. |
+| eslint.config.mjs | Add ESLint flat config compatible with Next presets. |
+| core/uploads/upload.ts | Store encrypted filename/originalName/storageKey alongside plaintext. |
+| core/teams/inviteMember.ts | Store encrypted email/token + token blind index. |
+| core/security/index.ts | Export encryption + blind index helpers from security barrel. |
+| core/security/encryption.ts | Add AES-256-GCM encrypt/decrypt utilities with key rotation support. |
+| core/security/encryption.test.ts | Unit tests for encryption helpers. |
+| core/security/encryption-integration.test.ts | “Integration” style tests for realistic round-trips/tamper detection. |
+| core/security/blindIndex.ts | Add HMAC-based blind index helper derived from ENCRYPTION_KEY. |
+| core/security/blindIndex.test.ts | Unit tests for blind index helper. |
+| core/runtime/licenseValidator.ts | Remove pricing amounts from tier doc comment. |
+| core/notifications/create.ts | Store encrypted notification title/body. |
+| core/jobs/queue.ts | Store encrypted JSON payload alongside raw payload. |
+| core/env.ts | Add ENCRYPTION_KEY env validation (currently optional). |
+| core/db/schema/verificationTokens.ts | Add encrypted/token-hash columns to verification tokens table. |
+| core/db/schema/users.ts | Add encrypted email/name and email hash columns. |
+| core/db/schema/teams.ts | Add encrypted email/token + token-hash columns to team invitations. |
+| core/db/schema/subscriptions.ts | Add encrypted Stripe customer/subscription ID columns. |
+| core/db/schema/sessions.ts | Add encrypted token + token-hash columns to sessions. |
+| core/db/schema/notifications.ts | Add encrypted title/body columns. |
+| core/db/schema/jobs.ts | Add encrypted payload column. |
+| core/db/schema/files.ts | Add encrypted filename/originalName/storageKey columns. |
+| core/db/schema/accounts.ts | Add encrypted access/refresh token columns. |
+| core/db/client.ts | Enforce SSL-by-default in production (configurable via DATABASE_SSLMODE). |
+| core/db/client.test.ts | Tests for `getPool()` SSL configuration behavior. |
+| core/billing/handleWebhook.ts | Encrypt subscription ID when updating subscription records. |
+| core/billing/handleWebhook.test.ts | Add tests for webhook handling logic. |
+| core/billing/getSubscription.test.ts | Add tests for subscription lookup mapping behavior. |
+| core/billing/customerPortal.test.ts | Add tests for billing portal session creation. |
+| core/billing/customer.ts | Encrypt Stripe customer ID when persisting to DB. |
+| core/billing/customer.test.ts | Add tests for Stripe customer creation/update flows. |
+| core/billing/createCheckout.test.ts | Add tests for checkout session creation. |
+| core/billing/changePlan.test.ts | Add tests for plan change behavior. |
+| core/billing/cancelSubscription.test.ts | Add tests for cancellation behavior. |
+| core/auth/verifyCredentials.test.ts | Add tests for credential verification behavior. |
+| core/auth/validateSession.test.ts | Add tests for session validation behavior. |
+| core/auth/revokeSession.test.ts | Add tests for revocation behavior. |
+| core/auth/permissions.test.ts | Add tests for user lookup helpers. |
+| core/auth/passwordReset.ts | Encrypt/blind-index password reset tokens + encrypt email on token record. |
+| core/auth/passwordReset.test.ts | Add tests for password reset flows. |
+| core/auth/oauth.ts | Encrypt OAuth tokens; encrypt + blind-index user email; encrypt user name. |
+| core/auth/oauth.test.ts | Add tests for OAuth URL/code exchange/user info/callback flows. |
+| core/auth/magicLink.ts | Encrypt/blind-index magic link tokens + encrypt/blind-index user email. |
+| core/auth/magicLink.test.ts | Add tests for magic link flows. |
+| core/auth/emailVerification.ts | Encrypt/blind-index verification tokens + encrypt email on token record. |
+| core/auth/emailVerification.test.ts | Add tests for email verification flows. |
+| core/auth/createUser.ts | Encrypt/blind-index email and encrypt name during user creation. |
+| core/auth/createUser.test.ts | Add tests for user creation behavior. |
+| core/auth/createSession.ts | Encrypt/blind-index stored session token. |
+| core/auth/createSession.test.ts | Add tests for session creation behavior. |
+| .github/workflows/ci.yml | Simplify CI into one job running lint/build/test; adjust triggers + concurrency. |
+| .env.example | Document ENCRYPTION_KEY usage and rotation. |
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-20T23:02:54Z ---
+## Pull request overview
+
+Copilot reviewed 62 out of 62 changed files in this pull request and generated 5 comments.
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-03-20T20:21:35Z on core/security/encryption-integration.test.ts:9 ---
+## Unused variable, import, function or class
+
+Unused import vi.
+
+---
+
+In general, unused imports should be removed to keep the code clean and to avoid confusion about expected behavior. Since <code>vi</code> is not used anywhere in this test file, the best fix is to remove <code>vi</code> from the named imports from <code>vitest</code>.</p>
+<p>Concretely, in <code>core/security/encryption-integration.test.ts</code>, on the import line at the top of the file, update the import from <code>vitest</code> to drop <code>vi</code> while leaving the other imports unchanged. No additional methods, imports, or definitions are needed; this is purely a cleanup change that does not affect functionality.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/env.ts:17 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Require ENCRYPTION_KEY during env validation**
+
+`ENCRYPTION_KEY` is still optional here, but this commit now calls `encrypt()`/`blindIndex()` unconditionally in core paths like `createUser`, `createSession`, `enqueueJob`, `uploadFile`, and notification creation (`core/security/encryption.ts`, `core/security/blindIndex.ts`). With the current `.env.example`, the app can boot successfully and then start returning 500s on the first signup/login/upload/job instead of failing fast at startup.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/schema/users.ts:16 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Generate a migration for the new encrypted columns**
+
+This adds new columns such as `email_encrypted`/`email_hash` and the same commit immediately starts writing them from auth, billing, upload, notification, and job code, but there is no corresponding migration under `core/db/migrations` even though `drizzle.config.ts` points there. Any installation upgrading from the previous schema via the documented `npm run db:migrate` flow will hit `column ... does not exist` as soon as one of these write paths executes.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-20T20:27:03Z on core/db/client.ts:21 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Stop forcing TLS on the documented Docker Postgres setup**
+
+The repo’s documented database setup is the plain Postgres container in `docker-compose.yml`, and `npm run start` runs the app with `NODE_ENV=production`. In that supported path, this code now always passes `ssl: { rejectUnauthorized: true }`, so production-mode smoke tests or self-hosted deployments using the stock `DATABASE_URL` can no longer connect unless users discover the undocumented `DATABASE_SSLMODE=disable` override.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/oauth.test.ts:101 ---
+`handleOAuthCallback()` now encrypts PII/tokens and generates blind indexes, which requires `process.env.ENCRYPTION_KEY`. This suite does not set that env var, so calls to `handleOAuthCallback()` will throw. Add a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so these tests can execute the new code paths.
+```suggestion
+  setupUpdateChain()
+  process.env.ENCRYPTION_KEY = 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/createSession.test.ts:45 ---
+`createSession()` now calls `encrypt()` / `blindIndex()` for the stored token, which requires `process.env.ENCRYPTION_KEY`. This suite doesn’t set `ENCRYPTION_KEY`, so any call to `createSession()` will throw. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so the suite passes and validates behavior.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY = 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/billing/handleWebhook.test.ts:72 ---
+`handleStripeWebhook()` now calls `encryptNullable()` when updating subscription data, which requires `process.env.ENCRYPTION_KEY`. This suite sets `STRIPE_WEBHOOK_SECRET` but not `ENCRYPTION_KEY`, so subscription-event tests will throw when they hit the update path. Set a test `ENCRYPTION_KEY` in this `beforeEach` (or in the global Vitest setup).
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/env.ts:17 ---
+`ENCRYPTION_KEY` is marked optional in the env schema, but the new `encrypt()` / `blindIndex()` helpers throw if `process.env.ENCRYPTION_KEY` is missing. Since multiple runtime code paths now call these helpers unconditionally, a deployment without `ENCRYPTION_KEY` will crash at runtime. Either make `ENCRYPTION_KEY` required in `core/env.ts`, or gate encryption/indexing behind a feature flag / no-op implementation when the key is not configured.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/emailVerification.test.ts:73 ---
+`createEmailVerificationToken()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This test suite doesn’t configure `ENCRYPTION_KEY`, so the first call to `createEmailVerificationToken()` will throw. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) so the tests can run.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY =
+    process.env.ENCRYPTION_KEY ?? 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/billing/customer.test.ts:87 ---
+`getOrCreateCustomer()` now calls `encrypt()` for Stripe customer IDs, which requires `process.env.ENCRYPTION_KEY`. This test suite doesn’t set `ENCRYPTION_KEY`, so tests that execute `getOrCreateCustomer()` will throw. Configure a test key in `beforeEach` (or global Vitest setup) to exercise the updated code paths.
+```suggestion
+  setupUpdateChain()
+  process.env.ENCRYPTION_KEY = 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on .env.example:20 ---
+Typo in the key-rotation comment: "comma-separate" should be "comma-separated".
+```suggestion
+# Key rotation: comma-separated keys (newest first), e.g. newkey,oldkey
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/security/encryption.ts:31 ---
+`getEncryptionKeys()` validates key *string length* but not that the value is valid hex or that `Buffer.from(key, 'hex')` actually yields a 32-byte buffer. With non-hex characters, Node will silently truncate/produce a shorter buffer and `createCipheriv` will throw later with a less actionable error. Consider validating via a hex regex (or checking `buffer.length === 32`) and throwing a clear error here.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/security/encryption-integration.test.ts:7 ---
+The file header comment says these tests "mock the DB layer and assert that encrypted values are passed to insert/update calls", but the tests in this file only exercise `encrypt/decrypt` and `blindIndex` directly and do not mock any DB/module wiring. Please either update the comment to match what’s actually tested, or add the wiring-level assertions described here.
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/createUser.test.ts:70 ---
+`createUser()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This test suite does not set it, so it will fail once the function runs. Add a test key (e.g. in this suite’s `beforeEach`, or preferably in the global Vitest setup) so these tests exercise the new behavior without throwing.
+```suggestion
+  vi.clearAllMocks()
+  process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY ?? 'test_encryption_key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/magicLink.test.ts:104 ---
+`createMagicLink()` / `verifyMagicLink()` now call `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This suite doesn’t set that env var, so these tests will throw before reaching assertions. Set a test `ENCRYPTION_KEY` in `beforeEach` (or in the global Vitest setup) to keep the suite passing.
+```suggestion
+  selectCallCount = 0
+  process.env.ENCRYPTION_KEY = 'test-encryption-key'
+```
+
+--- inline by @Copilot at 2026-03-20T20:27:48Z on core/auth/passwordReset.test.ts:88 ---
+`requestPasswordReset()` now calls `encrypt()` / `blindIndex()` which require `process.env.ENCRYPTION_KEY`. This suite doesn’t set `ENCRYPTION_KEY`, so the tests will throw when executing the function. Configure a test `ENCRYPTION_KEY` in `beforeEach` (or the global Vitest setup) to keep this suite passing.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/db/schema/users.ts:19 ---
+New encrypted/hash columns are being added to the users table schema and are now written to by core/auth flows. Ensure the corresponding database migration is included/applied before deploying, otherwise inserts/updates that include these columns will fail at runtime with “column does not exist”.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption.ts:31 ---
+getEncryptionKeys() validates only the string length, but not that each key is valid hex. Buffer.from(key, 'hex') can silently produce an unexpected buffer for non-hex input, leading to crypto errors later. Add a strict hex validation (and/or assert decoded length === 32 bytes) before accepting a key.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption.ts:61 ---
+encrypt() always prefixes ciphertext with keyIndex "0" even when ENCRYPTION_KEY contains multiple keys. That makes the documented `keyIndex:<iv>:<authTag>:<ciphertext>` format misleading and prevents decrypt() from using the index as an accurate hint after key rotation (it will always try key 0 first). Consider encoding a stable key identifier/fingerprint (or the actual key slot used) instead of hardcoding 0, or update the format/docs accordingly.
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/blindIndex.ts:22 ---
+blindIndex() derives its HMAC key from only the *primary* ENCRYPTION_KEY and doesn’t validate the key format/length. If/when ENCRYPTION_KEY is rotated (new key prepended), blindIndex outputs will change and any stored hashes (e.g., emailHash/tokenHash) will no longer match lookups unless you migrate/backfill or support multi-key verification. Recommend (1) validating the key like encryption.ts does, and (2) adding a rotation strategy for blind indexes (e.g., store key id alongside the hash or provide a helper to compute candidate hashes for all configured keys during lookup).
+
+--- inline by @Copilot at 2026-03-20T23:02:54Z on core/security/encryption-integration.test.ts:8 ---
+The file header comment says these are integration tests that “mock the DB layer and assert that encrypted values are passed to insert/update calls”, but the test body only exercises encrypt/decrypt/blindIndex directly and doesn’t mock any modules/DB calls. Please either update the comment to match the current scope, or add the described wiring-level assertions.
