@@ -3,6 +3,7 @@ import { getDb } from '../db/client'
 import { jobs } from '../db/schema/jobs'
 import type { JobDefinition, JobRecord } from './types'
 import { loadConfig } from '../runtime/configLoader'
+import { encrypt } from '../security/encryption'
 
 /**
  * Enqueue a job for background processing.
@@ -35,11 +36,13 @@ export async function enqueueJob<T = unknown>(
     }
   }
 
+  const payloadData = definition.payload as Record<string, unknown>
   const [job] = await db
     .insert(jobs)
     .values({
       type: definition.type,
-      payload: definition.payload as Record<string, unknown>,
+      payload: payloadData,
+      payloadEncrypted: encrypt(JSON.stringify(payloadData)),
       priority: definition.priority ?? 'normal',
       maxRetries: definition.maxRetries ?? config.defaultMaxRetries,
       dedupeKey: definition.dedupeKey ?? null,

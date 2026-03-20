@@ -5,6 +5,8 @@ import { teamMembers, teamInvitations } from '../db/schema/teams'
 import { loadConfig } from '../runtime/configLoader'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
+import { encrypt } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 import { getUserTeamRole } from './getTeam'
 import type { TeamInvitation, TeamRole, OnTeamMemberAddedArgs } from './types'
 
@@ -68,14 +70,18 @@ export async function inviteMember(
     Date.now() + config.invitationExpiryHours * 60 * 60 * 1000
   )
 
+  const emailLower = email.toLowerCase()
   const [invitation] = await db
     .insert(teamInvitations)
     .values({
       teamId,
-      email: email.toLowerCase(),
+      email: emailLower,
+      emailEncrypted: encrypt(emailLower),
       role,
       invitedBy,
       token,
+      tokenHash: blindIndex(token),
+      tokenEncrypted: encrypt(token),
       expiresAt,
     })
     .returning()

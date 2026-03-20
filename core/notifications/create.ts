@@ -2,6 +2,7 @@ import { getDb } from '../db/client'
 import { notifications, notificationPreferences } from '../db/schema/notifications'
 import { runHook } from '../runtime/hookRunner'
 import { eq, and } from 'drizzle-orm'
+import { encrypt } from '../security/encryption'
 import type {
   Notification,
   CreateNotificationInput,
@@ -41,7 +42,9 @@ export async function createNotification(
       category: input.category,
       type: input.type ?? 'info',
       title: input.title,
+      titleEncrypted: encrypt(input.title),
       body: input.body,
+      bodyEncrypted: encrypt(input.body),
       actionUrl: input.actionUrl ?? null,
       metadata: input.metadata ?? {},
     })
