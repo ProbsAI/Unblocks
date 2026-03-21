@@ -87,7 +87,7 @@ describe('getAveragePaidPlanPrice', () => {
 describe('getMetrics', () => {
   function setupDbMock(counts: { users: number; active: number; subs: number; paid: number; teams: number }) {
     const mockFrom = vi.fn()
-    const mockWhere = vi.fn()
+    const _mockWhere = vi.fn()
     const mockSelect = vi.fn()
 
     let callIndex = 0
