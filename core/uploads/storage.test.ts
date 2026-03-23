@@ -4,7 +4,7 @@ vi.mock('../runtime/configLoader', () => ({
   loadConfig: vi.fn().mockReturnValue({
     storage: 'local',
     localDir: './test-uploads',
-    s3: { bucket: '', region: 'us-east-1' },
+    s3: { bucket: '', region: 'us-east-1', accessKeyId: '', secretAccessKey: '' },
   }),
 }))
 
@@ -92,7 +92,7 @@ describe('getStorageProvider', () => {
     vi.mocked(loadConfig).mockReturnValue({
       storage: 's3',
       localDir: './test-uploads',
-      s3: { bucket: 'my-bucket', region: 'us-west-2' },
+      s3: { bucket: 'my-bucket', region: 'us-west-2', accessKeyId: 'key', secretAccessKey: 'secret' },
     })
 
     const provider = getStorageProvider()

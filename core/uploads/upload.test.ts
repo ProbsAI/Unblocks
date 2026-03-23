@@ -17,7 +17,6 @@ const mockListFrom = vi.fn().mockReturnValue({ where: mockListWhere })
 const mockListSelect = vi.fn().mockReturnValue({ from: mockListFrom })
 
 const mockDeleteWhere = vi.fn()
-const _mockDeleteFrom = vi.fn().mockReturnValue({ where: mockDeleteWhere })
 const mockDbDelete = vi.fn().mockReturnValue({ where: mockDeleteWhere })
 
 vi.mock('../db/client', () => ({

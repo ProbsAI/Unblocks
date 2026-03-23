@@ -62,8 +62,13 @@ describe('createTeam', () => {
     const { db, mockWhere, mockReturning, mockValues } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
+      maxMembersPerTeam: 10,
       allowTeamCreation: true,
       maxTeamsPerUser: 5,
+      invitationExpiryHours: 72,
     })
 
     // Count query: select().from().where() — awaited directly, destructured
@@ -85,7 +90,7 @@ describe('createTeam', () => {
     mockValues.mockReturnValueOnce({ returning: mockReturning })
     mockReturning.mockResolvedValueOnce([teamRow])
     // Insert member: values() — no .returning() needed
-    mockValues.mockReturnValueOnce(Promise.resolve(undefined))
+    mockValues.mockReturnValueOnce(Promise.resolve(undefined) as never)
 
     vi.mocked(runHook).mockResolvedValue(undefined)
 
@@ -104,8 +109,13 @@ describe('createTeam', () => {
     const { db } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
+      maxMembersPerTeam: 10,
       allowTeamCreation: false,
       maxTeamsPerUser: 5,
+      invitationExpiryHours: 72,
     })
 
     await expect(createTeam('user-1', 'user@test.com', 'Team', 'team'))
@@ -131,8 +141,13 @@ describe('createTeam', () => {
     const { db, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
+      maxMembersPerTeam: 10,
       allowTeamCreation: true,
       maxTeamsPerUser: 5,
+      invitationExpiryHours: 72,
     })
 
     // Count query returns 0
@@ -148,8 +163,13 @@ describe('createTeam', () => {
     const { db, mockReturning, mockValues, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
+      maxMembersPerTeam: 10,
       allowTeamCreation: true,
       maxTeamsPerUser: 5,
+      invitationExpiryHours: 72,
     })
 
     // Count query
@@ -169,7 +189,7 @@ describe('createTeam', () => {
     }
     mockValues.mockReturnValueOnce({ returning: mockReturning })
     mockReturning.mockResolvedValueOnce([teamRow])
-    mockValues.mockReturnValueOnce(Promise.resolve(undefined))
+    mockValues.mockReturnValueOnce(Promise.resolve(undefined) as never)
     vi.mocked(runHook).mockResolvedValue(undefined)
 
     const result = await createTeam('user-1', 'user@test.com', 'My Team!', 'My Team!')

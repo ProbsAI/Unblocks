@@ -81,7 +81,12 @@ describe('inviteMember', () => {
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('owner')
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
       maxMembersPerTeam: 10,
+      maxTeamsPerUser: 5,
+      allowTeamCreation: true,
       invitationExpiryHours: 72,
     })
 
@@ -145,7 +150,12 @@ describe('inviteMember', () => {
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('member')
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
       maxMembersPerTeam: 10,
+      maxTeamsPerUser: 5,
+      allowTeamCreation: true,
       invitationExpiryHours: 72,
     })
 
@@ -158,7 +168,12 @@ describe('inviteMember', () => {
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('owner')
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
       maxMembersPerTeam: 10,
+      maxTeamsPerUser: 5,
+      allowTeamCreation: true,
       invitationExpiryHours: 72,
     })
 
@@ -182,7 +197,12 @@ describe('inviteMember', () => {
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('admin')
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
       maxMembersPerTeam: 10,
+      maxTeamsPerUser: 5,
+      allowTeamCreation: true,
       invitationExpiryHours: 72,
     })
 
@@ -202,7 +222,12 @@ describe('inviteMember', () => {
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(getUserTeamRole).mockResolvedValueOnce('owner')
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
       maxMembersPerTeam: 3,
+      maxTeamsPerUser: 5,
+      allowTeamCreation: true,
       invitationExpiryHours: 72,
     })
 
