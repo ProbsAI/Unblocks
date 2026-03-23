@@ -126,8 +126,13 @@ describe('createTeam', () => {
     const { db, mockWhere } = createMockDb()
     vi.mocked(getDb).mockReturnValue(db as never)
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
+      requireEmailVerification: false,
+      roles: [{ id: 'owner', name: 'Owner', permissions: ['*'] }],
+      maxMembersPerTeam: 10,
       allowTeamCreation: true,
       maxTeamsPerUser: 2,
+      invitationExpiryHours: 72,
     })
 
     // Count query returns 2 (at max)

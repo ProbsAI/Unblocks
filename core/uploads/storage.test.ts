@@ -90,9 +90,13 @@ describe('getStorageProvider', () => {
 
   it('should return an S3 provider when storage is "s3"', () => {
     vi.mocked(loadConfig).mockReturnValue({
+      enabled: true,
       storage: 's3',
       localDir: './test-uploads',
       s3: { bucket: 'my-bucket', region: 'us-west-2', accessKeyId: 'key', secretAccessKey: 'secret' },
+      maxFileSize: 10 * 1024 * 1024,
+      allowedMimeTypes: ['image/jpeg', 'image/png'],
+      images: { maxWidth: 2048, maxHeight: 2048, quality: 85, thumbnails: true, thumbnailSize: 200 },
     })
 
     const provider = getStorageProvider()
