@@ -2,11 +2,13 @@
 
 ## Overview
 
-The MIT License under which this software is distributed is permissive with respect to copyright but is silent on the topic of patents. This document provides an explicit patent grant covering contributions to this project and clarifies ProbsAI's own patent posture.
+The MIT License under which this software is distributed is permissive with respect to copyright but is silent on the topic of patents. This document provides an explicit patent grant covering contributions to this project and clarifies the patent posture of the project maintainer.
+
+"ProbsAI" as used in this document refers to Frowse LLC, doing business as Probs and Probs AI.
 
 ## Contributor Patent Grant
 
-By submitting a contribution (including but not limited to code, documentation, designs, data, or any other material) to this project, whether via pull request, patch, issue, comment, or any other mechanism, past, present, or future, each contributor hereby grants to ProbsAI, Inc. ("ProbsAI") and to all recipients of software distributed by this project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated below) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the contribution and any work incorporating the contribution, where such license applies only to those patent claims licensable by the contributor (and their employer, affiliates, or any other entity on whose behalf the contribution is made) that are necessarily infringed by the contribution alone or by combination of the contribution with the project to which it was submitted.
+By submitting a contribution (including but not limited to code, documentation, designs, data, or any other material) to this project, whether via pull request, patch, issue, comment, or any other mechanism, past, present, or future, each contributor hereby grants to Frowse LLC d/b/a Probs and Probs AI ("ProbsAI") and to all recipients of software distributed by this project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated below) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the contribution and any work incorporating the contribution, where such license applies only to those patent claims licensable by the contributor (and their employer, affiliates, or any other entity on whose behalf the contribution is made) that are necessarily infringed by the contribution alone or by combination of the contribution with the project to which it was submitted.
 
 If any entity institutes patent litigation against ProbsAI or any other entity (including a cross-claim or counterclaim in a lawsuit) alleging that a contribution to this project, or the project itself, constitutes direct or contributory patent infringement, then any patent licenses granted to that entity under this section terminate as of the date such litigation is filed.
 
