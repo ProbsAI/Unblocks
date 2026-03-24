@@ -77,6 +77,15 @@ fix: address automated review feedback
 - [CREDIT:@copilot-pull-request-reviewer[bot]] Add missing null check in user lookup
 ```
 
-## License
+## License, IP, and Patents
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
+By submitting a contribution, you agree to the following:
+
+- Your contribution is licensed under the [MIT License](./LICENSE), the same license that covers this repository.
+- You represent that you have the right to submit the contribution under these terms.
+- **No patent rights are assigned or transferred** by contributing to this project. Your contribution does not grant or imply any patent license beyond what the MIT License itself provides.
+- You retain all rights to any intellectual property you create, subject to the MIT License grant above.
+
+ProbsAI has pending patent applications covering system-level multi-agent coordination methods. These patents relate to the broader orchestration platform — not to the application-layer code in this repository. See [PATENTS.md](./PATENTS.md) for details.
+
+Using or contributing to Unblocks does not implicate these patents. You are free to use, modify, and build upon this code under the MIT License.

@@ -163,4 +163,4 @@ Found a security issue? Please report it privately — see [SECURITY.md](SECURIT
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — see [PATENTS.md](PATENTS.md) for patent notice.
