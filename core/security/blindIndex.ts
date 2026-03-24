@@ -2,10 +2,22 @@ import { createHmac } from 'crypto'
 
 /**
  * Returns the HMAC key used for blind index generation.
- * Uses a separate key derived from ENCRYPTION_KEY to maintain
- * key separation between encryption and indexing.
+ *
+ * Uses BLIND_INDEX_KEY if set (recommended for key rotation scenarios).
+ * Falls back to deriving from the primary ENCRYPTION_KEY with a domain
+ * separator to maintain key separation.
+ *
+ * IMPORTANT: BLIND_INDEX_KEY must remain stable across encryption key
+ * rotations. If you rotate ENCRYPTION_KEY without a separate
+ * BLIND_INDEX_KEY, all *_hash columns become stale and equality
+ * lookups will fail.
  */
 function getHmacKey(): Buffer {
+  const blindKey = process.env.BLIND_INDEX_KEY
+  if (blindKey) {
+    return Buffer.from(blindKey, 'hex')
+  }
+
   const raw = process.env.ENCRYPTION_KEY
   if (!raw) {
     throw new Error('ENCRYPTION_KEY is required for blind index generation')

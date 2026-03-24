@@ -26,7 +26,7 @@ export async function requestPasswordReset(
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
   await db.insert(verificationTokens).values({
-    token,
+    token: blindIndex(token),
     tokenHash: blindIndex(token),
     tokenEncrypted: encrypt(token),
     email: dbUser.email,
@@ -49,7 +49,7 @@ export async function resetPassword(
     .from(verificationTokens)
     .where(
       and(
-        eq(verificationTokens.token, token),
+        eq(verificationTokens.tokenHash, blindIndex(token)),
         eq(verificationTokens.type, 'password_reset'),
         gt(verificationTokens.expiresAt, new Date()),
         isNull(verificationTokens.usedAt)

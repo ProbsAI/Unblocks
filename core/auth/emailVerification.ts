@@ -17,7 +17,7 @@ export async function createEmailVerificationToken(
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
   await db.insert(verificationTokens).values({
-    token,
+    token: blindIndex(token),
     tokenHash: blindIndex(token),
     tokenEncrypted: encrypt(token),
     email: emailLower,
@@ -37,7 +37,7 @@ export async function verifyEmail(token: string): Promise<void> {
     .from(verificationTokens)
     .where(
       and(
-        eq(verificationTokens.token, token),
+        eq(verificationTokens.tokenHash, blindIndex(token)),
         eq(verificationTokens.type, 'email_verification'),
         gt(verificationTokens.expiresAt, new Date()),
         isNull(verificationTokens.usedAt)

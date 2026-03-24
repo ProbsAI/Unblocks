@@ -79,7 +79,7 @@ export async function inviteMember(
       emailEncrypted: encrypt(emailLower),
       role,
       invitedBy,
-      token,
+      token: blindIndex(token),
       tokenHash: blindIndex(token),
       tokenEncrypted: encrypt(token),
       expiresAt,
@@ -101,7 +101,7 @@ export async function acceptInvitation(
   const rows = await db
     .select()
     .from(teamInvitations)
-    .where(eq(teamInvitations.token, token))
+    .where(eq(teamInvitations.tokenHash, blindIndex(token)))
     .limit(1)
 
   if (rows.length === 0) {

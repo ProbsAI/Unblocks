@@ -15,10 +15,11 @@ export const POST = withErrorHandler(async (request) => {
   const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
   const loginUrl = `${appUrl}/api/auth/magic-link/verify?token=${token}`
 
+  // Fire-and-forget: send email asynchronously to equalize response timing
+  // and prevent email enumeration via latency differences.
   const { subject, html } = magicLinkEmail({ loginUrl })
-  await sendEmail({ to: email, subject, html })
+  void sendEmail({ to: email, subject, html })
 
-  // Always return success to prevent email enumeration
   return successResponse({
     message: 'If an account exists, a magic link has been sent to your email',
   })

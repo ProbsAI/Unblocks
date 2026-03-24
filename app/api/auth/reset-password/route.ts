@@ -13,6 +13,9 @@ export const POST = withErrorHandler(async (request) => {
 
   const result = await requestPasswordReset(email)
 
+  // Fire-and-forget: send email asynchronously to prevent timing-based
+  // account enumeration (response latency is identical for existing vs
+  // non-existing accounts).
   if (result) {
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
     const resetUrl = `${appUrl}/reset-password/confirm?token=${result.token}`
@@ -21,10 +24,9 @@ export const POST = withErrorHandler(async (request) => {
       userName: email,
       resetUrl,
     })
-    await sendEmail({ to: email, subject, html })
+    void sendEmail({ to: email, subject, html })
   }
 
-  // Always return success to prevent email enumeration
   return successResponse({
     message: 'If an account exists, a password reset link has been sent',
   })

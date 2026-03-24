@@ -23,7 +23,7 @@ export async function createSession(
     .insert(sessions)
     .values({
       userId,
-      token,
+      token: blindIndex(token),
       tokenHash: blindIndex(token),
       tokenEncrypted: encrypt(token),
       expiresAt,
@@ -35,7 +35,7 @@ export async function createSession(
   return {
     id: dbSession.id,
     userId: dbSession.userId,
-    token: dbSession.token,
+    token,
     expiresAt: dbSession.expiresAt,
     ipAddress: dbSession.ipAddress,
     userAgent: dbSession.userAgent,
