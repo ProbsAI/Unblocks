@@ -1,0 +1,148 @@
+=== AI PR Comments for PR #12 ===
+Synced: 2026-03-24T16:16:09Z
+
+## Reviews
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-03-24T16:15:55Z ---
+## Pull request overview
+
+This PR introduces encryption-at-rest utilities (AES-256-GCM + blind indexing), wires them into several core modules that handle PII/secrets, expands unit test coverage across core/blocks/lib, and strengthens repo hygiene via ESLint/CI/doc updates.
+
+**Changes:**
+- Add encryption + blind-index primitives and export them from `core/security/`.
+- Persist encrypted (and in some cases hashed) variants of sensitive fields across auth/teams/uploads/jobs/notifications/billing + corresponding schema updates.
+- Add ESLint flat config + CI workflow split (lint/typecheck/tests/build) and a broad set of new Vitest tests.
+
+### Reviewed changes
+
+Copilot reviewed 99 out of 99 changed files in this pull request and generated 10 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| package.json | Adds project metadata and switches lint to `eslint .`; adds ESLint deps. |
+| eslint.config.mjs | Introduces ESLint flat config with Next presets. |
+| lib/routeHandler.ts | Adjusts `withErrorHandler` typing and adds Next control-flow rethrow behavior. |
+| lib/routeHandler.test.ts | Adds tests for `withErrorHandler`, `getClientIp`, `getUserAgent`. |
+| lib/serverAuth.test.ts | Adds tests for server-side auth helpers based on cookies/session validation. |
+| core/security/index.ts | Exports cookies/csrf/headers/encryption/blindIndex from a single entrypoint. |
+| core/security/encryption.ts | Adds AES-256-GCM encryption with key rotation support. |
+| core/security/encryption.test.ts | Unit tests for encryption/decryption, rotation, nullable helpers, env validation. |
+| core/security/encryption-integration.test.ts | Integration-style tests for encryption/blind-index behavior on realistic inputs. |
+| core/security/blindIndex.ts | Adds deterministic HMAC-based blind indexing helper. |
+| core/security/blindIndex.test.ts | Unit tests for blind indexing and nullable helper. |
+| core/env.ts | Adds `ENCRYPTION_KEY` env validation rule. |
+| core/env.test.ts | Adds tests for env schema behavior/caching/errors. |
+| core/db/client.ts | Enforces DB SSL in production with opt-out via env var. |
+| core/db/client.test.ts | Adds tests for SSL configuration behavior and singleton semantics. |
+| core/db/schema/users.ts | Adds encrypted/hash columns for user PII. |
+| core/db/schema/accounts.ts | Adds encrypted columns for OAuth tokens. |
+| core/db/schema/sessions.ts | Adds hashed/encrypted session token columns. |
+| core/db/schema/verificationTokens.ts | Adds hashed/encrypted verification token + encrypted email columns. |
+| core/db/schema/teams.ts | Adds encrypted email + hashed/encrypted invitation token columns. |
+| core/db/schema/subscriptions.ts | Adds encrypted Stripe ID columns. |
+| core/db/schema/notifications.ts | Adds encrypted title/body columns. |
+| core/db/schema/jobs.ts | Adds encrypted payload column. |
+| core/db/schema/files.ts | Adds encrypted filename/originalName/storageKey columns. |
+| core/auth/createUser.ts | Stores encrypted + hashed email and encrypted name on user creation. |
+| core/auth/createUser.test.ts | Adds tests for user creation and validation/error cases. |
+| core/auth/createSession.ts | Stores hashed/encrypted session token on session creation. |
+| core/auth/createSession.test.ts | Adds tests for session creation behavior. |
+| core/auth/magicLink.ts | Stores encrypted email and hashed/encrypted magic-link token; normalizes email. |
+| core/auth/magicLink.test.ts | Adds tests for magic-link create/verify flows. |
+| core/auth/passwordReset.ts | Stores hashed/encrypted reset token and encrypted email. |
+| core/auth/passwordReset.test.ts | Adds tests for password reset request/reset flows. |
+| core/auth/emailVerification.ts | Stores hashed/encrypted verification token and encrypted email. |
+| core/auth/emailVerification.test.ts | Adds tests for email verification flows. |
+| core/auth/oauth.ts | Encrypts stored OAuth tokens; encrypts/hashes stored user PII on create/update. |
+| core/auth/validateSession.test.ts | Adds tests for session validation behavior. |
+| core/auth/verifyCredentials.test.ts | Adds tests for credential verification behavior. |
+| core/auth/token.test.ts | Adjusts tamper test to modify payload rather than signature char flip. |
+| core/auth/revokeSession.test.ts | Adds tests for session revocation helpers. |
+| core/auth/permissions.test.ts | Adds tests for user lookup helpers. |
+| core/teams/inviteMember.ts | Encrypts invite email and hashes/encrypts invitation token; normalizes email. |
+| core/teams/createTeam.test.ts | Adds tests for team creation constraints/slug behavior. |
+| core/teams/getTeam.test.ts | Adds tests for team queries and role lookup behavior. |
+| core/teams/updateRole.test.ts | Adds tests for role updates and ownership transfer. |
+| core/teams/removeMember.test.ts | Adds tests for member removal and leaving team behavior. |
+| core/uploads/upload.ts | Stores encrypted filename/originalName/storageKey on upload. |
+| core/uploads/storage.test.ts | Adds tests for storage key formatting/provider selection. |
+| core/notifications/create.ts | Stores encrypted notification title/body alongside plaintext. |
+| core/notifications/getNotifications.test.ts | Adds tests for notification listing/counting/mapping. |
+| core/notifications/markRead.test.ts | Adds tests for marking notifications read and unread counts. |
+| core/jobs/queue.ts | Stores encrypted job payload alongside JSON payload. |
+| core/jobs/queue.test.ts | Adds tests for queue behavior including payload encryption. |
+| core/jobs/worker.test.ts | Adds tests for worker lifecycle/polling/idempotency. |
+| core/extensions/loader.test.ts | Adds tests for extension discovery and dependency validation. |
+| core/extensions/registry.test.ts | Adds tests for extension registry initialization and querying. |
+| core/runtime/uiResolver.test.ts | Adds tests for UI override resolution behavior. |
+| core/email/templates.test.ts | Adds tests for email template outputs and formatting rules. |
+| core/email/sendEmail.test.ts | Adds tests for provider selection and hook behavior. |
+| core/email/providers/resend.test.ts | Adds tests for Resend provider integration logic. |
+| core/billing/handleWebhook.ts | Stores encrypted Stripe subscription ID during webhook handling. |
+| core/billing/customer.ts | Stores encrypted Stripe customer ID on create/update. |
+| core/billing/plans.test.ts | Removes an unnecessary eslint-disable in the test. |
+| core/billing/getSubscription.test.ts | Adds tests for subscription lookup behavior. |
+| core/billing/customerPortal.test.ts | Adds tests for customer portal session creation. |
+| core/billing/customer.test.ts | Adds tests for Stripe customer creation/update flows. |
+| core/billing/createCheckout.test.ts | Adds tests for checkout session creation and error cases. |
+| core/billing/changePlan.test.ts | Adds tests for changing plans and hook behavior. |
+| core/billing/cancelSubscription.test.ts | Adds tests for cancel behavior (immediate vs period-end). |
+| core/api/validate.test.ts | Expands validation tests for JSON parsing + Zod error shaping. |
+| core/admin/metrics.test.ts | Adds tests for `getMetrics` with mocked DB queries. |
+| config/billing.config.ts | Adds documentation comments and clarifies Stripe price ID placeholders. |
+| blocks/testing/setup.ts | Sets a default `ENCRYPTION_KEY` for Vitest runs. |
+| blocks/testing/request.test.ts | Adds tests for request/context test helpers. |
+| blocks/testing/mocks.test.ts | Adds tests for testing mocks/spies/config helpers. |
+| blocks/testing/fixtures.test.ts | Adds tests for fixture generators. |
+| blocks/seed/seed.test.ts | Adds tests for seed behavior and config overrides. |
+| blocks/seed/generators.test.ts | Adds tests for seed data generators and deterministic reset. |
+| app/api/auth/reset-password/route.ts | Wires password reset flow to email sending using templates. |
+| app/api/auth/magic-link/route.ts | Wires magic-link flow to email sending using templates. |
+| app/api/marketplace/reviews/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/marketplace/orders/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/marketplace/listings/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/marketplace/listings/[id]/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/data/pipelines/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/data/datasets/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/ai/usage/route.ts | Tightens block API typings (avoids `Function`). |
+| app/api/ai/completion/route.ts | Tightens block API typings (avoids `Function`). |
+| .github/workflows/ci.yml | Splits CI into lint/typecheck/tests/build and adds coverage artifact/threshold check. |
+| .env.example | Documents `ENCRYPTION_KEY` and key rotation format. |
+| SECURITY.md | Adds a security policy and disclosure guidance. |
+| CONTRIBUTING.md | Expands contributor docs and codifies conventions (incl. “no any”). |
+</details>
+
+## Inline Comments
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on lib/routeHandler.ts:11 ---
+This implementation introduces an `any[]` handler signature (with an eslint disable), which conflicts with the repo’s stated convention of avoiding `any` (see CONTRIBUTING.md:29). Prefer `unknown[]` (or a more specific tuple/overload) and narrow as needed so the error handler wrapper stays type-safe without suppressing lint rules.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/db/client.ts:22 ---
+`getPool()` now relies on `process.env.DATABASE_SSLMODE` to control SSL behavior, but this env var isn’t validated in `core/env.ts` and isn’t documented in `.env.example`. Add it to env validation/docs (and clarify accepted values) so deployers can discover and control this behavior intentionally.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/auth/createSession.ts:29 ---
+`createSession()` now stores `tokenHash`/`tokenEncrypted`, but it still persists the raw session JWT in `sessions.token`. If the goal is to avoid storing bearer tokens in plaintext, this is incomplete (DB compromise still exposes active session tokens). Consider migrating reads/writes to use `tokenHash` for lookup and avoid storing the raw token (or at least make the plaintext column nullable and stop writing to it).
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/auth/emailVerification.ts:27 ---
+`createEmailVerificationToken()` inserts the raw verification token alongside `tokenHash`/`tokenEncrypted`. Verification tokens are bearer secrets; keeping the plaintext token in the database means a DB leak can be used to verify accounts. Prefer storing only a hash/encrypted token and updating verification to query by `tokenHash` instead of the raw `token` value.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/teams/inviteMember.ts:86 ---
+`inviteMember()` stores invitation `token` in plaintext while also storing `tokenHash`/`tokenEncrypted`. Invitation tokens act as bearer secrets; persisting them plaintext keeps the main risk intact. Consider storing only the hash/encrypted token and updating `acceptInvitation()` to look up invitations by `tokenHash` instead of `token`.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/env.ts:17 ---
+`ENCRYPTION_KEY` is marked optional in the env schema, but `encrypt()` / `blindIndex()` throw when it’s missing and several core flows now call them unconditionally. This will lead to runtime failures in environments where `ENCRYPTION_KEY` isn’t set (and `.env.example` currently leaves it blank). Make `ENCRYPTION_KEY` required (or conditionally required based on config), and consider treating an empty string as unset to avoid surprising validation failures.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/security/blindIndex.ts:38 ---
+`blindIndex()` derives its HMAC key from only the *primary* value in `ENCRYPTION_KEY`. When rotating keys (newest first), the blind index for the same plaintext will change, breaking equality lookups against previously stored `*_hash` values. To support key rotation, use a separate stable HMAC key (e.g., `BLIND_INDEX_KEY`) or version the index (prefix with key id) and try all keys on lookup.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/auth/magicLink.ts:63 ---
+`createMagicLink()` inserts the raw magic-link token while also storing `tokenHash`/`tokenEncrypted`. Persisting the plaintext token defeats the purpose of the new columns (DB compromise reveals valid login tokens). Prefer storing only a hash/encrypted value and querying by `tokenHash` (e.g., `blindIndex(token)`) during verification.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/auth/passwordReset.ts:36 ---
+`requestPasswordReset()` now stores `tokenHash`/`tokenEncrypted` but still writes the raw reset token to the DB. Since reset tokens are bearer secrets, storing them plaintext is a significant risk if the DB is leaked. Consider persisting only the hash/encrypted token and updating `resetPassword()` to look up by `tokenHash` instead of `token`.
+
+--- inline by @Copilot at 2026-03-24T16:15:55Z on core/auth/oauth.ts:202 ---
+OAuth access/refresh tokens are still being stored in plaintext (`accessToken`, `refreshToken`) even after adding encrypted columns. Since these are high-value secrets, storing them unencrypted undermines the goal of encryption-at-rest. Prefer storing only `*_Encrypted` (and keep plaintext columns null/unused), with a migration plan to remove plaintext columns once reads are updated.
