@@ -2,7 +2,23 @@
   "name": "unblocks",
   "version": "0.2.0-alpha",
   "private": true,
+  "license": "MIT",
   "description": "The AI-native open-source foundation for building web applications",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ProbsAI/Unblocks.git"
+  },
+  "homepage": "https://github.com/ProbsAI/Unblocks",
+  "keywords": [
+    "nextjs",
+    "saas",
+    "boilerplate",
+    "typescript",
+    "drizzle",
+    "stripe",
+    "auth",
+    "open-source"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

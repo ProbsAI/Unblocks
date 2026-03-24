@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { requestPasswordReset } from '@unblocks/core/auth'
+import { sendEmail, resetPasswordEmail } from '@unblocks/core/email'
 import { validateBody, successResponse } from '@unblocks/core/api'
 import { withErrorHandler } from '@/lib/routeHandler'
 
@@ -10,11 +11,18 @@ const resetRequestSchema = z.object({
 export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, resetRequestSchema)
 
-  // Returns null if user doesn't exist — we don't reveal this
-  await requestPasswordReset(email)
+  const result = await requestPasswordReset(email)
 
-  // TODO: Wire to email system in Phase 5
-  // If result is non-null, send reset email with result.token
+  if (result) {
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
+    const resetUrl = `${appUrl}/reset-password/confirm?token=${result.token}`
+
+    const { subject, html } = resetPasswordEmail({
+      userName: email,
+      resetUrl,
+    })
+    await sendEmail({ to: email, subject, html })
+  }
 
   // Always return success to prevent email enumeration
   return successResponse({
