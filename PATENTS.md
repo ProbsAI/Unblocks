@@ -1,16 +1,27 @@
-# Patent Notice
+# Patent Grant and Notice
 
-## MIT License and Patents
+## Overview
 
-The MIT License under which this software is distributed is permissive with respect to copyright but is silent on the topic of patents. This document clarifies the patent posture of the Unblocks project.
+The MIT License under which this software is distributed is permissive with respect to copyright but is silent on the topic of patents. This document provides an explicit patent grant covering contributions to this project and clarifies ProbsAI's own patent posture.
 
-## What This Means for Contributors and Users
+## Contributor Patent Grant
 
-**Your use of this software is governed by the MIT License.** You are free to use, modify, and distribute this code for any purpose, including commercial use, subject to the terms of that license.
+By submitting a contribution (including but not limited to code, documentation, designs, data, or any other material) to this project, whether via pull request, patch, issue, comment, or any other mechanism, past, present, or future, each contributor hereby grants to ProbsAI, Inc. ("ProbsAI") and to all recipients of software distributed by this project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated below) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the contribution and any work incorporating the contribution, where such license applies only to those patent claims licensable by the contributor (and their employer, affiliates, or any other entity on whose behalf the contribution is made) that are necessarily infringed by the contribution alone or by combination of the contribution with the project to which it was submitted.
 
-**No patent rights are assigned or transferred** by contributing to or using this repository. Contributions to Unblocks are made under the MIT License and do not grant or imply any patent license beyond what the MIT License itself provides.
+If any entity institutes patent litigation against ProbsAI or any other entity (including a cross-claim or counterclaim in a lawsuit) alleging that a contribution to this project, or the project itself, constitutes direct or contributory patent infringement, then any patent licenses granted to that entity under this section terminate as of the date such litigation is filed.
 
-## Pending Patent Applications
+This grant applies to all contributions, whether submitted before or after the adoption of this document.
+
+## Scope of Contributor Grant
+
+For the avoidance of doubt:
+
+- **Who is bound.** The grant is made by each individual contributor and, to the extent permitted by law, by any entity (employer, affiliate, or principal) on whose behalf the contribution is submitted. By submitting a contribution, the contributor represents that they have the authority to bind such entities, or that such entities have consented to the contribution under these terms.
+- **What is covered.** The grant covers any patent claims that are necessarily infringed by the contribution or its incorporation into the project. It does not extend to claims that are infringed only by unrelated code or by modifications made by someone other than the contributor.
+- **Past contributions.** This grant applies retroactively to all contributions previously submitted to this project under the MIT License.
+- **Irrevocability.** Once granted, the patent license is irrevocable except via the defensive termination clause above.
+
+## ProbsAI Patent Notice
 
 ProbsAI has filed patent applications covering system-level methods for multi-agent coordination in software development environments. These applications relate to the broader orchestration infrastructure and operational methodology around AI-assisted development workflows — not to the application-layer source code in this repository.
 
@@ -19,9 +30,9 @@ The patented claims are directed at platform-level coordination systems that may
 ## In Plain Terms
 
 - **The code is MIT-licensed.** Use it freely.
-- **The patents cover system-level orchestration methods** — how multiple AI agents coordinate, attribute work, aggregate knowledge, and interact with development infrastructure at scale.
-- **Building an app with Unblocks does not implicate these patents.** The patents address the operational platform layer, not the application framework you see here.
-- **Contributing code does not assign patent rights.** Your contributions remain under the MIT License.
+- **Contributors grant a patent license** covering their contributions, so no one can contribute code and later assert patents against the project or its users for that contribution.
+- **The grant covers contributors, their employers, and affiliates** — the typical parties who might hold patents on contributed work.
+- **ProbsAI's own patents cover system-level orchestration methods** — how multiple AI agents coordinate, attribute work, aggregate knowledge, and interact with development infrastructure at scale. Building an app with Unblocks does not implicate these patents.
 
 ## Questions
 

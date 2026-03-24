@@ -83,9 +83,7 @@ By submitting a contribution, you agree to the following:
 
 - Your contribution is licensed under the [MIT License](./LICENSE), the same license that covers this repository.
 - You represent that you have the right to submit the contribution under these terms.
-- **No patent rights are assigned or transferred** by contributing to this project. Your contribution does not grant or imply any patent license beyond what the MIT License itself provides.
-- You retain all rights to any intellectual property you create, subject to the MIT License grant above.
+- **You grant a patent license** covering your contribution. Specifically, you (and your employer, affiliates, or any entity on whose behalf you contribute) grant ProbsAI and all users of this project a perpetual, worldwide, non-exclusive, royalty-free, irrevocable patent license covering any patent claims necessarily infringed by your contribution or its combination with this project. See [PATENTS.md](./PATENTS.md) for full terms.
+- This grant applies to past, present, and future contributions and cannot be revoked except via the defensive termination clause in PATENTS.md.
 
 ProbsAI has pending patent applications covering system-level multi-agent coordination methods. These patents relate to the broader orchestration platform — not to the application-layer code in this repository. See [PATENTS.md](./PATENTS.md) for details.
-
-Using or contributing to Unblocks does not implicate these patents. You are free to use, modify, and build upon this code under the MIT License.
