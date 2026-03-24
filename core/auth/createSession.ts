@@ -1,6 +1,8 @@
 import { getDb } from '../db/client'
 import { sessions } from '../db/schema/sessions'
 import { createToken, generateRandomToken } from './token'
+import { encrypt } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 import type { Session } from './types'
 
 export async function createSession(
@@ -22,6 +24,8 @@ export async function createSession(
     .values({
       userId,
       token,
+      tokenHash: blindIndex(token),
+      tokenEncrypted: encrypt(token),
       expiresAt,
       ipAddress: options?.ipAddress ?? null,
       userAgent: options?.userAgent ?? null,

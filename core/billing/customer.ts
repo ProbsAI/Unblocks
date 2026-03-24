@@ -4,6 +4,7 @@ import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { users } from '../db/schema/users'
 import { loadConfig } from '../runtime/configLoader'
+import { encrypt } from '../security/encryption'
 
 function getStripe(): Stripe {
   const config = loadConfig('billing')
@@ -53,12 +54,17 @@ export async function getOrCreateCustomer(userId: string): Promise<string> {
   if (existing) {
     await db
       .update(subscriptions)
-      .set({ stripeCustomerId: customer.id, updatedAt: new Date() })
+      .set({
+        stripeCustomerId: customer.id,
+        stripeCustomerIdEncrypted: encrypt(customer.id),
+        updatedAt: new Date(),
+      })
       .where(eq(subscriptions.id, existing.id))
   } else {
     await db.insert(subscriptions).values({
       userId,
       stripeCustomerId: customer.id,
+      stripeCustomerIdEncrypted: encrypt(customer.id),
       plan: 'free',
       status: 'active',
     })

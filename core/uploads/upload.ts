@@ -5,6 +5,7 @@ import { runHook } from '../runtime/hookRunner'
 import { validateFile, sanitizeFilename, isImageMimeType } from './validate'
 import { getStorageProvider, createStorageKey } from './storage'
 import { NotFoundError, ForbiddenError } from '../errors/types'
+import { encrypt } from '../security/encryption'
 import type { FileRecord, UploadResult, OnFileUploadedArgs, OnFileDeletedArgs } from './types'
 
 /**
@@ -48,10 +49,13 @@ export async function uploadFile(
       userId,
       teamId: teamId ?? null,
       filename: sanitized,
+      filenameEncrypted: encrypt(sanitized),
       originalName,
+      originalNameEncrypted: encrypt(originalName),
       mimeType,
       size: data.length,
       storageKey,
+      storageKeyEncrypted: encrypt(storageKey),
       url,
       thumbnailUrl,
       metadata: {},

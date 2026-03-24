@@ -5,16 +5,19 @@ import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
+import { encrypt } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 export async function createMagicLink(email: string): Promise<string> {
   const db = getDb()
+  const emailLower = email.toLowerCase()
 
   // Find or create user
   let [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .where(eq(users.email, emailLower))
     .limit(1)
 
   if (!dbUser) {
@@ -22,7 +25,9 @@ export async function createMagicLink(email: string): Promise<string> {
     const [newUser] = await db
       .insert(users)
       .values({
-        email: email.toLowerCase(),
+        email: emailLower,
+        emailEncrypted: encrypt(emailLower),
+        emailHash: blindIndex(emailLower),
         emailVerified: false,
       })
       .returning()
@@ -49,7 +54,10 @@ export async function createMagicLink(email: string): Promise<string> {
 
   await db.insert(verificationTokens).values({
     token,
-    email: email.toLowerCase(),
+    tokenHash: blindIndex(token),
+    tokenEncrypted: encrypt(token),
+    email: emailLower,
+    emailEncrypted: encrypt(emailLower),
     type: 'magic_link',
     expiresAt,
   })

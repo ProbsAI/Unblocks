@@ -12,6 +12,7 @@ export const jobs = pgTable('jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: varchar('type', { length: 255 }).notNull(),
   payload: jsonb('payload').default({}),
+  payloadEncrypted: text('payload_encrypted'),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
   priority: varchar('priority', { length: 10 }).notNull().default('normal'),
   attempts: integer('attempts').notNull().default(0),

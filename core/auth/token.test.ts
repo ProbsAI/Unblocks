@@ -68,9 +68,13 @@ describe('verifyToken', () => {
       type: 'session',
     })
 
-    // Tamper with the token by changing a character in the signature
+    // Tamper with the token by modifying the payload
     const parts = token.split('.')
-    parts[2] = parts[2].slice(0, -1) + (parts[2].slice(-1) === 'a' ? 'b' : 'a')
+    // Decode payload, alter it, re-encode — signature will no longer match
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString()
+    const payloadObj = JSON.parse(payloadJson)
+    payloadObj.userId = 'hacker-999'
+    parts[1] = Buffer.from(JSON.stringify(payloadObj)).toString('base64url')
     const tampered = parts.join('.')
 
     const result = await verifyToken(tampered)

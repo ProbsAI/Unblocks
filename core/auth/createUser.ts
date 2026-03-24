@@ -4,16 +4,19 @@ import { users } from '../db/schema/users'
 import { hashPassword } from './password'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ValidationError } from '../errors/types'
+import { encrypt, encryptNullable } from '../security/encryption'
+import { blindIndex } from '../security/blindIndex'
 import type { CreateUserInput, User } from './types'
 
 export async function createUser(input: CreateUserInput): Promise<User> {
   const db = getDb()
+  const emailLower = input.email.toLowerCase()
 
   // Check if email already exists
   const existing = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, input.email.toLowerCase()))
+    .where(eq(users.email, emailLower))
     .limit(1)
 
   if (existing.length > 0) {
@@ -32,9 +35,12 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   const [dbUser] = await db
     .insert(users)
     .values({
-      email: input.email.toLowerCase(),
+      email: emailLower,
+      emailEncrypted: encrypt(emailLower),
+      emailHash: blindIndex(emailLower),
       passwordHash,
       name: input.name ?? null,
+      nameEncrypted: encryptNullable(input.name ?? null),
       avatarUrl: input.avatarUrl ?? null,
       emailVerified: input.emailVerified ?? false,
     })
