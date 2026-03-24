@@ -25,6 +25,8 @@ For the avoidance of doubt:
 
 ProbsAI has filed patent applications covering system-level methods for multi-agent coordination in software development environments. These applications relate to the broader orchestration infrastructure and operational methodology around AI-assisted development workflows — not to the application-layer source code in this repository.
 
+Nothing in this document or in the Contributor Patent Grant above grants any license, express or implied, to ProbsAI's pending patent applications, issued patents, or any other intellectual property rights held by ProbsAI outside the scope of individual contributions made under this grant. ProbsAI's patent rights are reserved in full.
+
 The patented claims are directed at platform-level coordination systems that may be employed in enterprise deployments and commercial offerings. They do not restrict your ability to use, modify, or build upon the open-source code in this repository under the MIT License.
 
 ## In Plain Terms
