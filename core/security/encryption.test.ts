@@ -76,7 +76,12 @@ describe('decrypt', () => {
   it('throws on tampered ciphertext', () => {
     const ciphertext = encrypt('test')
     const parts = ciphertext.split(':')
-    parts[3] = 'ff' + parts[3].slice(2) // tamper encrypted data
+    // Flip bits to guarantee the ciphertext changes
+    const original = parts[3]
+    const flipped = original.split('').map((c) =>
+      c === 'f' ? '0' : 'f'
+    ).join('')
+    parts[3] = flipped
     expect(() => decrypt(parts.join(':'))).toThrow('Decryption failed')
   })
 
