@@ -45,6 +45,14 @@ vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('verification-token-123'),
 }))
 
+vi.mock('../security/blindIndex', () => ({
+  blindIndex: vi.fn((val: string) => `blind:${val}`),
+}))
+
+vi.mock('../security/encryption', () => ({
+  encrypt: vi.fn((val: string) => `enc:${val}`),
+}))
+
 import {
   createEmailVerificationToken,
   verifyEmail,
@@ -83,7 +91,9 @@ describe('createEmailVerificationToken', () => {
     expect(token).toBe('verification-token-123')
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({
-        token: 'verification-token-123',
+        token: 'blind:verification-token-123',
+        tokenHash: 'blind:verification-token-123',
+        tokenEncrypted: 'enc:verification-token-123',
         email: 'test@example.com',
         type: 'email_verification',
       })

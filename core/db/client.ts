@@ -17,7 +17,7 @@ export function getPool(): Pool {
       ssl:
         process.env.DATABASE_SSLMODE === 'disable'
           ? false
-          : isProduction
+          : process.env.DATABASE_SSLMODE === 'require' || isProduction
             ? { rejectUnauthorized: true }
             : undefined,
     })

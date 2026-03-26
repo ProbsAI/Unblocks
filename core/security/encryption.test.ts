@@ -31,12 +31,12 @@ describe('encrypt', () => {
     expect(decrypt(ct2)).toBe(plaintext)
   })
 
-  it('output format is keyIndex:iv:authTag:ciphertext', () => {
+  it('output format is keyFingerprint:iv:authTag:ciphertext', () => {
     const ciphertext = encrypt('test')
     const parts = ciphertext.split(':')
 
     expect(parts).toHaveLength(4)
-    expect(parts[0]).toBe('0') // key index
+    expect(parts[0]).toHaveLength(8) // 8-char key fingerprint
     expect(parts[1]).toHaveLength(24) // 12 bytes IV = 24 hex chars
     expect(parts[2]).toHaveLength(32) // 16 bytes auth tag = 32 hex chars
     expect(parts[3].length).toBeGreaterThan(0) // encrypted data
@@ -76,7 +76,12 @@ describe('decrypt', () => {
   it('throws on tampered ciphertext', () => {
     const ciphertext = encrypt('test')
     const parts = ciphertext.split(':')
-    parts[3] = 'ff' + parts[3].slice(2) // tamper encrypted data
+    // Flip bits to guarantee the ciphertext changes
+    const original = parts[3]
+    const flipped = original.split('').map((c) =>
+      c === 'f' ? '0' : 'f'
+    ).join('')
+    parts[3] = flipped
     expect(() => decrypt(parts.join(':'))).toThrow('Decryption failed')
   })
 
@@ -109,7 +114,7 @@ describe('key rotation', () => {
 
     const ciphertext = encrypt('new data')
     const parts = ciphertext.split(':')
-    expect(parts[0]).toBe('0') // encrypted with primary key (index 0)
+    expect(parts[0]).toHaveLength(8) // key fingerprint
 
     // Should be decryptable with just the new key
     process.env.ENCRYPTION_KEY = TEST_KEY_2

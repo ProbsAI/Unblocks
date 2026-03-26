@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import { after } from 'next/server'
 import { requestPasswordReset } from '@unblocks/core/auth'
+import { sendEmail, resetPasswordEmail } from '@unblocks/core/email'
 import { validateBody, successResponse } from '@unblocks/core/api'
 import { withErrorHandler } from '@/lib/routeHandler'
 
@@ -10,13 +12,27 @@ const resetRequestSchema = z.object({
 export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, resetRequestSchema)
 
-  // Returns null if user doesn't exist — we don't reveal this
-  await requestPasswordReset(email)
+  const result = await requestPasswordReset(email)
 
-  // TODO: Wire to email system in Phase 5
-  // If result is non-null, send reset email with result.token
+  // Schedule email after the response to prevent timing-based account
+  // enumeration (response latency is identical for existing vs non-existing
+  // accounts). next/server `after()` ensures the work completes even in
+  // serverless/edge runtimes where fire-and-forget promises may be killed.
+  if (result) {
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
+    const resetUrl = `${appUrl}/reset-password/confirm?token=${encodeURIComponent(result.token)}`
 
-  // Always return success to prevent email enumeration
+    const { subject, html } = resetPasswordEmail({
+      userName: email,
+      resetUrl,
+    })
+    after(() => {
+      return sendEmail({ to: email, subject, html }).catch((error) => {
+        console.error('Failed to send reset password email', { email, error })
+      })
+    })
+  }
+
   return successResponse({
     message: 'If an account exists, a password reset link has been sent',
   })

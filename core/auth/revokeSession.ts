@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { sessions } from '../db/schema/sessions'
+import { blindIndex } from '../security/blindIndex'
 
 export async function revokeSession(sessionId: string): Promise<void> {
   const db = getDb()
@@ -9,7 +10,7 @@ export async function revokeSession(sessionId: string): Promise<void> {
 
 export async function revokeSessionByToken(token: string): Promise<void> {
   const db = getDb()
-  await db.delete(sessions).where(eq(sessions.token, token))
+  await db.delete(sessions).where(eq(sessions.tokenHash, blindIndex(token)))
 }
 
 export async function revokeAllSessions(userId: string): Promise<void> {

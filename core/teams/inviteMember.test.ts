@@ -4,9 +4,9 @@ vi.mock('../db/client', () => ({ getDb: vi.fn() }))
 vi.mock('../db/schema/teams', () => ({
   teams: { id: 'id', slug: 'slug', ownerId: 'ownerId' },
   teamMembers: { id: 'id', teamId: 'teamId', userId: 'userId', role: 'role', joinedAt: 'joinedAt' },
-  teamInvitations: { id: 'id', teamId: 'teamId', email: 'email', role: 'role', token: 'token', expiresAt: 'expiresAt', acceptedAt: 'acceptedAt', createdAt: 'createdAt', invitedBy: 'invitedBy' },
+  teamInvitations: { id: 'id', teamId: 'teamId', email: 'email', role: 'role', token: 'token', tokenHash: 'tokenHash', expiresAt: 'expiresAt', acceptedAt: 'acceptedAt', createdAt: 'createdAt', invitedBy: 'invitedBy' },
 }))
-vi.mock('drizzle-orm', () => ({ eq: vi.fn((a, b) => ({ a, b })), and: vi.fn((...a) => a), sql: vi.fn() }))
+vi.mock('drizzle-orm', () => ({ eq: vi.fn((a, b) => ({ a, b })), and: vi.fn((...a) => a), or: vi.fn((...a) => a), isNull: vi.fn((a) => ({ isNull: a })), sql: vi.fn() }))
 vi.mock('../runtime/configLoader', () => ({
   loadConfig: vi.fn(),
 }))

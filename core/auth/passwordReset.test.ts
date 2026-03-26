@@ -50,6 +50,14 @@ vi.mock('./password', () => ({
   hashPassword: vi.fn().mockResolvedValue('new-hashed-password'),
 }))
 
+vi.mock('../security/blindIndex', () => ({
+  blindIndex: vi.fn((val: string) => `blind:${val}`),
+}))
+
+vi.mock('../security/encryption', () => ({
+  encrypt: vi.fn((val: string) => `enc:${val}`),
+}))
+
 import { requestPasswordReset, resetPassword } from './passwordReset'
 import { hashPassword } from './password'
 import { AuthError } from '../errors/types'
@@ -139,7 +147,9 @@ describe('requestPasswordReset', () => {
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'password_reset',
-        token: 'reset-token-abc',
+        token: 'blind:reset-token-abc',
+        tokenHash: 'blind:reset-token-abc',
+        tokenEncrypted: 'enc:reset-token-abc',
       })
     )
   })

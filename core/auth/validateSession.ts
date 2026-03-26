@@ -3,6 +3,7 @@ import { getDb } from '../db/client'
 import { sessions } from '../db/schema/sessions'
 import { users } from '../db/schema/users'
 import { verifyToken } from './token'
+import { blindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 export interface ValidatedSession {
@@ -25,7 +26,7 @@ export async function validateSession(
     .from(sessions)
     .where(
       and(
-        eq(sessions.token, token),
+        eq(sessions.token, blindIndex(token)),
         gt(sessions.expiresAt, new Date())
       )
     )

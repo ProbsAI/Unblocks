@@ -102,13 +102,13 @@ export async function handleOAuthCallback(
     .limit(1)
 
   if (existingAccount) {
-    // Update tokens (store encrypted)
+    // Update tokens (encrypted only — no plaintext storage)
     await db
       .update(accounts)
       .set({
-        accessToken,
+        accessToken: null,
         accessTokenEncrypted: encrypt(accessToken),
-        refreshToken,
+        refreshToken: null,
         refreshTokenEncrypted: encryptNullable(refreshToken),
       })
       .where(eq(accounts.id, existingAccount.id))
@@ -190,14 +190,14 @@ export async function handleOAuthCallback(
     })
   }
 
-  // Link OAuth account (store encrypted tokens)
+  // Link OAuth account (encrypted only — no plaintext token storage)
   await db.insert(accounts).values({
     userId,
     provider,
     providerAccountId,
-    accessToken,
+    accessToken: null,
     accessTokenEncrypted: encrypt(accessToken),
-    refreshToken,
+    refreshToken: null,
     refreshTokenEncrypted: encryptNullable(refreshToken),
   })
 

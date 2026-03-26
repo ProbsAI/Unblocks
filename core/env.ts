@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL URL'),
+  DATABASE_SSLMODE: z
+    .enum(['disable', 'require'])
+    .optional()
+    .describe('Set to "disable" to skip SSL for local dev, or "require" to force SSL regardless of NODE_ENV. Production defaults to SSL enabled.'),
   REDIS_URL: z.string().url('REDIS_URL must be a valid Redis URL').optional(),
   APP_URL: z.string().url('APP_URL must be a valid URL'),
   SESSION_SECRET: z
@@ -13,6 +17,13 @@ const envSchema = z.object({
     .regex(
       /^[0-9a-f]{64}(,[0-9a-f]{64})*$/,
       'ENCRYPTION_KEY must be one or more 64-char hex strings (comma-separated for key rotation). Generate with: openssl rand -hex 32'
+    ),
+
+  BLIND_INDEX_KEY: z
+    .string()
+    .regex(
+      /^[0-9a-f]{64}$/,
+      'BLIND_INDEX_KEY must be a 64-char hex string. Generate with: openssl rand -hex 32'
     )
     .optional(),
 

@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, or, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
@@ -79,14 +79,18 @@ export async function inviteMember(
       emailEncrypted: encrypt(emailLower),
       role,
       invitedBy,
-      token,
+      token: blindIndex(token),
       tokenHash: blindIndex(token),
       tokenEncrypted: encrypt(token),
       expiresAt,
     })
     .returning()
 
-  return toInvitation(invitation)
+  // Return the plaintext token (not the blind index stored in the DB)
+  // so the caller can build an invite link.
+  const result = toInvitation(invitation)
+  result.token = token
+  return result
 }
 
 /**
@@ -98,10 +102,17 @@ export async function acceptInvitation(
 ): Promise<void> {
   const db = getDb()
 
+  // Match by tokenHash (new rows) or by plaintext token for legacy rows
+  // where tokenHash was not yet populated.
   const rows = await db
     .select()
     .from(teamInvitations)
-    .where(eq(teamInvitations.token, token))
+    .where(
+      or(
+        eq(teamInvitations.tokenHash, blindIndex(token)),
+        and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
+      )
+    )
     .limit(1)
 
   if (rows.length === 0) {

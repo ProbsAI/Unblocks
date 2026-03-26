@@ -53,7 +53,7 @@ export async function createMagicLink(email: string): Promise<string> {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
 
   await db.insert(verificationTokens).values({
-    token,
+    token: blindIndex(token),
     tokenHash: blindIndex(token),
     tokenEncrypted: encrypt(token),
     email: emailLower,
@@ -73,7 +73,7 @@ export async function verifyMagicLink(token: string): Promise<User> {
     .from(verificationTokens)
     .where(
       and(
-        eq(verificationTokens.token, token),
+        eq(verificationTokens.tokenHash, blindIndex(token)),
         eq(verificationTokens.type, 'magic_link'),
         gt(verificationTokens.expiresAt, new Date()),
         isNull(verificationTokens.usedAt)

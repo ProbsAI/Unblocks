@@ -1,5 +1,15 @@
 import type { BillingConfig } from '@unblocks/core/billing/types'
 
+/**
+ * Billing configuration.
+ *
+ * To connect Stripe:
+ * 1. Create products and prices in your Stripe Dashboard (https://dashboard.stripe.com/products)
+ * 2. Copy each price ID (starts with "price_") into the stripePriceId fields below
+ * 3. Set STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, and STRIPE_WEBHOOK_SECRET in your .env
+ *
+ * The free plan has no Stripe price IDs (null) since it doesn't require payment.
+ */
 const billingConfig: BillingConfig = {
   provider: 'stripe',
   stripe: {
@@ -25,6 +35,7 @@ const billingConfig: BillingConfig = {
       id: 'pro',
       name: 'Pro',
       price: { monthly: 29, yearly: 290 },
+      // Replace with your Stripe price IDs from https://dashboard.stripe.com/prices
       stripePriceId: { monthly: 'price_xxx', yearly: 'price_yyy' },
       limits: {
         projects: 999,
@@ -43,6 +54,7 @@ const billingConfig: BillingConfig = {
       id: 'business',
       name: 'Business',
       price: { monthly: 99, yearly: 990 },
+      // Replace with your Stripe price IDs from https://dashboard.stripe.com/prices
       stripePriceId: { monthly: 'price_xxx', yearly: 'price_yyy' },
       limits: {
         projects: 999,
