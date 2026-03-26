@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
@@ -38,11 +38,17 @@ function getPrimaryKey(): Buffer {
   return getEncryptionKeys()[0]
 }
 
+/** Derives a stable 8-char fingerprint from a key (first 8 hex chars of SHA-256). */
+function keyFingerprint(key: Buffer): string {
+  return createHash('sha256').update(key).digest('hex').slice(0, 8)
+}
+
 /**
  * Encrypts a plaintext string using AES-256-GCM.
  *
- * Output format: `<keyIndex>:<iv>:<authTag>:<ciphertext>` (all hex-encoded).
- * keyIndex=0 means the primary (current) key.
+ * Output format: `<keyId>:<iv>:<authTag>:<ciphertext>` (all hex-encoded).
+ * keyId is a stable fingerprint (SHA-256 prefix) of the encryption key,
+ * so it remains valid even after key rotation reorders the key list.
  */
 export function encrypt(plaintext: string): string {
   const key = getPrimaryKey()
@@ -57,13 +63,13 @@ export function encrypt(plaintext: string): string {
   ])
   const authTag = cipher.getAuthTag()
 
-  return `0:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`
+  return `${keyFingerprint(key)}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`
 }
 
 /**
  * Decrypts a ciphertext string produced by encrypt().
- * Supports key rotation: tries all keys if the key index indicates
- * an older key, or falls back to trying all keys.
+ * Supports key rotation: matches the key by fingerprint first,
+ * then falls back to trying all keys (handles legacy numeric index format).
  */
 export function decrypt(ciphertext: string): string {
   const parts = ciphertext.split(':')
@@ -71,19 +77,18 @@ export function decrypt(ciphertext: string): string {
     throw new Error('Invalid encrypted value format')
   }
 
-  const [keyIndexStr, ivHex, authTagHex, encryptedHex] = parts
-  const keyIndex = parseInt(keyIndexStr, 10)
+  const [keyId, ivHex, authTagHex, encryptedHex] = parts
   const iv = Buffer.from(ivHex, 'hex')
   const authTag = Buffer.from(authTagHex, 'hex')
   const encrypted = Buffer.from(encryptedHex, 'hex')
 
   const keys = getEncryptionKeys()
 
-  // Try the indicated key first, then fall back to all keys
-  const keysToTry =
-    keyIndex < keys.length
-      ? [keys[keyIndex], ...keys.filter((_, i) => i !== keyIndex)]
-      : keys
+  // Match by fingerprint first, then fall back to all keys
+  const matchedKey = keys.find((k) => keyFingerprint(k) === keyId)
+  const keysToTry = matchedKey
+    ? [matchedKey, ...keys.filter((k) => k !== matchedKey)]
+    : keys
 
   for (const key of keysToTry) {
     try {

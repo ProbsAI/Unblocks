@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { after } from 'next/server'
 import { requestPasswordReset } from '@unblocks/core/auth'
 import { sendEmail, resetPasswordEmail } from '@unblocks/core/email'
 import { validateBody, successResponse } from '@unblocks/core/api'
@@ -13,9 +14,10 @@ export const POST = withErrorHandler(async (request) => {
 
   const result = await requestPasswordReset(email)
 
-  // Fire-and-forget: send email asynchronously to prevent timing-based
-  // account enumeration (response latency is identical for existing vs
-  // non-existing accounts).
+  // Schedule email after the response to prevent timing-based account
+  // enumeration (response latency is identical for existing vs non-existing
+  // accounts). next/server `after()` ensures the work completes even in
+  // serverless/edge runtimes where fire-and-forget promises may be killed.
   if (result) {
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
     const resetUrl = `${appUrl}/reset-password/confirm?token=${result.token}`
@@ -24,7 +26,7 @@ export const POST = withErrorHandler(async (request) => {
       userName: email,
       resetUrl,
     })
-    void sendEmail({ to: email, subject, html })
+    after(() => sendEmail({ to: email, subject, html }))
   }
 
   return successResponse({

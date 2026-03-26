@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, or, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
@@ -98,10 +98,17 @@ export async function acceptInvitation(
 ): Promise<void> {
   const db = getDb()
 
+  // Match by tokenHash (new rows) or by plaintext token for legacy rows
+  // where tokenHash was not yet populated.
   const rows = await db
     .select()
     .from(teamInvitations)
-    .where(eq(teamInvitations.tokenHash, blindIndex(token)))
+    .where(
+      or(
+        eq(teamInvitations.tokenHash, blindIndex(token)),
+        and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
+      )
+    )
     .limit(1)
 
   if (rows.length === 0) {

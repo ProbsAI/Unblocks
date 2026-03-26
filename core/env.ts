@@ -5,7 +5,7 @@ const envSchema = z.object({
   DATABASE_SSLMODE: z
     .enum(['disable', 'require'])
     .optional()
-    .describe('Set to "disable" to skip SSL for local dev. Production defaults to SSL enabled.'),
+    .describe('Set to "disable" to skip SSL for local dev, or "require" to force SSL regardless of NODE_ENV. Production defaults to SSL enabled.'),
   REDIS_URL: z.string().url('REDIS_URL must be a valid Redis URL').optional(),
   APP_URL: z.string().url('APP_URL must be a valid URL'),
   SESSION_SECRET: z

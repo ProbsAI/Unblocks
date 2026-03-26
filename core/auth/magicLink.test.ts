@@ -52,6 +52,14 @@ vi.mock('../runtime/hookRunner', () => ({
   runHook: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('../security/blindIndex', () => ({
+  blindIndex: vi.fn((val: string) => `blind:${val}`),
+}))
+
+vi.mock('../security/encryption', () => ({
+  encrypt: vi.fn((val: string) => `enc:${val}`),
+}))
+
 import { createMagicLink, verifyMagicLink } from './magicLink'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
@@ -117,7 +125,9 @@ describe('createMagicLink', () => {
     expect(mockInsert).toHaveBeenCalled()
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({
-        token: 'random-token-abc123',
+        token: 'blind:random-token-abc123',
+        tokenHash: 'blind:random-token-abc123',
+        tokenEncrypted: 'enc:random-token-abc123',
         email: 'test@example.com',
         type: 'magic_link',
       })

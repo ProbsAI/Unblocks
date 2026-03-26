@@ -26,7 +26,7 @@ export async function validateSession(
     .from(sessions)
     .where(
       and(
-        eq(sessions.tokenHash, blindIndex(token)),
+        eq(sessions.token, blindIndex(token)),
         gt(sessions.expiresAt, new Date())
       )
     )
