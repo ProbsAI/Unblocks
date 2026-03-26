@@ -44,7 +44,7 @@ Every SaaS app needs the same 80% of infrastructure before you can write the cod
 
 **Extensions** — Self-contained modules with manifests and dependency resolution
 
-### Premium Blocks
+### Premium Blocks -- Coming Soon
 
 Optional add-ons installed from a private registry — your app works fine without them.
 
