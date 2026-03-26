@@ -86,7 +86,11 @@ export async function inviteMember(
     })
     .returning()
 
-  return toInvitation(invitation)
+  // Return the plaintext token (not the blind index stored in the DB)
+  // so the caller can build an invite link.
+  const result = toInvitation(invitation)
+  result.token = token
+  return result
 }
 
 /**

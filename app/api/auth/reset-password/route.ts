@@ -20,13 +20,17 @@ export const POST = withErrorHandler(async (request) => {
   // serverless/edge runtimes where fire-and-forget promises may be killed.
   if (result) {
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
-    const resetUrl = `${appUrl}/reset-password/confirm?token=${result.token}`
+    const resetUrl = `${appUrl}/reset-password/confirm?token=${encodeURIComponent(result.token)}`
 
     const { subject, html } = resetPasswordEmail({
       userName: email,
       resetUrl,
     })
-    after(() => sendEmail({ to: email, subject, html }))
+    after(() => {
+      return sendEmail({ to: email, subject, html }).catch((error) => {
+        console.error('Failed to send reset password email', { email, error })
+      })
+    })
   }
 
   return successResponse({
