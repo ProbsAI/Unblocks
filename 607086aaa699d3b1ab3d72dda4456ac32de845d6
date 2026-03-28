@@ -1,0 +1,49 @@
+=== AI PR Comments for PR #15 ===
+Synced: 2026-03-28T19:43:41Z
+
+## Reviews
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-03-28T19:43:30Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `607086aaa6`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](http://chatgpt.com/codex/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-28T19:43:30Z on core/ai/completion.ts:123 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Use Gemini OpenAI compatibility base URL**
+
+For `google` requests, this sets `baseUrl` to `https://generativelanguage.googleapis.com/v1beta`, but `openaiCompletion` appends `/chat/completions`, producing `/v1beta/chat/completions`. Gemini’s OpenAI-compatible API is under `/v1beta/openai/...`, so Google completions will hit the wrong endpoint and fail in production.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-28T19:43:30Z on core/ai/usage.ts:31 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Register AI tables in Drizzle schema discovery**
+
+This insert assumes `ai_usage` exists, but the new AI tables live in `core/ai/schema.ts` while Drizzle discovery is limited to `./core/db/schema/index.ts` (plus block schemas). That means `db:generate`/`db:push` won’t create these tables, so usage tracking will throw relation-not-found errors as soon as a completion with tracking enabled is recorded.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-03-28T19:43:30Z on core/ai/usage.ts:91 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Return newest usage records first**
+
+This function is documented as returning recent usage, but `orderBy(aiUsage.createdAt)` sorts ascending, so callers receive oldest records first; when `limit` is applied, the most recent activity can be omitted entirely. This leads to incorrect history views and usage summaries that rely on this helper.
+
+Useful? React with 👍 / 👎.
