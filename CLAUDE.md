@@ -21,11 +21,13 @@ The `/core/` directory contains framework-agnostic pure TypeScript. It has zero 
 
 ```
 core/                    # UNTOUCHABLE — pure TypeScript business logic
+  ai/                    # AI: multi-provider completion (OpenAI, Anthropic, Google), usage tracking, cost estimation
+  api-keys/              # API Keys: generate, validate, revoke, list — Bearer token auth
   auth/                  # Auth: register, login, sessions, OAuth, magic links
   billing/               # Billing: Stripe checkout, webhooks, plans, limits
   email/                 # Email: sending via Resend, HTML templates
   db/                    # Database: Drizzle client, schema, types
-    schema/              # Table definitions (users, sessions, subscriptions, etc.)
+    schema/              # Table definitions (users, sessions, subscriptions, api_keys, ai_usage, etc.)
   api/                   # Response helpers (successResponse, errorResponse), validation
   errors/                # AppError hierarchy, error-to-HTTP mapping
   runtime/               # Config loader (Zod validation), hook runner, UI resolver
@@ -42,11 +44,6 @@ blocks/                  # COMMUNITY — open-source blocks (MIT)
   testing/               # Testing: helpers, factories, fixtures, mocks
   seed/                  # Sample data generation for development
 
-proprietary/             # STAGING — premium blocks (moved to private repo for release)
-  block-ai-wrapper/      # AI: OpenAI/Anthropic completion, usage tracking
-  block-data-platform/   # Data: pipelines, datasources, datasets
-  block-marketplace/     # Marketplace: listings, orders, reviews, sellers
-
 app/                     # Next.js 15 App Router — the "adapter" layer
   api/auth/              # Auth API routes (register, login, logout, OAuth, etc.)
   api/billing/           # Billing API routes (checkout, portal, webhook, subscription)
@@ -55,12 +52,13 @@ app/                     # Next.js 15 App Router — the "adapter" layer
   api/uploads/           # Upload API routes (upload, get, delete)
   api/jobs/              # Jobs API routes (status, management)
   api/admin/             # Admin API routes (users, subscriptions, metrics)
-  api/ai/               # AI API routes (completion, usage)
-  api/data/             # Data API routes (pipelines, datasets)
+  api/ai/               # AI API routes (completion, usage) — core feature
+  api/api-keys/          # API Key management routes (create, list, revoke)
+  api/data/             # Data API routes (pipelines, datasets) — premium block
   api/marketplace/       # Marketplace API routes (listings, orders, reviews)
   api/health/            # Health check endpoint
   (auth)/                # Auth pages (login, signup, reset-password, verify-email)
-  (dashboard)/           # Protected pages (home, billing, teams, notifications)
+  (dashboard)/           # Protected pages (home, billing, teams, notifications, ai, api-keys)
   (admin)/               # Admin pages (overview, users, subscriptions)
   (marketing)/           # Public pages (pricing)
   layout.tsx             # Root layout
@@ -68,7 +66,7 @@ app/                     # Next.js 15 App Router — the "adapter" layer
   globals.css            # Tailwind v4 theme tokens
 
 components/              # React components
-  ui/                    # Base: Button, Input, Card
+  ui/                    # Base: Button, Input, Card, Modal, Table, CopyButton, Toast, Dropdown
   landing/               # Landing: Navbar, Hero, Features, Pricing, FAQ, Footer
   auth/                  # Auth: LoginForm, RegisterForm, SocialButtons
   dashboard/             # Dashboard: Sidebar, Header, NotificationBell
@@ -175,6 +173,28 @@ throw new AuthError('Invalid credentials')
 throw new ValidationError('Invalid input', [{ field: 'email', message: 'Required' }])
 ```
 
+### AI Completion Pattern
+
+```typescript
+import { complete } from '@unblocks/core/ai'
+const response = await complete({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Hello' }],
+  userId: user.id,
+})
+```
+
+### API Key Auth Pattern
+
+```typescript
+// API keys work via Authorization: Bearer ub_live_xxx header
+// Middleware forwards the key, serverAuth.ts validates it
+// No code changes needed in route handlers — requireAuth() handles both session and API key auth
+import { createApiKey, listApiKeys, revokeApiKey } from '@unblocks/core/api-keys'
+const { key, apiKey } = await createApiKey(userId, { name: 'Production' })
+// key is returned ONCE — store it securely
+```
+
 ### Background Job Pattern
 
 ```typescript
@@ -195,13 +215,13 @@ await createNotification({
 ### Block Registry Pattern (Premium Blocks)
 
 ```typescript
-// In API routes — graceful degradation when block not installed
+// In API routes — graceful degradation when premium block not installed
 import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
-const ai = tryRequireBlock<{ complete: Function }>('ai-wrapper')
-if (!ai) {
-  return errorResponse('BLOCK_NOT_AVAILABLE', 'AI wrapper block is not installed', 404)
+const data = tryRequireBlock<{ createPipeline: Function }>('data-platform')
+if (!data) {
+  return errorResponse('BLOCK_NOT_AVAILABLE', 'Data platform block is not installed', 404)
 }
-const result = await ai.complete(body)
+const result = await data.createPipeline(body)
 ```
 
 ### License Feature Check Pattern
@@ -229,7 +249,7 @@ See `.env.example` for full list.
 
 ## Database
 
-- **Tables:** users, sessions, subscriptions, accounts, verification_tokens, jobs, files, teams, team_members, team_invitations, notifications, notification_preferences
+- **Tables:** users, sessions, subscriptions, accounts, verification_tokens, jobs, files, teams, team_members, team_invitations, notifications, notification_preferences, api_keys, ai_usage, prompt_templates
 - **Block tables:** ai_usage, prompt_templates, data_sources, pipelines, pipeline_runs, datasets, seller_profiles, listings, orders, reviews
 - **Generate migrations:** `npm run db:generate`
 - **Apply migrations:** `npm run db:migrate`

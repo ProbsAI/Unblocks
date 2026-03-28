@@ -1,5 +1,5 @@
 import { eq, and, gte, sql } from 'drizzle-orm'
-import { getDb } from '../../core/db/client'
+import { getDb } from '../db/client'
 import { aiUsage } from './schema'
 import { AIWrapperConfigSchema } from './types'
 import type { UsageRecord, AIProvider } from './types'

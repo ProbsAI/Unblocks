@@ -2,18 +2,21 @@
  * License Validator
  *
  * Validates UNBLOCKS_LICENSE_KEY to determine the user's tier and
- * which premium core features are available. This is separate from
+ * which premium features are available. This is separate from
  * block availability (which is determined by package installation).
  *
+ * Free/community tier includes ALL core features: auth, billing, AI,
+ * API keys, teams, jobs, uploads (incl. S3), notifications (incl. SSE),
+ * admin, email, and full UI components.
+ *
  * Tiers:
- *   community  — free, all MIT features
- *   builder    — attribution removal
- *   pro        — advanced admin, SSE, S3, premium templates/themes
- *   team       — pro + team seats + priority
- *   enterprise — custom, team + SSO, audit, compliance
+ *   community  — free, all core features (MIT)
+ *   pro        — data-platform block, marketplace block, advanced analytics, premium templates
+ *   business   — pro + white-labeling, audit logging, metered billing
+ *   enterprise — business + SSO/SAML/SCIM, multi-tenancy, compliance, SLA
  */
 
-export type LicenseTier = 'community' | 'builder' | 'pro' | 'team' | 'enterprise'
+export type LicenseTier = 'community' | 'pro' | 'business' | 'enterprise'
 
 export interface LicenseInfo {
   valid: boolean
@@ -22,46 +25,50 @@ export interface LicenseInfo {
   expiresAt: Date | null
 }
 
-/** Features available per tier */
+/** Features available per tier (cumulative — each tier includes all lower tiers) */
 const TIER_FEATURES: Record<LicenseTier, string[]> = {
   community: [],
-  builder: [
-    'attribution.remove',
-  ],
   pro: [
     'attribution.remove',
-    'admin.advanced',
-    'notifications.sse',
-    'uploads.s3',
+    'blocks.data_platform',
+    'blocks.marketplace',
+    'analytics.advanced',
     'templates.premium',
     'themes.premium',
     'connectors.pro',
-  ],
-  team: [
-    'attribution.remove',
-    'admin.advanced',
-    'notifications.sse',
-    'uploads.s3',
-    'templates.premium',
-    'themes.premium',
-    'connectors.pro',
-    'team.seats',
     'support.priority',
+  ],
+  business: [
+    'attribution.remove',
+    'blocks.data_platform',
+    'blocks.marketplace',
+    'analytics.advanced',
+    'templates.premium',
+    'themes.premium',
+    'connectors.pro',
+    'support.priority',
+    'whitelabel',
+    'audit.logging',
+    'billing.metered',
   ],
   enterprise: [
     'attribution.remove',
-    'admin.advanced',
-    'notifications.sse',
-    'uploads.s3',
+    'blocks.data_platform',
+    'blocks.marketplace',
+    'analytics.advanced',
     'templates.premium',
     'themes.premium',
     'connectors.pro',
-    'team.seats',
     'support.priority',
-    'sso',
+    'whitelabel',
     'audit.logging',
+    'billing.metered',
+    'sso',
+    'scim',
+    'multi_tenancy',
     'compliance',
     'connectors.enterprise',
+    'support.sla',
   ],
 }
 
@@ -94,9 +101,8 @@ export function validateLicense(key?: string): LicenseInfo {
   // Determine tier from key prefix (dev convention; production uses JWT/API)
   let tier: LicenseTier = 'community'
   if (licenseKey.startsWith('ub_ent_')) tier = 'enterprise'
-  else if (licenseKey.startsWith('ub_team_')) tier = 'team'
+  else if (licenseKey.startsWith('ub_biz_')) tier = 'business'
   else if (licenseKey.startsWith('ub_pro_')) tier = 'pro'
-  else if (licenseKey.startsWith('ub_builder_')) tier = 'builder'
 
   _cachedKey = licenseKey
   if (tier === 'community') {

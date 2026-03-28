@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE_NAME } from '@unblocks/core/security/cookies'
 import { jwtVerify } from 'jose'
 
+const API_KEY_PREFIX = 'ub_live_'
+
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) return new TextEncoder().encode('')
@@ -42,6 +44,15 @@ function isPublicPath(pathname: string): boolean {
   return false
 }
 
+/**
+ * Extract a Bearer token from the Authorization header.
+ */
+function getBearerToken(request: NextRequest): string | null {
+  const auth = request.headers.get('authorization')
+  if (!auth?.startsWith('Bearer ')) return null
+  return auth.slice(7)
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
 
@@ -50,11 +61,26 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next()
   }
 
-  // Check for session cookie
+  // --- API Key auth for API routes ---
+  // If the request has a Bearer token that looks like an API key,
+  // pass it through to the route handler for full validation.
+  // Middleware cannot do DB lookups (edge runtime), so we forward
+  // the key via a header and let serverAuth.ts validate it.
+  if (pathname.startsWith('/api/')) {
+    const bearerToken = getBearerToken(request)
+    if (bearerToken?.startsWith(API_KEY_PREFIX)) {
+      const response = NextResponse.next()
+      // Forward the API key to the route handler via an internal header
+      const headers = new Headers(request.headers)
+      headers.set('x-api-key', bearerToken)
+      return NextResponse.next({ request: { headers } })
+    }
+  }
+
+  // --- Session cookie auth ---
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
 
   if (!sessionToken) {
-    // Return 401 JSON for API routes instead of redirecting
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: { code: 'AUTH_ERROR', message: 'Authentication required' } },

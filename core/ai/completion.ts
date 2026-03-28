@@ -1,4 +1,4 @@
-import { runHook } from '../../core/runtime/hookRunner'
+import { runHook } from '../runtime/hookRunner'
 import { getProviderFn } from './providers'
 import { trackUsage } from './usage'
 import { AIWrapperConfigSchema } from './types'

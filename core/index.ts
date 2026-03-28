@@ -10,6 +10,12 @@
  *   const plans = billing.getAllPlans()
  */
 
+// AI
+export * as ai from './ai/index'
+
+// API Keys
+export * as apiKeys from './api-keys/index'
+
 // Auth
 export * as auth from './auth/index'
 

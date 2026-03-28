@@ -7,7 +7,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core'
-import { users } from '../../core/db/schema/users'
+import { users } from '../db/schema/users'
 
 export const aiUsage = pgTable('ai_usage', {
   id: uuid('id').primaryKey().defaultRandom(),
