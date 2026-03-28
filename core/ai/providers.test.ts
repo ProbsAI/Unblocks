@@ -80,6 +80,63 @@ describe('openaiCompletion', () => {
   })
 })
 
+describe('openaiCompletion — edge cases', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('handles empty choices array gracefully', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        id: 'chatcmpl-empty',
+        model: 'gpt-4o',
+        choices: [],
+        usage: { prompt_tokens: 5, completion_tokens: 0, total_tokens: 5 },
+      }),
+    } as Response)
+
+    const result = await openaiCompletion(baseRequest, 'sk-test', 'https://api.openai.com/v1')
+    expect(result.content).toBe('')
+    expect(result.finishReason).toBe('stop')
+  })
+
+  it('handles missing usage data', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        id: 'chatcmpl-no-usage',
+        model: 'gpt-4o',
+        choices: [{ message: { content: 'Hi' }, finish_reason: 'stop' }],
+      }),
+    } as Response)
+
+    const result = await openaiCompletion(baseRequest, 'sk-test', 'https://api.openai.com/v1')
+    expect(result.usage.promptTokens).toBe(0)
+    expect(result.usage.completionTokens).toBe(0)
+    expect(result.usage.totalTokens).toBe(0)
+  })
+
+  it('uses custom baseUrl', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        id: 'test',
+        model: 'custom-model',
+        choices: [{ message: { content: 'OK' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      }),
+    } as Response)
+
+    await openaiCompletion(baseRequest, 'sk-test', 'https://my-proxy.example.com/v1')
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://my-proxy.example.com/v1/chat/completions',
+      expect.anything()
+    )
+  })
+})
+
 describe('anthropicCompletion', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -126,5 +183,41 @@ describe('anthropicCompletion', () => {
         }),
       })
     )
+  })
+
+  it('throws on API error', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () => Promise.resolve('Rate limited'),
+    } as Response)
+
+    await expect(
+      anthropicCompletion(baseRequest, 'sk-ant-bad', 'https://api.anthropic.com')
+    ).rejects.toThrow('Anthropic API error (429)')
+  })
+
+  it('handles messages without system role', async () => {
+    const mockResponse = {
+      id: 'msg_456',
+      model: 'claude-sonnet-4-6',
+      content: [{ text: 'Response' }],
+      usage: { input_tokens: 10, output_tokens: 5 },
+      stop_reason: 'end_turn',
+    }
+
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response)
+
+    const result = await anthropicCompletion(
+      { ...baseRequest, model: 'claude-sonnet-4-6' },
+      'sk-ant-test',
+      'https://api.anthropic.com'
+    )
+
+    expect(result.content).toBe('Response')
+    expect(result.usage.totalTokens).toBe(15)
   })
 })

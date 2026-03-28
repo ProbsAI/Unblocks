@@ -79,9 +79,8 @@ let _cachedKey: string | undefined
  * Validate the license key and return tier info.
  *
  * Currently uses a simple key-prefix convention for development:
- *   - Keys starting with `ub_builder_` → builder tier
  *   - Keys starting with `ub_pro_` → pro tier
- *   - Keys starting with `ub_team_` → team tier
+ *   - Keys starting with `ub_biz_` → business tier
  *   - Keys starting with `ub_ent_` → enterprise tier
  *
  * In production, this would verify a signed JWT or call a license API.

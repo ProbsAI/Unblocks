@@ -39,4 +39,21 @@ describe('revokeApiKey', () => {
       "Cannot revoke another user's API key"
     )
   })
+
+  it('throws NotFoundError when key does not exist', async () => {
+    // Override mock to return empty result for this test
+    const { getDb } = await import('../db/client')
+    const mockDb = (getDb as ReturnType<typeof vi.fn>)()
+    mockDb.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    })
+
+    await expect(revokeApiKey('nonexistent-id', 'user-123')).rejects.toThrow(
+      'API key not found'
+    )
+  })
 })

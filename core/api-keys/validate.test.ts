@@ -60,4 +60,20 @@ describe('validateApiKey', () => {
     expect(result.userId).toBe('user-123')
     expect(result.scopes).toEqual(['*'])
   })
+
+  it('returns apiKeyId on valid key', async () => {
+    const result = await validateApiKey('ub_live_' + 'a'.repeat(64))
+    expect(result.apiKeyId).toBe('key-uuid-123')
+  })
+
+  it('returns invalid for empty string', async () => {
+    const result = await validateApiKey('')
+    expect(result.valid).toBe(false)
+  })
+
+  it('returns teamId when present', async () => {
+    const result = await validateApiKey('ub_live_' + 'a'.repeat(64))
+    // Our mock returns teamId: null, verify it's passed through
+    expect(result.teamId).toBeNull()
+  })
 })
