@@ -24,6 +24,8 @@ Sleep 8s
 Type "npm run db:migrate && npm run dev"
 Enter
 Sleep 5s
+Ctrl+C
+Sleep 1s
 
 Type "# Open http://localhost:3000"
 Enter
