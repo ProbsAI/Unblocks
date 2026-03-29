@@ -37,7 +37,7 @@
 ```bash
 git clone https://github.com/ProbsAI/Unblocks.git && cd Unblocks
 cp .env.example .env && docker compose up -d && npm install
-npm run db:migrate && npm run dev
+npm run db:generate && npm run db:migrate && npm run dev
 ```
 
 **Windows (Command Prompt)**
@@ -45,7 +45,7 @@ npm run db:migrate && npm run dev
 ```cmd
 git clone https://github.com/ProbsAI/Unblocks.git && cd Unblocks
 copy .env.example .env && docker compose up -d && npm install
-npm run db:migrate && npm run dev
+npm run db:generate && npm run db:migrate && npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). See the **[Setup Guide](docs/SETUP.md)** for detailed configuration.
