@@ -40,16 +40,13 @@ cp .env.example .env && docker compose up -d && npm install
 npm run db:migrate && npm run dev
 ```
 
-<details>
-<summary><strong>Windows (PowerShell)</strong></summary>
+**Windows (Command Prompt)**
 
-```powershell
-git clone https://github.com/ProbsAI/Unblocks.git; cd Unblocks
-Copy-Item .env.example .env; docker compose up -d; npm install
-npm run db:migrate; npm run dev
+```cmd
+git clone https://github.com/ProbsAI/Unblocks.git && cd Unblocks
+copy .env.example .env && docker compose up -d && npm install
+npm run db:migrate && npm run dev
 ```
-
-</details>
 
 Open [http://localhost:3000](http://localhost:3000). See the **[Setup Guide](docs/SETUP.md)** for detailed configuration.
 
