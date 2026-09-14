@@ -38,25 +38,15 @@ Every SaaS app needs the same 80% of infrastructure before you can write the cod
 
 **Dashboard** — Protected layout with sidebar navigation and billing management
 
-**Security** — CSRF protection, rate limiting, secure sessions, bcrypt, security headers
+**AI** — Multi-provider completion (OpenAI, Anthropic, Google) with usage tracking and cost estimation
+
+**API Keys** — Issue, scope, and revoke `ub_live_` keys; Bearer-token auth alongside session cookies
+
+**Security** — Same-origin CSRF enforcement, rate limiting, secure sessions, bcrypt, HSTS + CSP, AES-256-GCM encryption helpers
 
 **Config & Hooks** — Zod-validated config files + event hooks for customization without modifying core
 
-**Extensions** — Self-contained modules with manifests and dependency resolution
-
-### Premium Blocks -- Coming Soon
-
-Optional add-ons installed from a private registry — your app works fine without them.
-
-| Block | What it does |
-|-------|-------------|
-| **AI Wrapper** | OpenAI and Anthropic completion with usage tracking and cost estimation |
-| **Data Platform** | Pipelines, data sources, and datasets with background job integration |
-| **Marketplace** | Listings, orders, reviews, and seller profiles |
-
-```bash
-npm install @unblocks/block-ai-wrapper   # Example — API routes gracefully 404 when not installed
-```
+**Extensions** — Extension manifest and loader (`core/extensions/`). The top-level `extensions/` directory is a placeholder; no extension ships yet.
 
 ---
 
@@ -66,13 +56,35 @@ npm install @unblocks/block-ai-wrapper   # Example — API routes gracefully 404
 git clone https://github.com/ProbsAI/Unblocks.git
 cd Unblocks
 npm install
-docker compose up -d          # Start PostgreSQL
+docker compose up -d postgres # Start PostgreSQL
 cp .env.example .env          # Configure your environment
 npm run db:generate && npm run db:migrate
 npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000). See the [Setup Guide](docs/SETUP.md) for detailed instructions.
+
+`db:generate` produces 16 tables. If you see fewer, your `core/db/schema/index.ts`
+is missing exports — Drizzle only generates what that file re-exports, so a table
+referenced by code but absent from the barrel is silently never created.
+
+> **Docker is required** — PostgreSQL is not optional. On Windows, install
+> [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+> first, or point `DATABASE_URL` at a Postgres you run yourself.
+
+### Running tests
+
+```bash
+npm run test              # Unit tests — no services required
+docker compose up -d postgres_test
+npm run test:integration  # Integration tests — real Postgres on port 5433
+npm run test:all          # Both
+```
+
+Integration tests run against a throwaway database on a separate port, so they
+can never truncate your development data. They exist because mocking the query
+builder cannot catch a wrong column, a missing `WHERE`, a bad `ORDER BY`, or a
+table that no migration creates — see `blocks/testing/integration.ts`.
 
 ---
 
@@ -101,17 +113,20 @@ core/             # Pure TypeScript business logic (do not modify)
   billing/        # Stripe integration & plans
   email/          # Email sending & templates
   db/             # Drizzle ORM, schemas, client
+  ai/             # Multi-provider completion, usage & cost tracking
+  api-keys/       # API key issue / validate / revoke / list
   teams/          # Team management & RBAC
   jobs/           # Background job queue & scheduler
   uploads/        # File upload storage & validation
   notifications/  # In-app notifications & SSE
   admin/          # Admin operations & metrics
-  security/       # CSRF, headers, encryption
-  extensions/     # Extension system
+  security/       # Encryption, blind index, headers, CSP, tokens
+  extensions/     # Extension manifest & loader
 
 app/              # Next.js App Router — routes, pages, layouts
 components/       # React components — UI, landing, auth, dashboard
 lib/              # Next.js helpers — server auth, route handler utils
+blocks/testing/   # Test factories, fixtures, and the integration DB harness
 
 config/           # YOUR config — auth, billing, email, teams, etc.
 hooks/            # YOUR hooks — react to events without touching core
@@ -124,6 +139,17 @@ extensions/       # YOUR extensions — self-contained feature modules
 > **Never modify `/core/`.** Customize through `/config/`, `/hooks/`, `/ui/`, and `/extensions/`.
 
 This keeps your app cleanly updatable as Unblocks evolves.
+
+**Known limitation, stated plainly:** the rule does not hold yet for database
+schema. Adding a table currently means creating a file in `core/db/schema/` and
+re-exporting it from `core/db/schema/index.ts` — the same file upstream edits
+whenever *it* adds a table, so the first thing most apps do is also the first
+thing that conflicts on update. `core/` is also vendored into your repo rather
+than installed, so "updating" means merging rather than replacing. Making the
+rule true requires publishing `core` as a versioned package and letting apps own
+their own schema paths; `drizzle.config.ts` already accepts an array of schema
+paths, so the second half is close. Until then, treat updatability as the
+intended design rather than a delivered guarantee.
 
 ---
 

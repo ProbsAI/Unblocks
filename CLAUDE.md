@@ -212,10 +212,10 @@ await createNotification({
 })
 ```
 
-### Block Registry Pattern (Premium Blocks)
+### Block Registry Pattern (Optional Packages)
 
 ```typescript
-// In API routes — graceful degradation when premium block not installed
+// In API routes — graceful degradation when an optional block is not installed
 import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
 const data = tryRequireBlock<{ createPipeline: Function }>('data-platform')
 if (!data) {
@@ -224,20 +224,79 @@ if (!data) {
 const result = await data.createPipeline(body)
 ```
 
+> **Current state:** no block package is published, so every `/api/data/*` and
+> `/api/marketplace/*` route returns 404, and the dashboard screens behind them
+> render hardcoded mock arrays that no user can reach. Do not extend that code
+> — it is scheduled for deletion.
+>
+> The mechanism itself is worth keeping and is the right way to make capability
+> optional: an uninstalled package contributes no routes, no dependencies, and
+> no bundle weight. That is strictly safer than shipping a feature disabled by a
+> runtime flag, where the code, its dependencies, and its endpoints all still
+> exist and you are trusting a check.
+
 ### License Feature Check Pattern
 
 ```typescript
 import { hasFeature } from '@unblocks/core/runtime/licenseValidator'
-if (!hasFeature('uploads.s3')) {
-  throw new PlanLimitError('S3 uploads require a Pro license')
+if (!hasFeature('templates.premium')) {
+  throw new PlanLimitError('Premium templates require a Pro license')
 }
 ```
+
+> The current gate is `licenseKey.startsWith('ub_pro_')` — setting
+> `UNBLOCKS_LICENSE_KEY=ub_ent_x` unlocks everything. Treat it as a placeholder,
+> not access control, and never gate a security-relevant behaviour on it.
+
+## Security Invariants
+
+Do not weaken these without understanding what they defend. Each replaced a real
+defect.
+
+### Webhooks are idempotent
+
+`handleStripeWebhook` records `event.id` in `webhook_events` before doing any
+work and returns early on a duplicate. Stripe retries on every non-2xx, so a
+handler without this gate re-applies plan changes and re-fires payment hooks.
+Never remove the gate, and never swallow an event you cannot apply — throw, so
+the provider retries instead of treating it as delivered.
+
+### `x-api-key` is internal, never client-supplied
+
+`middleware.ts` strips any inbound `x-api-key` before routing, then sets it only
+from a validated `Authorization: Bearer ub_live_…`. `lib/serverAuth.ts` treats
+its presence as proof middleware did that validation. If you add a code path
+that forwards headers, preserve the strip — public paths reach
+`getCurrentUser()` too, so the stripping runs before the public-path check.
+
+### State-changing requests must be same-origin
+
+`middleware.ts` rejects cross-site `POST`/`PUT`/`PATCH`/`DELETE`. The rule is
+scoped to *ambient* credentials: Bearer API keys are exempt (a token is not
+ambient, and blocking it would break server-to-server calls), and originless
+requests are blocked only when a session cookie is present. Signature-verified
+endpoints are listed in `CSRF_EXEMPT_PATHS` — currently just the Stripe webhook.
+
+`core/security/csrf.ts` still exists but is only for the OAuth `state`
+parameter. It is not the app's CSRF defence; the middleware check is.
+
+### Security headers come from one place
+
+`next.config.ts` derives its header list from `core/security/headers.ts`. They
+were previously maintained separately, which is how HSTS went missing from what
+was actually served. Add headers to the core module, not to the Next config.
+
+### API keys are stored one-way
+
+`api_keys` holds a blind index only. Do not add a reversible copy — validation
+never needs one, so it would only create a credential dump.
 
 ## Path Aliases
 
 | Alias | Maps to |
 |-------|---------|
 | `@unblocks/core/*` | `./core/*` |
+| `@unblocks/blocks/*` | `./blocks/*` |
 | `@/*` | `./*` (project root) |
 
 ## Environment Variables
@@ -249,7 +308,8 @@ See `.env.example` for full list.
 
 ## Database
 
-- **Tables:** users, sessions, subscriptions, accounts, verification_tokens, jobs, files, teams, team_members, team_invitations, notifications, notification_preferences, api_keys, ai_usage, prompt_templates
+- **Tables (16):** users, sessions, subscriptions, accounts, verification_tokens, jobs, files, teams, team_members, team_invitations, notifications, notification_preferences, api_keys, ai_usage, prompt_templates, webhook_events
+- **`webhook_events`** is the idempotency ledger for inbound provider webhooks. Stripe delivers at least once and retries on any non-2xx, so `handleStripeWebhook` records the event id first and returns early if it was already recorded. Any new webhook handler must go through the same gate.
 - **Block tables:** ai_usage, prompt_templates, data_sources, pipelines, pipeline_runs, datasets, seller_profiles, listings, orders, reviews
 - **Generate migrations:** `npm run db:generate`
 - **Apply migrations:** `npm run db:migrate`
@@ -259,9 +319,36 @@ See `.env.example` for full list.
 ## Testing
 
 ```bash
-npm run test          # Run all tests
-npm run test:watch    # Watch mode
+npm run test              # Unit tests — no services required
+npm run test:watch        # Watch mode
+npm run test:integration  # Integration tests — needs a real Postgres
+npm run test:all          # Both
 ```
+
+### Unit vs integration — which to write
+
+Integration tests run against a throwaway Postgres on port 5433:
+
+```bash
+docker compose up -d postgres_test
+npm run test:integration
+```
+
+**Write an integration test (`*.integration.test.ts`) whenever behaviour depends
+on the database** — ordering, constraints, conflict handling, transactions, or
+"was the row actually written". Use the harness in
+`blocks/testing/integration.ts` (`getTestDb`, `truncateAll`, `closeTestDb`).
+
+**Do not mock `drizzle-orm`.** Roughly 31 existing test files do, stubbing `eq()`
+into a plain object. Such a test asserts only that you called the functions you
+said you would — it cannot detect a wrong column, a missing `WHERE`, an
+incorrect `ORDER BY`, or a table no migration creates. Every defect fixed in the
+webhook, OAuth, and jobs-queue code was invisible to that style of test. Treat
+those files as legacy; prefer an integration test over extending them.
+
+Reserve unit tests for pure functions and boundary behaviour that needs no
+database — token generation, validation schemas, cost estimation, header
+construction, and "did we delegate to the SDK correctly".
 
 The `blocks/testing` module provides helpers for writing tests:
 
@@ -283,6 +370,18 @@ import { setupTestDb, teardownTestDb } from '@unblocks/blocks/testing'
 2. Export from `core/db/schema/index.ts`
 3. Run `npm run db:generate` then `npm run db:migrate`
 
+> **This violates the Golden Rule, and it is the most common task there is.**
+> Both steps edit `core/`, and step 2 edits the exact file upstream touches
+> whenever it adds a table — a guaranteed merge conflict. Until `core` ships as
+> a versioned package with app-owned schema paths, accept the conflict and keep
+> the edit to a single added export line so it is trivial to re-apply.
+>
+> **If step 2 is skipped, the table is never created.** Drizzle generates
+> migrations only from what the barrel re-exports, so code can reference a table
+> that no migration builds and fail at runtime with "relation does not exist".
+> This is exactly how `ai_usage` shipped broken. After `db:generate`, confirm
+> your table appears in the output.
+
 ### Adding a new hook
 1. Create file in `hooks/` named after the event
 2. Export default async function
@@ -294,10 +393,16 @@ import { setupTestDb, teardownTestDb } from '@unblocks/blocks/testing'
 3. Edit `app/globals.css` — colors and theme tokens
 
 ### Adding a new auth provider
-1. Add provider logic in `core/auth/` (pure TypeScript)
+1. Add provider logic in `core/auth/` (pure TypeScript) — also a Golden Rule
+   exception; see the note under "Adding a new database table"
 2. Add API routes in `app/api/auth/`
 3. Add UI button in `components/auth/SocialButtons.tsx`
 4. Add config options in `core/auth/types.ts` schema
+5. **Pass the provider's verified-email assertion into `handleOAuthCallback`.**
+   It refuses to link an identity to an existing account unless
+   `emailVerified` is true, and throws `OAuthLinkRequiredError` otherwise.
+   Omitting it means the provider can claim any account sharing its email —
+   a pre-account-takeover path. Only Google is implemented today.
 
 ### Adding a new block
 1. Create directory in `blocks/your-block/`
