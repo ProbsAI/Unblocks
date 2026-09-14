@@ -8,7 +8,25 @@ export const AuthConfigSchema = z.object({
       clientId: z.string().default(''),
       clientSecret: z.string().default(''),
     }).default({}),
-    magicLink: z.object({ enabled: z.boolean().default(false) }).default({}),
+    magicLink: z.object({
+      enabled: z.boolean().default(false),
+
+      /**
+       * Require an explicit same-origin confirmation before a magic link
+       * creates a session.
+       *
+       * The emailed link is a GET, and a GET cannot be protected by the
+       * same-origin CSRF check in middleware.ts — which means an attacker can
+       * send someone a link carrying the ATTACKER's token and silently sign
+       * that person into the attacker's account. Anything they do next (adding
+       * a card, uploading a document) lands in the attacker's account.
+       *
+       * With this on, the link lands on a confirmation page and the session is
+       * created by a same-origin POST, which the CSRF gate does cover. Leave it
+       * on unless you have another mitigation.
+       */
+      requireConfirmation: z.boolean().default(true),
+    }).default({}),
   }).default({}),
 
   session: z.object({

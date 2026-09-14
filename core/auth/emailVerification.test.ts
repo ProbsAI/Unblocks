@@ -102,7 +102,6 @@ describe('createEmailVerificationToken', () => {
       expect.objectContaining({
         token: 'blind:verification-token-123',
         tokenHash: 'blind:verification-token-123',
-        tokenEncrypted: 'enc:verification-token-123',
         email: 'test@example.com',
         type: 'email_verification',
       })

@@ -28,7 +28,6 @@ export async function requestPasswordReset(
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    tokenEncrypted: encrypt(token),
     email: dbUser.email,
     emailEncrypted: encrypt(dbUser.email),
     type: 'password_reset',

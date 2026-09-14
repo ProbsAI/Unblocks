@@ -11,7 +11,7 @@ export {
   handleOAuthCallback,
   OAuthLinkRequiredError,
 } from './oauth'
-export { createMagicLink, verifyMagicLink } from './magicLink'
+export { createMagicLink, peekMagicLink, verifyMagicLink } from './magicLink'
 export { requestPasswordReset, resetPassword } from './passwordReset'
 export { createEmailVerificationToken, verifyEmail } from './emailVerification'
 export { getUserById, getUserByEmail } from './permissions'

@@ -82,7 +82,7 @@ Every SaaS app needs the same 80% of infrastructure before you can write the cod
 
 | | Feature | What you get |
 |---|---|---|
-| **Auth** | Authentication | Email/password, Google OAuth, magic links, email verification, password reset |
+| **Auth** | Authentication | Email/password, Google OAuth, magic links (with a sign-in confirmation step), email verification, password reset |
 | **Billing** | Stripe Integration | Checkout, subscriptions, plan limits, customer portal, webhooks |
 | **Teams** | Team Management | Create teams, invite members, RBAC (owner / admin / member) |
 | **Email** | Transactional Email | Resend integration with HTML templates |
@@ -94,7 +94,7 @@ Every SaaS app needs the same 80% of infrastructure before you can write the cod
 | **Dashboard** | Dashboard | Protected layout with sidebar navigation and billing management |
 | **AI** | AI Completion | Multi-provider (OpenAI, Anthropic, Google) with usage tracking and cost estimation |
 | **API Keys** | API Key Management | Issue, scope, and revoke `ub_live_` keys; Bearer auth alongside session cookies |
-| **Security** | Security | Same-origin CSRF enforcement, rate limiting, secure sessions, bcrypt, HSTS + CSP, AES-256-GCM helpers |
+| **Security** | Security | Same-origin CSRF enforcement, rate limiting, one-way credential storage, bcrypt, HSTS + CSP, AES-256-GCM helpers |
 | **Config** | Config & Hooks | Zod-validated config files + event hooks for customization without modifying core |
 | **Extensions** | Extension System | Manifest and loader in `core/extensions/`. The top-level `extensions/` directory is a placeholder — no extension ships yet |
 

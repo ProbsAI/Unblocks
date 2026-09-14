@@ -55,7 +55,6 @@ export async function createMagicLink(email: string): Promise<string> {
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    tokenEncrypted: encrypt(token),
     email: emailLower,
     emailEncrypted: encrypt(emailLower),
     type: 'magic_link',
@@ -63,6 +62,43 @@ export async function createMagicLink(email: string): Promise<string> {
   })
 
   return token
+}
+
+/**
+ * Reads the account a magic link points at WITHOUT consuming the token.
+ *
+ * The confirmation interstitial needs this: verifyMagicLink marks the token
+ * used, so a page that called it just to render "sign in as ..." would burn the
+ * link before the person clicked anything.
+ *
+ * This discloses nothing new. The only way to reach it is to already hold the
+ * token, and holding the token is enough to complete the sign-in and read the
+ * address from the account itself. Showing the address is the whole point of
+ * the interstitial: a link planted by an attacker names the ATTACKER's account,
+ * which is what gives the recipient something to refuse.
+ *
+ * Returns null for a token that is unknown, expired, or already used — the
+ * same conditions verifyMagicLink rejects, so the page and the POST agree.
+ */
+export async function peekMagicLink(
+  token: string
+): Promise<{ email: string } | null> {
+  const db = getDb()
+
+  const [dbToken] = await db
+    .select({ email: verificationTokens.email })
+    .from(verificationTokens)
+    .where(
+      and(
+        eq(verificationTokens.tokenHash, blindIndex(token)),
+        eq(verificationTokens.type, 'magic_link'),
+        gt(verificationTokens.expiresAt, new Date()),
+        isNull(verificationTokens.usedAt)
+      )
+    )
+    .limit(1)
+
+  return dbToken ? { email: dbToken.email } : null
 }
 
 export async function verifyMagicLink(token: string): Promise<User> {

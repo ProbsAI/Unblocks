@@ -19,7 +19,6 @@ export async function createEmailVerificationToken(
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    tokenEncrypted: encrypt(token),
     email: emailLower,
     emailEncrypted: encrypt(emailLower),
     type: 'email_verification',

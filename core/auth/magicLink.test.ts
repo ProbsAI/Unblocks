@@ -136,7 +136,6 @@ describe('createMagicLink', () => {
       expect.objectContaining({
         token: 'blind:random-token-abc123',
         tokenHash: 'blind:random-token-abc123',
-        tokenEncrypted: 'enc:random-token-abc123',
         email: 'test@example.com',
         type: 'magic_link',
       })

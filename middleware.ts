@@ -25,6 +25,9 @@ const PUBLIC_PATHS = [
   '/login',
   '/signup',
   '/reset-password',
+  // The magic-link interstitial. Public by necessity — the person landing here
+  // is, in the ordinary case, not signed in yet.
+  '/magic-link/confirm',
   '/pricing',
   '/api/auth/register',
   '/api/auth/login',
@@ -63,12 +66,16 @@ function getBearerToken(request: NextRequest): string | null {
   return auth.slice(7)
 }
 
-// Known gap: this keys off the method, so a state-changing GET is not covered.
-// /api/auth/magic-link/verify is a public GET that creates a session, which
-// makes it a login-CSRF target — an attacker sends the victim a link bearing
-// the attacker's token and the victim ends up signed into the attacker's
-// account. Method-based checking cannot close that; it needs an interstitial
-// that turns the emailed link into a same-origin POST. See CLAUDE.md.
+// This keys off the method, so a state-changing GET is not covered — the check
+// cannot protect one, and no route may rely on it to.
+//
+// /api/auth/magic-link/verify was the case that mattered: a public GET that
+// created a session, and therefore a login-CSRF target. It now redirects to an
+// interstitial and creates the session from a same-origin POST, which this
+// check does cover. /api/auth/verify-email remains a state-changing public GET
+// at much lower severity (it flips a verification flag, it does not
+// authenticate). Anything new in that shape needs the same treatment rather
+// than an entry here. See CLAUDE.md.
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**

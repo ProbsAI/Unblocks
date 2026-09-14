@@ -39,7 +39,6 @@ export const teamInvitations = pgTable('team_invitations', {
   invitedBy: uuid('invited_by').notNull().references(() => users.id),
   token: varchar('token', { length: 255 }).notNull().unique(),
   tokenHash: varchar('token_hash', { length: 64 }),
-  tokenEncrypted: text('token_encrypted'),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

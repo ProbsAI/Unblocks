@@ -81,7 +81,6 @@ export async function inviteMember(
       invitedBy,
       token: blindIndex(token),
       tokenHash: blindIndex(token),
-      tokenEncrypted: encrypt(token),
       expiresAt,
     })
     .returning()

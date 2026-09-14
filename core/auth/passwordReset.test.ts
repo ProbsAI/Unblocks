@@ -158,7 +158,6 @@ describe('requestPasswordReset', () => {
         type: 'password_reset',
         token: 'blind:reset-token-abc',
         tokenHash: 'blind:reset-token-abc',
-        tokenEncrypted: 'enc:reset-token-abc',
       })
     )
   })

@@ -6,7 +6,6 @@ export const sessions = pgTable('sessions', {
   userId: uuid('user_id').references(() => users.id).notNull(),
   token: varchar('token', { length: 500 }).notNull().unique(),
   tokenHash: varchar('token_hash', { length: 64 }),
-  tokenEncrypted: text('token_encrypted'),
   expiresAt: timestamp('expires_at').notNull(),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: varchar('user_agent', { length: 500 }),

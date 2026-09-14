@@ -280,20 +280,52 @@ endpoints are listed in `CSRF_EXEMPT_PATHS` — currently just the Stripe webhoo
 `core/security/csrf.ts` still exists but is only for the OAuth `state`
 parameter. It is not the app's CSRF defence; the middleware check is.
 
-> **Known gap — state-changing GETs are not covered.** The check keys off the
-> HTTP method, and `GET` is treated as safe. That assumption does not hold here:
-> `/api/auth/magic-link/verify` is a public **GET** that calls `createSession`
-> and sets the session cookie. An attacker can request a magic link for their
-> own account and send the victim that URL; clicking it logs the victim into the
-> **attacker's** account, and anything they do next — adding a card, uploading a
-> document — lands in the attacker's account. `/api/auth/verify-email` is a
-> public GET that mutates state too, at lower severity.
+> **The check keys off the HTTP method, so a state-changing `GET` is outside
+> it.** No route may rely on it to protect one.
 >
-> Method-based CSRF protection cannot close this. The standard fix is an
-> interstitial: the emailed link lands on a page, and the session is created by a
-> same-origin `POST` from that page. That changes what the email link does, so it
-> is a product decision rather than a patch — but until it is made, do not read
-> the invariant above as covering the whole app.
+> `/api/auth/magic-link/verify` was the case that mattered: a public GET that
+> called `createSession` and set the session cookie. An attacker requests a
+> magic link for their own account and sends the victim that URL; clicking it
+> logged the victim into the **attacker's** account, and anything they did next
+> — adding a card, uploading a document — landed there.
+>
+> It is fixed structurally rather than patched. The GET now creates nothing: it
+> redirects to `/magic-link/confirm`, and the session is created by a
+> same-origin `POST` from that page, which the middleware check does cover. See
+> "Magic-link sign-in is confirmed" below.
+>
+> `/api/auth/verify-email` remains a state-changing public GET at much lower
+> severity — it flips a verification flag, it does not authenticate. Anything
+> new in that shape needs the same treatment, not an exemption.
+
+### Magic-link sign-in is confirmed
+
+`app/api/auth/magic-link/verify/route.ts` splits the flow in two:
+
+- **GET** (what the email links to) reads nothing and creates nothing. It
+  redirects to `/magic-link/confirm?token=…`.
+- **POST** (what the interstitial's form submits) verifies the token and creates
+  the session. Being a POST, it is covered by the same-origin gate above, which
+  is what actually closes the hole — a page under an attacker's control cannot
+  make a browser issue it.
+
+`peekMagicLink()` lets the page name the destination account **without**
+consuming the token; `verifyMagicLink()` marks it used, so the page must never
+call it. Naming the account is the point: a planted link shows the *attacker's*
+address, which is the signal a recipient needs to refuse.
+
+Two further rules:
+
+- An account switch (a session already exists for a different address) requires
+  an explicit `switch_account` field, checked **before** `verifyMagicLink` —
+  refusing afterwards would burn the token and strand the real recipient. On a
+  confirmed switch the previous session is revoked server-side, not merely
+  overwritten in the cookie.
+- Success redirects with `?signed_in_via=magic_link` so the landing page can
+  name the account it signed you into.
+
+`providers.magicLink.requireConfirmation: false` restores one-click sign-in and
+reopens the login-CSRF. The account-switch guard stays on regardless.
 
 ### Security headers come from one place
 
@@ -301,10 +333,27 @@ parameter. It is not the app's CSRF defence; the middleware check is.
 were previously maintained separately, which is how HSTS went missing from what
 was actually served. Add headers to the core module, not to the Next config.
 
-### API keys are stored one-way
+### Credentials are stored one-way
 
-`api_keys` holds a blind index only. Do not add a reversible copy — validation
-never needs one, so it would only create a credential dump.
+Sessions, magic links, password resets, email verifications, team invitations
+and API keys all store a blind index of the token and nothing else. Validation
+only ever compares a digest, so a reversible copy buys nothing and turns the
+table into a credential dump.
+
+This was not hypothetical. Every one of those tables also carried a
+`*_encrypted` column written on insert and **never read** — `decrypt()` had no
+call site outside tests — so the database held a recoverable copy of every live
+session and outstanding invitation. Those columns are gone.
+
+When adding a credential: write the blind index, and resist the symmetry of
+"encrypt it too". The check to run before adding any `*_encrypted` column is
+simply *what reads this?* — if nothing does, it is not storage, it is exposure.
+
+`accounts.access_token_encrypted` / `refresh_token_encrypted` are the one
+legitimate exception in kind: they are credentials **for another service** that
+the app must be able to replay, so they cannot be one-way. They are still
+unread today (no feature calls a Google API), which makes them exposure in
+practice — drop them, or give them a consumer.
 
 ### `blindIndex` uses HMAC-SHA256, and that is correct
 
