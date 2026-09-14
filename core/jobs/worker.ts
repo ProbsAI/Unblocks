@@ -79,8 +79,15 @@ async function poll(): Promise<void> {
           const timeout = createTimeout(config.defaultTimeout, job.type)
 
           try {
-            // Run with timeout
-            await Promise.race([handler(job.payload), timeout.promise])
+            // Promise.race abandons the wait; it does not cancel the handler.
+            // The signal is the only way a handler can actually be stopped, and
+            // without one a timed-out job keeps running while the worker marks
+            // it failed and retries — so the retry duplicates whatever side
+            // effect the first attempt was midway through.
+            await Promise.race([
+              handler(job.payload, { signal: timeout.signal }),
+              timeout.promise,
+            ])
 
             await completeJob(job.id)
 
@@ -139,18 +146,22 @@ async function poll(): Promise<void> {
 function createTimeout(
   ms: number,
   jobType: string
-): { promise: Promise<never>; cancel: () => void } {
+): { promise: Promise<never>; signal: AbortSignal; cancel: () => void } {
   let timer: ReturnType<typeof setTimeout> | undefined
+  const controller = new AbortController()
 
   const promise = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Job ${jobType} timed out after ${ms}ms`)),
-      ms
-    )
+    timer = setTimeout(() => {
+      // Abort first, so a cooperating handler starts unwinding before the race
+      // rejects and the worker moves on to schedule a retry.
+      controller.abort(new Error(`Job ${jobType} timed out after ${ms}ms`))
+      reject(new Error(`Job ${jobType} timed out after ${ms}ms`))
+    }, ms)
   })
 
   return {
     promise,
+    signal: controller.signal,
     cancel: () => {
       if (timer !== undefined) clearTimeout(timer)
     },

@@ -49,7 +49,28 @@ export interface JobRecord {
 
 // --- Job Handler ---
 
-export type JobHandler<T = unknown> = (payload: T) => Promise<void>
+/**
+ * A job handler.
+ *
+ * The second argument carries an AbortSignal that fires when the job exceeds
+ * `defaultTimeout`. Honour it for anything with side effects.
+ *
+ * The worker cannot stop a handler on its own — `Promise.race` abandons the
+ * wait, it does not cancel the work. So a handler that ignores the signal keeps
+ * running after the timeout while the job is marked failed and retried, and the
+ * retry then duplicates whatever the first attempt was in the middle of: a
+ * second charge, a second email, a second upload. Pass the signal to `fetch`,
+ * or check `signal.aborted` between steps.
+ */
+export type JobHandler<T = unknown> = (
+  payload: T,
+  context: JobContext
+) => Promise<void>
+
+export interface JobContext {
+  /** Aborts when the job's timeout elapses. */
+  signal: AbortSignal
+}
 
 // --- Scheduled Job ---
 

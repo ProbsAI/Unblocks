@@ -29,6 +29,7 @@ export type {
   JobStatus,
   JobPriority,
   JobHandler,
+  JobContext,
   ScheduledJobDefinition,
   JobsConfig,
   OnJobCompletedArgs,
