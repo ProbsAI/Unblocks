@@ -34,8 +34,17 @@ export function Toast({ message, type = 'info', duration = 3000, onClose }: Toas
     }
   }, [duration, onClose])
 
+  // Errors interrupt; everything else waits for a pause. A toast that is only
+  // inserted into the DOM is never announced at all, so the failure this
+  // component exists to report is precisely the one a screen-reader user
+  // misses.
+  const isError = type === 'error'
+
   return (
     <div
+      role={isError ? 'alert' : 'status'}
+      aria-live={isError ? 'assertive' : 'polite'}
+      aria-atomic="true"
       className={`fixed bottom-4 right-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity ${
         visible ? 'opacity-100' : 'opacity-0'
       } ${typeStyles[type]}`}

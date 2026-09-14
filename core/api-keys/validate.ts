@@ -72,7 +72,16 @@ export async function validateApiKey(key: string): Promise<ApiKeyValidation> {
 }
 
 /**
- * Check if a key string looks like an Unblocks API key.
+ * Does this string look like it was MEANT to be an Unblocks API key?
+ *
+ * Deliberately looser than the format validateApiKey enforces, and the two
+ * should not be merged. This answers a routing question — "should this
+ * credential go down the API-key path?" — and a mistyped or truncated key
+ * should still go there, so the caller gets an invalid-key error rather than
+ * being silently treated as an unauthenticated session.
+ *
+ * It grants nothing. Authentication is validateApiKey's job, and that requires
+ * the exact generated shape before it will even derive an index.
  */
 export function isApiKey(value: string): boolean {
   return value.startsWith(API_KEY_PREFIX)
