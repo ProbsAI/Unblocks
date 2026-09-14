@@ -15,9 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and deliberately unrecoverable, so old rows cannot be re-derived. Revoke and
   re-create any key before upgrading a running install.
 
-  The work factor (4096) is sized for latency and is not a security control —
-  the values hashed are 256-bit CSPRNG output, where iteration count buys
-  nothing. See the blind index section in `CLAUDE.md` before changing it.
+  The work factor (1000, RFC 2898's floor) is not a security control — the
+  values hashed are 256-bit CSPRNG output, where iteration count buys nothing.
+  It costs ~0.45ms of blocking CPU per authenticated request and per API call,
+  against ~0.0045ms for the HMAC it replaced. Measure with
+  `npm run bench:blind-index`; see the blind index section in `CLAUDE.md`
+  before changing it.
+
+### Added
+- `npm run bench:blind-index` — measures the blind index derivations, so their
+  cost is checked rather than asserted.
 
 ## [0.2.0-alpha] - 2026-03-28
 

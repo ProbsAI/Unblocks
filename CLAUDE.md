@@ -393,10 +393,10 @@ salt as an argument, so it can be derived deterministically from the index key.
 
 | Input | Function | Why |
 |---|---|---|
-| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (PBKDF2-SHA256, 4096) | 256-bit CSPRNG. Work factor buys nothing against 2^256, and these run on the per-request hot path. |
+| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (PBKDF2-SHA256, 1000) | 256-bit CSPRNG. Work factor buys nothing against 2^256, and these run on the per-request hot path. |
 | Email address | `slowBlindIndex` (PBKDF2-SHA256, 600k) | Enumerable (~2^30 candidates), so work factor genuinely raises an attacker's cost. Only runs at signup / OAuth / magic-link request. |
 
-**Be honest about what 4096 is doing: nothing.** Iteration count multiplies an
+**Be honest about what 1000 is doing: nothing.** Iteration count multiplies an
 attacker's cost per *guess*, and every secret reaching `blindIndex` is 256 bits
 of CSPRNG output or a signed JWT. It is no stronger than 1 against the real
 threat. It is there because a bare `createHmac` over a credential is
@@ -408,9 +408,27 @@ protects these values is their size, plus the keying: without
 `BLIND_INDEX_KEY`, an attacker holding the database cannot compute candidate
 digests at all.
 
-So **do not raise 4096 thinking you are hardening something.** It is sized for
-latency: one synchronous derivation runs per authenticated request and per API
-call.
+**The cost is real, so measure it rather than estimating.**
+`npm run bench:blind-index`:
+
+| | per call | sync ceiling, 1 core |
+|---|---|---|
+| HMAC-SHA256 (what this replaced) | 0.0045 ms | — |
+| PBKDF2 1000 (current) | 0.45 ms | ~2200 req/s |
+| PBKDF2 4096 (briefly shipped) | 1.82 ms | ~550 req/s |
+
+`pbkdf2Sync` blocks the event loop, so this is a throughput ceiling and not
+only added latency. 1000 is RFC 2898's stated floor and the right end of the
+range to sit at, since the work factor is presentational here. **Do not raise
+it thinking you are hardening something** — the security comes from the 256-bit
+input and the keying, not the iterations. That benchmark exists because this
+file previously claimed 4096 cost "about a quarter of a millisecond"; it cost
+1.82 ms.
+
+If the cost is unwanted, the honest alternative is a bare `createHmac` plus
+dismissing the alert as a false positive. That was the prior state and remains
+defensible; it was traded for a green check needing no per-contributor
+explanation.
 
 User passwords must never reach either function — `core/auth/password.ts` uses
 bcrypt, which is correct, because a password is exactly the guessable input

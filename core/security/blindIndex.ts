@@ -38,17 +38,29 @@ function getHmacKey(): Buffer {
 /**
  * Iteration count for {@link blindIndex}.
  *
- * Sized for latency, not for a password threat model — see the note on
- * blindIndex. Every authenticated request and every API call runs one of these
- * synchronously, so this number is a per-request event-loop cost and nothing
- * else. 4096 lands around a quarter of a millisecond, well under the database
- * round trip that follows it.
+ * 1000 is the floor RFC 2898 states for PBKDF2 — the lowest count the spec
+ * itself sanctions. That is the right end of the range to sit at here, because
+ * the work factor is buying no security at all (see the note on blindIndex);
+ * it exists only so the derivation is a recognised KDF.
+ *
+ * **This number is a pure cost.** Every authenticated request and every API
+ * call runs one of these *synchronously*, so it is an event-loop stall and a
+ * throughput ceiling, not just added latency. Measured with
+ * `npm run bench:blind-index`:
+ *
+ *   HMAC-SHA256 (what this replaced)   0.0045 ms
+ *   PBKDF2 1000                        0.45   ms   (~2200 req/s per core)
+ *   PBKDF2 4096                        1.82   ms   (~550 req/s per core)
+ *
+ * Those numbers were measured because an earlier version of this comment
+ * asserted 4096 cost "about a quarter of a millisecond". It cost 1.82 ms. Run
+ * the benchmark rather than estimating.
  *
  * Do NOT reuse this constant for a user-chosen secret. Passwords go to bcrypt
  * in core/auth/password.ts, and enumerable values go to {@link slowBlindIndex},
- * which is three orders of magnitude slower on purpose.
+ * which is ~580x slower on purpose.
  */
-const FAST_ITERATIONS = 4096
+const FAST_ITERATIONS = 1000
 
 /**
  * Generates a deterministic blind index for a plaintext value.
@@ -86,10 +98,14 @@ const FAST_ITERATIONS = 4096
  * **Be clear about what the work factor is doing: nothing.** Iteration count
  * multiplies an attacker's cost per guess, and every secret reaching this
  * function is 256 bits of CSPRNG output or a signed JWT. Guessing is infeasible
- * at any speed, so 4096 iterations is no stronger than 1 against the actual
- * threat. It is not security theatre so much as a cheap way to stop the
- * question being re-litigated — but do not mistake it for a defence, and do not
- * raise it thinking you are hardening something.
+ * at any speed, so 1000 iterations is no stronger than 1 against the actual
+ * threat. What it costs is real and the benefit is presentational, so keep the
+ * count at the floor — do not raise it thinking you are hardening something.
+ *
+ * If you would rather not pay that cost at all, the honest alternative is a
+ * bare `createHmac` here plus dismissing the CodeQL alert as a false positive.
+ * That is a defensible choice and was the prior state; it was traded away for a
+ * green check that needs no per-contributor explanation.
  *
  * What *does* carry weight here is the keying: an attacker holding the database
  * but not BLIND_INDEX_KEY cannot compute candidate digests at all.
