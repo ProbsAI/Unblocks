@@ -78,6 +78,14 @@ async function poll(): Promise<void> {
           const startTime = Date.now()
           const timeout = createTimeout(config.defaultTimeout, job.type)
 
+          // Only a handler or timeout failure may fail the job. Everything
+          // after the job is marked complete is deliberately outside this try:
+          // letting a post-completion error reach the catch would move an
+          // already-completed job back to pending and retry it, duplicating
+          // whatever side effect it had already performed successfully.
+          let failure: unknown
+          let failed = false
+
           try {
             // Promise.race abandons the wait; it does not cancel the handler.
             // The signal is the only way a handler can actually be stopped, and
@@ -88,7 +96,13 @@ async function poll(): Promise<void> {
               handler(job.payload, { signal: timeout.signal }),
               timeout.promise,
             ])
+          } catch (err) {
+            failure = err
+            failed = true
+          }
 
+          if (!failed) {
+            timeout.cancel()
             await completeJob(job.id)
 
             const hookArgs: OnJobCompletedArgs = {
@@ -98,30 +112,34 @@ async function poll(): Promise<void> {
               duration: Date.now() - startTime,
             }
             await runHook('onJobCompleted', hookArgs)
-          } catch (err) {
-            const error = err instanceof Error ? err.message : String(err)
-            const attempts = job.attempts + 1
-            const willRetry = await failJob(
-              job.id,
-              error,
-              attempts,
-              job.maxRetries,
-              config.defaultRetryBackoff
-            )
-
-            const hookArgs: OnJobFailedArgs = {
-              jobId: job.id,
-              type: job.type,
-              payload: job.payload,
-              error,
-              attempts,
-              willRetry,
-            }
-            await runHook('onJobFailed', hookArgs)
-          } finally {
-            // Release the timer whether the job succeeded, failed, or timed out.
-            timeout.cancel()
+            return
           }
+
+          // Release the timer on the failure path too: Promise.race leaves the
+          // loser pending, so a job that failed fast would otherwise strand a
+          // live timer for the full timeout duration.
+          timeout.cancel()
+
+          const error =
+            failure instanceof Error ? failure.message : String(failure)
+          const attempts = job.attempts + 1
+          const willRetry = await failJob(
+            job.id,
+            error,
+            attempts,
+            job.maxRetries,
+            config.defaultRetryBackoff
+          )
+
+          const failedArgs: OnJobFailedArgs = {
+            jobId: job.id,
+            type: job.type,
+            payload: job.payload,
+            error,
+            attempts,
+            willRetry,
+          }
+          await runHook('onJobFailed', failedArgs)
         })
       )
     }

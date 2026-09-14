@@ -1,4 +1,4 @@
-import { eq, and, or, isNull, sql } from 'drizzle-orm'
+import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
@@ -106,28 +106,48 @@ export async function acceptInvitation(
 
   // Match by tokenHash (new rows) or by plaintext token for legacy rows
   // where tokenHash was not yet populated.
-  const rows = await db
-    .select()
-    .from(teamInvitations)
+  const matchesToken = or(
+    eq(teamInvitations.tokenHash, blindIndex(token)),
+    and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
+  )
+
+  // Claim before doing anything, in one statement.
+  //
+  // Reading the row, checking acceptedAt, adding the member and only then
+  // marking it accepted let two different people redeem the same invitation:
+  // both read a null acceptedAt, both pass, and both join the team. The
+  // per-user "already a member" check below does not help, because they are
+  // different users. An invitation is for one person, so the flag has to be
+  // the thing that decides — which means it has to be set under the row lock.
+  //
+  // As with verification tokens, winning the claim consumes the invitation even
+  // if adding the member then fails. That is the right trade for a one-time
+  // credential; the alternative is an invitation that can be redeemed twice.
+  const [invitation] = await db
+    .update(teamInvitations)
+    .set({ acceptedAt: new Date() })
     .where(
-      or(
-        eq(teamInvitations.tokenHash, blindIndex(token)),
-        and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
+      and(
+        matchesToken,
+        isNull(teamInvitations.acceptedAt),
+        gt(teamInvitations.expiresAt, new Date())
       )
     )
-    .limit(1)
+    .returning()
 
-  if (rows.length === 0) {
-    throw new NotFoundError('Invitation not found')
-  }
+  if (!invitation) {
+    // Losing the claim is ambiguous, so read back to say why. Only on the
+    // failure path, and it cannot grant anything.
+    const [existing] = await db
+      .select()
+      .from(teamInvitations)
+      .where(matchesToken)
+      .limit(1)
 
-  const invitation = rows[0]
-
-  if (invitation.acceptedAt) {
-    throw new ConflictError('Invitation has already been accepted')
-  }
-
-  if (new Date() > invitation.expiresAt) {
+    if (!existing) throw new NotFoundError('Invitation not found')
+    if (existing.acceptedAt) {
+      throw new ConflictError('Invitation has already been accepted')
+    }
     throw new ForbiddenError('Invitation has expired')
   }
 
@@ -153,12 +173,6 @@ export async function acceptInvitation(
     userId,
     role: invitation.role,
   })
-
-  // Mark invitation as accepted
-  await db
-    .update(teamInvitations)
-    .set({ acceptedAt: new Date() })
-    .where(eq(teamInvitations.id, invitation.id))
 
   const hookArgs: OnTeamMemberAddedArgs = {
     teamId: invitation.teamId,

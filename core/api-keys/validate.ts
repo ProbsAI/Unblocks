@@ -26,8 +26,16 @@ const INVALID: ApiKeyValidation = {
  * Checks: key format, existence, not revoked, not expired.
  * Updates lastUsedAt on successful validation.
  */
+const API_KEY_FORMAT = new RegExp(`^${API_KEY_PREFIX}[0-9a-f]{64}$`)
+
 export async function validateApiKey(key: string): Promise<ApiKeyValidation> {
-  if (!key.startsWith(API_KEY_PREFIX)) return INVALID
+  // Match the full generated shape, not just the prefix. blindIndex runs a
+  // PBKDF2 derivation, so accepting anything that merely starts with the prefix
+  // lets an unauthenticated caller spend that CPU at will, with a payload of
+  // any length. createApiKey emits exactly the prefix plus 32 random bytes in
+  // hex; nothing else can ever match a stored row, so rejecting early costs
+  // nothing.
+  if (!API_KEY_FORMAT.test(key)) return INVALID
 
   const db = getDb()
   const keyHash = blindIndex(key)

@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { eq } from 'drizzle-orm'
+import { eq, and, desc, isNotNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { users } from '../db/schema/users'
@@ -18,11 +18,22 @@ export { getStripe }
 export async function getOrCreateCustomer(userId: string): Promise<string> {
   const db = getDb()
 
-  // Check if we already have a Stripe customer
+  // Check if we already have a Stripe customer.
+  //
+  // Filtered on the column being present, not just taken from the first row:
+  // a user can hold several subscription rows, and an unordered LIMIT 1 could
+  // return one whose customer id is null while another row has it — creating a
+  // second Stripe customer for the same person and splitting their billing.
   const [sub] = await db
     .select({ stripeCustomerId: subscriptions.stripeCustomerId })
     .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
+    .where(
+      and(
+        eq(subscriptions.userId, userId),
+        isNotNull(subscriptions.stripeCustomerId)
+      )
+    )
+    .orderBy(desc(subscriptions.createdAt))
     .limit(1)
 
   if (sub?.stripeCustomerId) return sub.stripeCustomerId

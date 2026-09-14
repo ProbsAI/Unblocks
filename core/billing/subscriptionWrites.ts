@@ -175,7 +175,13 @@ export async function handleSubscriptionDeleted(
       stripeSubscriptionIdEncrypted: encryptNullable(stripeSubscription.id),
       ...cancellation,
     })
-    // A concurrent create may have inserted the row in the meantime; its own
-    // staleness guard will handle the ordering from there.
-    .onConflictDoNothing({ target: subscriptions.stripeSubscriptionId })
+    // A concurrent create may have inserted the row between the UPDATE above
+    // and this INSERT. Doing nothing on conflict would drop the cancellation
+    // and leave that active row standing, so apply it — still guarded, so a
+    // genuinely newer create wins.
+    .onConflictDoUpdate({
+      target: subscriptions.stripeSubscriptionId,
+      set: cancellation,
+      setWhere: notStale(eventAt),
+    })
 }

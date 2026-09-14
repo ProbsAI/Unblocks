@@ -93,7 +93,7 @@ Every SaaS app needs the same 80% of infrastructure before you can write the cod
 | **Landing** | Landing Page | Config-driven hero, features, pricing, FAQ sections |
 | **Dashboard** | Dashboard | Protected layout with sidebar navigation and billing management |
 | **AI** | AI Completion | Multi-provider (OpenAI, Anthropic, Google) with usage tracking and cost estimation |
-| **API Keys** | API Key Management | Issue, scope, and revoke `ub_live_` keys; Bearer auth alongside session cookies |
+| **API Keys** | API Key Management | Issue and revoke `ub_live_` keys; Bearer auth alongside session cookies. Keys are full-access — scoping is rejected until per-route enforcement exists |
 | **Security** | Security | Same-origin CSRF enforcement, rate limiting, one-way credential storage, bcrypt, HSTS + CSP, AES-256-GCM helpers |
 | **Config** | Config & Hooks | Zod-validated config files + event hooks for customization without modifying core |
 | **Extensions** | Extension System | Manifest and loader in `core/extensions/`. The top-level `extensions/` directory is a placeholder — no extension ships yet |

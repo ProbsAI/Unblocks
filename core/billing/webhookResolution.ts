@@ -139,6 +139,13 @@ export async function claimPlaceholderRow(
  * deliveries cannot both pass the check before either writes. Stripe does not
  * promise delivery order, and without this an older subscription snapshot
  * arriving late rolls plan and status back to stale values.
+ *
+ * **Known limit: `Stripe.Event.created` has one-second resolution.** Two events
+ * created within the same second compare equal, `lte` admits both, and the
+ * later-delivered one wins regardless of which is newer. Stripe exposes no
+ * per-event revision number to key on, so this is a real gap rather than an
+ * oversight — it narrows the window from unbounded to one second, it does not
+ * close it. Reconciling against the Stripe API would.
  */
 export function notStale(eventAt: Date): SQL | undefined {
   return or(

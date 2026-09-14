@@ -22,7 +22,11 @@ export async function changePlan(
   // cancelled row (silently doing nothing) or on the wrong live subscription.
   const sub = await getSubscription(userId)
 
-  if (!sub?.stripeSubscriptionId) {
+  // getSubscription falls back to the newest CANCELLED row when a user has no
+  // live one, so the id alone is not proof there is anything to act on —
+  // without this we would ask Stripe to change the plan of an already-cancelled
+  // subscription instead of reporting that there is none.
+  if (!sub?.stripeSubscriptionId || sub.status === 'canceled') {
     throw new AppError('NO_SUBSCRIPTION', 'No active subscription found', 400)
   }
 
