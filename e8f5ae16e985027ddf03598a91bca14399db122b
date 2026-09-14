@@ -1,0 +1,1663 @@
+=== AI PR Comments for PR #19 ===
+Synced: 2026-09-14T22:11:49Z
+
+## Conversation
+
+--- comment by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:23Z ---
+<!-- codex-pull-request-review-summary -->
+
+## Codex Review Summary
+
+This comment shows the latest Codex review activity on this pull request.
+
+| Review | Status | Commit | Review trigger |
+| --- | --- | --- | --- |
+| 📝 **Code Review** | ✅ **Completed** <relative-time datetime="2026-09-14T14:14:23.047176Z">2026-09-14T14:14:23.047176Z</relative-time> | `8c47789` | PR opened |
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review" or "@codex security review".
+
+Codex reacts with 👀 while any review is running, comments if it has suggestions, and reacts with 👍 once all reviews finish with no findings.
+
+</details>
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-09-14T14:08:07Z ---
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-09-14T14:14:19Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `8c47789fda`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T14:30:29Z ---
+> [!NOTE]
+> Copilot was unable to run its full agentic suite in this review.
+
+## Pull request overview
+
+This PR introduces first-class integration testing against a real Postgres while concurrently tightening several security/auth flows (CSRF, OAuth linking, webhook idempotency) and adding built-in API key support plus some new UI primitives.
+
+**Changes:**
+- Add a separate Vitest integration test project, Docker test Postgres, and CI job to run DB-backed regression tests.
+- Add API key issuance/validation/revocation (core + routes + dashboard page) and update auth middleware/serverAuth to support Bearer API keys.
+- Security hardening: centralized security headers + CSP, CSRF same-origin enforcement in middleware, safer OAuth linking, and Stripe webhook idempotency + provisioning fixes.
+
+### Reviewed changes
+
+Copilot reviewed 67 out of 68 changed files in this pull request and generated 5 comments.
+
+<details>
+<summary>Show a summary per file</summary>
+
+| File | Description |
+| ---- | ----------- |
+| vitest.integration.config.ts | Adds dedicated Vitest config for DB-backed integration tests. |
+| vitest.config.ts | Excludes integration tests from the unit suite. |
+| package.json | Adds scripts to run integration tests and combined test runs. |
+| docker-compose.yml | Adds a throwaway Postgres instance for integration tests. |
+| .github/workflows/ci.yml | Adds CI job to run integration tests with Postgres service. |
+| blocks/testing/integration.ts | Adds integration DB harness (schema push, truncate, availability probe). |
+| blocks/testing/globalSetup.ts | Ensures schema is applied before integration test run. |
+| core/jobs/queue.ts | Fixes job-claim ordering by explicit priority ranking + stable return ordering. |
+| core/jobs/worker.ts | Prevents timeout timer leaks by making timeout cancellable. |
+| core/jobs/queue.integration.test.ts | Adds regression coverage for DB ordering/claiming semantics. |
+| middleware.ts | Adds same-origin CSRF enforcement + internal API-key forwarding boundary. |
+| middleware.test.ts | Adds tests for CSRF enforcement and internal header stripping/forwarding. |
+| lib/serverAuth.ts | Adds API-key-based authentication fallback to session cookies. |
+| lib/serverAuth.test.ts | Adds tests for session-vs-API-key precedence and API-key auth path. |
+| core/api-keys/index.ts | Exposes API key APIs via a core barrel export. |
+| core/api-keys/types.ts | Defines API key types and create schema; adds key prefix constant. |
+| core/api-keys/create.ts | Implements API key issuance and persistence with blind-index storage. |
+| core/api-keys/create.test.ts | Unit tests for API key issuance behavior. |
+| core/api-keys/validate.ts | Implements API key validation + last-used update. |
+| core/api-keys/validate.test.ts | Unit tests for API key validation and isApiKey helper. |
+| core/api-keys/revoke.ts | Implements API key revocation with ownership enforcement. |
+| core/api-keys/revoke.test.ts | Unit tests for API key revocation behavior. |
+| core/api-keys/list.ts | Implements listing API keys (metadata-only). |
+| core/api-keys/list.test.ts | Unit tests for listing and revoked filtering behavior. |
+| app/api/api-keys/route.ts | Adds API routes to create/list API keys for authenticated users. |
+| app/api/api-keys/[id]/route.ts | Adds API route to revoke API keys. |
+| app/(dashboard)/api-keys/page.tsx | Adds dashboard UI for managing API keys. |
+| components/dashboard/Sidebar.tsx | Adds navigation link to the API Keys page. |
+| core/security/headers.ts | Centralizes security headers and generates CSP. |
+| next.config.ts | Uses centralized security header definitions (prevents drift). |
+| core/security/csrf.ts | Documents OAuth state token usage + constant-time compare intent. |
+| core/auth/oauth.ts | Requires provider email verification for auto-link; adds dedicated error type. |
+| core/auth/index.ts | Exposes OAuthLinkRequiredError from auth module. |
+| app/api/auth/google/callback/route.ts | Uses constant-time state validation + handles OAuth link-required redirects. |
+| core/auth/oauth.integration.test.ts | Adds DB-backed regression tests for OAuth link safety. |
+| core/billing/handleWebhook.ts | Adds webhook idempotency ledger + provisioning path + period bounds helper. |
+| core/db/schema/webhookEvents.ts | Adds webhook event ledger schema for idempotency. |
+| core/db/schema/index.ts | Exports new schema tables (ai/apiKeys/webhookEvents). |
+| core/billing/handleWebhook.test.ts | Refocuses unit tests on boundary behavior + idempotency decision. |
+| core/billing/handleWebhook.integration.test.ts | Adds DB-backed regression tests for Stripe provisioning + idempotency. |
+| tsconfig.json | Adds path alias for @unblocks/blocks. |
+| core/index.ts | Re-exports ai/apiKeys from core entrypoint. |
+| core/ai/usage.ts | Fixes DB client import path. |
+| core/ai/schema.ts | Fixes users schema import path. |
+| core/ai/completion.ts | Fixes hook runner import path. |
+| core/ai/usage.test.ts | Adds unit tests for AI usage tracking/stats/history behavior. |
+| core/ai/types.test.ts | Adds unit tests for AI wrapper config schema defaults/validation. |
+| core/ai/providers.test.ts | Adds unit tests for provider dispatch and API request formatting. |
+| core/ai/completion.test.ts | Adds unit tests for completion path + templating + hooks/usage. |
+| core/ai/.gitkeep | Removes placeholder file now that directory has real content. |
+| app/api/ai/completion/route.ts | Switches AI routes from optional block to core feature. |
+| app/api/ai/usage/route.ts | Switches AI usage routes from optional block to core feature. |
+| app/(dashboard)/ai/page.tsx | Removes block-availability redirect now that AI is core. |
+| unblocks.manifest.json | Updates manifest feature flags and tier assignments for features. |
+| core/runtime/licenseValidator.ts | Updates license tiers/features model (community/pro/business/enterprise). |
+| core/runtime/licenseValidator.test.ts | Updates and expands license tier tests and invariants. |
+| config/billing.config.ts | Updates plan limits/features and adds API key limits. |
+| README.md | Documents DB requirement, integration tests, and updated core feature list. |
+| CLAUDE.md | Updates architecture/testing/security invariants documentation. |
+| HANDOFF-PRIVATE-REPO.md | Adds private-repo handoff plan doc for proprietary blocks workflow. |
+| components/ui/Toast.tsx | Adds Toast UI primitive. |
+| components/ui/Modal.tsx | Adds Modal UI primitive. |
+| components/ui/Dropdown.tsx | Adds Dropdown UI primitive. |
+| components/ui/CopyButton.tsx | Adds CopyButton UI primitive. |
+| components/ui/Table.tsx | Adds generic Table UI primitive. |
+| components/landing/Pricing.tsx | Expands pricing UI with Enterprise card and updated copy. |
+</details>
+
+<details>
+<summary>Suppressed comments (5)</summary>
+
+**core/billing/handleWebhook.ts:1**
+* The webhook is marked as processed before any side effects run. If processing throws (DB error, hook error, timeout), Stripe will retry with the same event id but `alreadyProcessed()` will return true and the retry will be skipped—permanently dropping the event and leaving the system out of sync. Fix by making idempotency a transactional claim: insert an event row as a 'processing' claim inside the same DB transaction as the subscription updates, and only mark it processed (e.g., set `processedAt`) after successful completion; on failure, roll back (or delete/unset the claim) so retries can re-run.
+**core/billing/handleWebhook.ts:1**
+* The webhook is marked as processed before any side effects run. If processing throws (DB error, hook error, timeout), Stripe will retry with the same event id but `alreadyProcessed()` will return true and the retry will be skipped—permanently dropping the event and leaving the system out of sync. Fix by making idempotency a transactional claim: insert an event row as a 'processing' claim inside the same DB transaction as the subscription updates, and only mark it processed (e.g., set `processedAt`) after successful completion; on failure, roll back (or delete/unset the claim) so retries can re-run.
+**middleware.ts:1**
+* API key prefix is duplicated here while `core/api-keys/types.ts` already defines `API_KEY_PREFIX`. This creates a drift risk where middleware and validation disagree. Prefer importing the shared constant (e.g., `API_KEY_PREFIX`) from the core module so the prefix is defined in one place.
+**core/api-keys/list.ts:1**
+* When `includeRevoked` is false, the DB query only applies the `userId` predicate and then filters revoked rows in application code. This adds unnecessary data transfer/work and makes the intent harder to follow. Prefer pushing the full predicate into SQL (e.g., `where(and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)))`) and remove the extra in-memory filtering.
+**core/api-keys/list.ts:1**
+* When `includeRevoked` is false, the DB query only applies the `userId` predicate and then filters revoked rows in application code. This adds unnecessary data transfer/work and makes the intent harder to follow. Prefer pushing the full predicate into SQL (e.g., `where(and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)))`) and remove the extra in-memory filtering.
+</details>
+
+---
+
+💡 <a href="/ProbsAI/Unblocks/new/main?filename=.github/skills/code-review/SKILL.md" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Add a `code-review` agent skill</a> or configure MCP servers for context-aware, tailored reviews. <a href="https://docs.github.com/copilot/how-tos/use-copilot-agents/request-a-code-review/use-code-review?tool=webui#mcp-servers-and-agent-skills" class="Link--inTextBlock" target="_blank" rel="noopener noreferrer">Learn more in the docs.</a>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T14:46:57Z ---
+### 🟡 Changes recommended
+
+Unresolved critical security, billing, authentication, and database issues remain.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (19)
+
+**CLAUDE.md:249**
+* This note is stale after the adjacent license-validator change: the code now recognizes `ub_pro_`, `ub_biz_`, and `ub_ent_` and assigns different feature sets, not just a `ub_pro_` gate. Update the documentation to describe all prefixes and the placeholder nature of the check accurately.
+```
+> The current gate is `licenseKey.startsWith('ub_pro_')` — setting
+> `UNBLOCKS_LICENSE_KEY=ub_ent_x` unlocks everything. Treat it as a placeholder,
+> not access control, and never gate a security-relevant behaviour on it.
+```
+**app/(dashboard)/ai/page.tsx:24**
+* Removing the availability guard makes this page reachable, but it still renders fixed mock usage and completion data rather than the current user's records; the new `/api/ai/usage` endpoint is not used. Users will see fabricated usage immediately after this change. Fetch the endpoint/use `getUserUsage`, or keep the page unavailable until it is wired to real data.
+```
+  await getCurrentUser()
+
+  const totalRequests = mockUsageByProvider.reduce((sum, p) => sum + p.requests, 0)
+```
+**app/api/ai/completion/route.ts:13**
+* This request schema puts no upper bound on message count or `content` length. An authenticated caller can submit arbitrarily large prompts, causing unbounded provider token charges/latency and potentially exceeding the model context window; `maxTokens` only caps output. Validate an input-token/content budget before calling the provider and reject oversized requests.
+```
+const completionSchema = z.object({
+  model: z.string().optional(),
+  messages: z.array(z.object({
+    role: z.enum(['system', 'user', 'assistant']),
+    content: z.string(),
+  })),
+```
+**app/api/ai/completion/route.ts:28**
+* This endpoint advertises arbitrary models, including `gemini-*`, but the current Google provider URL resolves to `/v1beta/chat/completions` instead of Google's `/v1beta/openai/chat/completions` compatibility path. Gemini requests through this new API therefore fail; fix the provider endpoint before exposing that model family.
+```
+  const response = await complete({
+    model: body.model ?? 'gpt-4o',
+    messages: body.messages,
+    temperature: body.temperature,
+    maxTokens: body.maxTokens,
+    userId: user.id,
+  })
+```
+**app/api/ai/completion/route.ts:28**
+* The route now exposes `complete`, but the configured `dailyTokenLimit`/`monthlyTokenLimit` values are never checked anywhere in this request path. A non-zero configured quota therefore does not protect the provider or user from exceeding it. Add a preflight usage-limit check (with a race-safe accounting strategy) before dispatching the completion.
+```
+  const response = await complete({
+    model: body.model ?? 'gpt-4o',
+    messages: body.messages,
+    temperature: body.temperature,
+    maxTokens: body.maxTokens,
+    userId: user.id,
+  })
+```
+**app/api/ai/completion/route.ts:28**
+* The route invokes `complete` without honoring the AI config's `enabled` flag. Setting `enabled: false` is documented as disabling the wrapper, but requests still reach the provider and can incur costs. Enforce the flag in the shared completion path (or reject here) before dispatch.
+```
+  const response = await complete({
+    model: body.model ?? 'gpt-4o',
+    messages: body.messages,
+    temperature: body.temperature,
+    maxTokens: body.maxTokens,
+    userId: user.id,
+  })
+```
+**app/api/ai/usage/route.ts:19**
+* `getUserUsage` returns PostgreSQL `SUM`/`count(*)` results as `sql<number>` without a runtime cast. With node-postgres these `int8` aggregates are normally strings, so this endpoint can serialize `stats.totalTokens`, `totalCostCents`, and `requestCount` as strings despite the declared numeric contract. Cast in SQL or normalize with `Number(...)` before returning.
+```
+  const stats = await getUserUsage(user.id, since)
+  const history = await getUsageHistory(user.id, 20)
+
+  return successResponse({ stats, history })
+```
+**app/api/ai/usage/route.ts:19**
+* The new endpoint returns `getUsageHistory(user.id, 20)`, but that function orders `createdAt` ascending before applying the limit, so these are the oldest 20 records rather than the most recent 20. Reverse the ordering in the shared query before exposing this as usage history.
+```
+  const stats = await getUserUsage(user.id, since)
+  const history = await getUsageHistory(user.id, 20)
+
+  return successResponse({ stats, history })
+```
+**app/api/auth/google/callback/route.ts:65**
+* This new redirect is not surfaced by the login page or `LoginForm`—neither reads the `error` query parameter—and there is no account-settings linking flow in the app. A user whose OAuth email is unverified is silently returned to login with no explanation or actionable way to link the provider. Render the error and provide the promised linking path.
+```
+    if (err instanceof OAuthLinkRequiredError) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=oauth_link_required' },
+```
+**blocks/testing/integration.ts:37**
+* `closeTestDb()` only closes the harness's private pool, while the integration targets call `core/db/client.getDb()`, which creates and caches a separate pool. The `afterAll` hooks therefore leave the core pool open, leaking a database connection and potentially keeping Vitest alive. Share the pool or expose/reset the core client during teardown.
+```
+export async function closeTestDb(): Promise<void> {
+  await pool?.end()
+  pool = undefined
+```
+**components/ui/Dropdown.tsx:32**
+* The dropdown trigger is a clickable `div`, so it cannot receive keyboard focus or be opened with Enter/Space. Use a real button (with `aria-expanded`) or implement equivalent keyboard handling so keyboard and assistive-technology users can access the menu.
+```
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
+```
+**components/ui/Modal.tsx:30**
+* This modal has no dialog semantics or accessible association between the heading and the dialog container. Assistive technologies will treat the overlay as ordinary content, and keyboard focus is not moved into or constrained within it. Add dialog semantics, an accessible title reference, and focus management.
+```
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
+    >
+```
+**components/ui/Toast.tsx:30**
+* These auto-dismissed success/error messages are not exposed as a live region, so screen-reader users will not be told when an API key is created, revoked, or fails. Give the toast an appropriate `status`/`alert` role (and live announcement behavior).
+**core/api-keys/create.ts:40**
+* The only tests for this database-backed insert mock the database/query chain, so they cannot catch a missing `api_keys` table, incorrect columns, or constraint/migration mismatches. The new real-Postgres harness is available, but there is no API-key integration suite covering creation, listing, revocation, and expiry. Add integration regression coverage for these operations.
+**core/api-keys/validate.ts:39**
+* This new database-backed API-key validator is covered only by mocked Drizzle chains in `validate.test.ts`; those tests cannot verify the actual `keyHash`/revocation filters, schema columns, expiration behavior, or `lastUsedAt` write. Add a real-Postgres integration suite for create/list/revoke/validate, as required for database-dependent behavior.
+**core/billing/handleWebhook.ts:110**
+* `createCheckoutSession` stores the user ID in `session.metadata.userId`, but never sets `client_reference_id`. This handler passes only `client_reference_id`, so a valid checkout for a legacy Stripe customer without the newer customer metadata cannot be linked and provisioning throws. Fall back to `session.metadata?.userId` (or set `client_reference_id` when creating the session).
+**core/db/schema/webhookEvents.ts:17**
+* Every processed Stripe event is retained indefinitely, and there is no cleanup/retention path for this new ledger. At production webhook volume the table will grow without bound and eventually increase insert/index costs. Add a bounded retention job (longer than Stripe's retry window) or partition/archival strategy.
+**core/security/headers.ts:28**
+* The new `contentSecurityPolicy` behavior is not covered by the existing headers tests, which only assert `SECURITY_HEADERS`. Add focused cases for production vs development output (especially `unsafe-eval`) and the required directives so this security policy cannot regress silently.
+**docker-compose.yml:19**
+* The documented startup command returns as soon as the container is created, but this service has no healthcheck and `globalSetup` performs only one database probe. Running the documented commands immediately can therefore fail before Postgres is ready. Add a healthcheck/use `docker compose up --wait`, or retry the probe with a bounded backoff.
+
+- **Files reviewed:** 69/70 changed files
+- **Comments generated:** 13
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T15:00:32Z ---
+### 🟡 Changes recommended
+
+Unresolved critical and moderate issues remain in API-key authorization, webhook handling, job execution, type safety, and integration-test isolation.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (21)
+
+**.github/workflows/ci.yml:55**
+* The PR description says integration tests are not covered by CI because the workflow has no Postgres service, but this change adds a Postgres-backed integration job and runs `test:integration` here. Please update the description so reviewers and users are not given contradictory verification instructions.
+```
+      - run: npm run test:integration
+```
+**app/(dashboard)/ai/page.tsx:26**
+* This page still renders the hard-coded provider totals and completion list instead of the records written by `trackUsage` and exposed by `/api/ai/usage`. Every user therefore sees the same fake usage, so the new AI dashboard does not reflect actual per-user activity.
+```
+export default async function AIPage() {
+  await getCurrentUser()
+
+  const totalRequests = mockUsageByProvider.reduce((sum, p) => sum + p.requests, 0)
+  const totalTokens = mockUsageByProvider.reduce((sum, p) => sum + p.tokens, 0)
+  const estimatedCost = mockCompletions.reduce((sum, c) => sum + c.cost, 0)
+```
+**app/api/ai/completion/route.ts:28**
+* This newly exposed endpoint calls `complete` without enforcing the AI config's `enabled`, `dailyTokenLimit`, or `monthlyTokenLimit` fields. Setting the feature off or configuring a positive usage limit therefore does not stop provider calls, leaving the documented cost and access controls ineffective.
+```
+  const response = await complete({
+    model: body.model ?? 'gpt-4o',
+    messages: body.messages,
+    temperature: body.temperature,
+    maxTokens: body.maxTokens,
+    userId: user.id,
+  })
+```
+**blocks/testing/integration.ts:110**
+* If the connectivity probe fails, the temporary `Pool` is never closed. Repeated integration invocations or transient database failures can leave pool resources/timers behind; close the probe in a `finally` block on both success and failure.
+```
+export async function testDbAvailable(): Promise<boolean> {
+  try {
+    const probe = new Pool({
+      connectionString: testDatabaseUrl(),
+      connectionTimeoutMillis: 2000,
+    })
+    await probe.query('SELECT 1')
+    await probe.end()
+    return true
+  } catch {
+    return false
+```
+**components/landing/Pricing.tsx:102**
+* There is no `/contact` page or route in the repository, so the new Enterprise “Contact Sales” CTA leads users to a 404 instead of a sales contact flow.
+```
+              <Link
+                href="/contact"
+                className="block w-full rounded-md border border-border py-2.5 text-center text-sm font-medium text-foreground hover:bg-muted"
+```
+**components/ui/Dropdown.tsx:34**
+* The dropdown trigger is a clickable `div` with no keyboard handler, focusability, or expanded-state announcement, so keyboard-only users cannot open it. Expose a keyboard-operable button/trigger with `aria-expanded` and an accessible relationship to the menu.
+```
+    <div ref={ref} className="relative inline-block">
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      {open && (
+        <div className="absolute right-0 z-10 mt-1 min-w-[140px] rounded-md border border-border bg-white py-1 shadow-lg">
+```
+**components/ui/Modal.tsx:31**
+* The new modal has no dialog semantics (`role="dialog"`, `aria-modal`, and an accessible title association) and does not move or trap focus. Keyboard and screen-reader users can remain on the page behind the overlay and cannot reliably identify the active dialog.
+```
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
+    >
+      <div className="w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-xl">
+```
+**core/ai/usage.test.ts:70**
+* The usage tests mock the DB client and query chains, so they never execute `SUM`, `count`, ordering, or the `ai_usage` schema against PostgreSQL. Add integration coverage for insert, aggregation, and history ordering; these are exactly the behaviors the new real-DB harness is intended to validate.
+```
+vi.mock('../db/client', () => ({
+  getDb: vi.fn(() => ({
+    insert: mockInsert,
+    select: (...args: unknown[]) => {
+      selectCallCount++
+      // First select call pattern = getUserUsage (aggregation), subsequent = getUsageHistory
+      if (selectCallCount <= 1) {
+        return mockSelect(...args)
+      }
+      return mockSelectHistory(...args)
+    },
+  })),
+}))
+```
+**core/api-keys/create.test.ts:14**
+* These tests replace the database with a hand-built mock, so they cannot verify the new `api_keys` schema, foreign keys, uniqueness, revocation/expiry predicates, or the actual inserted values against PostgreSQL. Add a real-Postgres integration test for API-key creation/validation; otherwise the integration infrastructure does not cover this database-dependent feature.
+**core/api-keys/create.ts:42**
+* This persists any caller-supplied scope, but `getCurrentUser()` rejects every key whose scopes do not include `'*'` because no route-level scope checks exist yet. Consequently, creating a key with the documented narrow scopes returns a secret that can never authenticate; either implement scope enforcement before exposing this input or reject scoped keys until it is supported.
+**core/api-keys/types.ts:25**
+* The schema accepts arbitrary scoped keys, but `serverAuth` rejects every key whose scopes do not include `'*'`. A client can therefore receive a successful response for `scopes: ['teams:read']` and then be unable to authenticate with the returned key. Reject unsupported scopes at creation until per-route scope checks exist, or implement those checks.
+**core/billing/handleWebhook.ts:126**
+* This falls back to the first paid plan instead of mapping the subscription price to the configured plan. `createCheckoutSession` stores `planId` only in session metadata, not on the Stripe Price, so a Business checkout (or any non-first paid plan) is persisted as `pro`. Resolve the plan from `priceId` (and/or pass the session metadata) before using the fallback.
+**core/billing/handleWebhook.ts:172**
+* The idempotency claim only deduplicates the same event ID; two different Stripe deliveries such as `checkout.session.completed` and `customer.subscription.created` can both observe no row and reach this insert. With no unique constraint or conflict-safe upsert on the Stripe identifiers, a first-time subscription can be inserted twice and later entitlement queries become nondeterministic.
+**core/billing/handleWebhook.ts:172**
+* The first-time subscription insert writes the Stripe customer ID only to the plaintext lookup column, unlike `getOrCreateCustomer`, which also populates `stripeCustomerIdEncrypted`. This leaves customers provisioned through this webhook path without the encrypted-at-rest copy; include the encrypted value in this insert.
+**core/billing/handleWebhook.ts:79**
+* The failed-payment path has the same problem as the success path: an unlinked invoice invokes `onPaymentFailed` with an empty `userId`. Dunning/notification hooks cannot safely associate that event with a user, so guard the hook when resolution returns null (or use a distinct customer-level hook).
+**core/db/schema/webhookEvents.ts:19**
+* Successful claims are retained forever, and this change adds no retention or cleanup path. A long-running/high-volume deployment will grow `webhook_events` and its primary-key index without bound; retain claims through the provider replay window and schedule cleanup afterward.
+**core/jobs/queue.ts:74**
+* `JobPriority` includes `critical`, but this CASE sends every unlisted priority, including `critical`, to rank 2 alongside `normal`. Critical jobs therefore do not run before high-priority jobs. Add an explicit critical rank above high.
+**core/jobs/worker.ts:79**
+* `JobDefinition` exposes a per-job `timeout`, but it is not persisted in the jobs table/record and this worker always uses `config.defaultTimeout`. Callers that set a job-specific timeout silently get the global value; either persist/use that option or remove it from the public definition.
+**lib/serverAuth.ts:39**
+* `CreateApiKeySchema` accepts arbitrary scopes and the schema documents scoped keys, but this branch rejects every key that is not `['*']`, making the accepted scoped-key API unusable. Either implement per-route scope checks or reject non-wildcard scopes at creation so callers cannot create keys that can never authenticate.
+**middleware.ts:61**
+* HTTP authentication schemes are case-insensitive, but this parser accepts only the exact casing `Bearer`. Clients sending the standard `bearer ub_live_...` form are not forwarded as API-key requests and receive authentication failures.
+**vitest.integration.config.ts:19**
+* These two paths are reversed: `globalSetup.ts` only sets environment variables, while `setup.ts` exports the function that checks Postgres and calls `pushSchema()`. Vitest imports `setupFiles` for side effects and does not invoke its default export, so the integration run never creates the schema and will fail against the fresh CI database; swap these paths and make the unit config use the side-effect initializer as well.
+
+- **Files reviewed:** 74/75 changed files
+- **Comments generated:** 7
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T15:17:28Z ---
+### 🟡 Changes recommended
+
+Unresolved security, billing, and AI correctness issues remain before approval.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (17)
+
+**Previously missed (3)** — in code that hasn't changed since the last review.
+
+**app/api/ai/completion/route.ts:23**
+* The API route hardcodes `gpt-4o` when no model is supplied, so changing the core AI config's `defaultModel` has no effect for the main endpoint. This makes a documented configuration option silently ineffective; pass the configured default through to `complete` or let `complete` apply it.
+**app/api/ai/usage/route.ts:16**
+* `getUserUsage` returns PostgreSQL `SUM`/`count` aggregates typed as `number`, but `sql<number>` is only a TypeScript annotation and node-postgres returns these bigint/numeric results as strings. This new API will therefore expose string stats (and can break numeric consumers); parse/map the aggregate values before returning them.
+**app/api/ai/usage/route.ts:17**
+* `getUsageHistory` orders by ascending `createdAt`, so this newly exposed `history` returns the oldest records and omits newer completions once more than 20 exist. Return the newest records first before applying the limit.
+
+**app/api/api-keys/[id]/route.ts:16**
+* Checking only that `id` is a string lets arbitrary values reach the UUID column. A request such as `/api/api-keys/not-a-uuid` will fail during PostgreSQL's UUID cast and become a 500 instead of a client validation error; validate the UUID before calling `revokeApiKey`.
+```
+  if (typeof id !== 'string') {
+    throw new ValidationError('Invalid API key id', {
+      id: 'Expected a single API key id',
+    })
+```
+**app/api/auth/google/callback/route.ts:65**
+* The new security branch redirects an unverified-email match to `/login?error=oauth_link_required`, but the login page does not read this query and the repository has no provider-link/settings flow. A legitimate user therefore gets sent to a normal login screen with no actionable way to complete the promised “sign in and link” flow, making this OAuth path unusable instead of safely recoverable. Add the link flow or an explicit fallback that preserves the verified session/link operation.
+```
+    if (err instanceof OAuthLinkRequiredError) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=oauth_link_required' },
+```
+**blocks/testing/globalSetup.ts:18**
+* The integration setup performs a single two-second connectivity probe, while the documented command starts Postgres in the background and `docker-compose.yml` has no healthcheck. A normal startup race can therefore fail the entire integration run even though the database becomes ready moments later. Retry until a bounded deadline or wait on a service health check before throwing.
+```
+  // Force the code under test onto the throwaway instance. blocks/testing/setup.ts
+  // defaults DATABASE_URL to port 5432, so a suite that forgot to override it
+  // would truncate via the 5433 harness while exercising a different database.
+  process.env.DATABASE_URL = testDatabaseUrl()
+
+  if (!(await testDbAvailable())) {
+    throw new Error(
+      [
+        `No test database reachable at ${testDatabaseUrl()}`,
+```
+**components/landing/Pricing.tsx:101**
+* This new CTA points to `/contact`, but there is no matching page or route in the application. Clicking Contact Sales therefore produces a 404 for every Enterprise visitor; add the page or point the link at an existing contact channel.
+```
+                href="/contact"
+```
+**core/ai/completion.ts:1**
+* This imports settings from `core/ai/ai.config.ts`, while the repository's other user-owned settings live under `/config` and are loaded through `core/runtime/configLoader.ts`; there is no user-owned `config/ai.config.ts`. Changing AI enablement, defaults, or model pricing therefore requires editing core and can be overwritten on core updates. Expose the AI schema through the existing user-config path instead.
+```
+import aiConfig from './ai.config'
+```
+**core/ai/completion.ts:19**
+* The parsed config also exposes `cacheEnabled` and `cacheTtl`, but `complete()` never consults either value. Enabling prompt caching therefore has no effect and every request is sent to the provider; implement the documented cache behavior or remove these options until it exists.
+```
+function loadAIConfig(): AIWrapperConfig {
+  return AIWrapperConfigSchema.parse(aiConfig)
+}
+```
+**core/api-keys/create.ts:44**
+* The new API-key database paths have only mocked Drizzle tests; there is no real-Postgres integration suite for create/list/validate/revoke. A wrong column, predicate, expiry/revocation behavior, or storage constraint can therefore pass exactly the kind of test doubles this PR says are insufficient. Add integration coverage for issuance, validation, revocation/expiry, and the one-way key storage contract.
+**core/api-keys/revoke.ts:24**
+* `NotFoundError` appends `not found` to its resource argument, so this produces the user-facing message `API key not found not found`. Pass the resource name without the suffix.
+**core/api-keys/validate.ts:44**
+* This new API-key validation path is covered only by mocked Drizzle calls; no integration suite exercises the real `key_hash` predicate, revoked/expired filters, or the user lookup that `serverAuth` relies on. Those are exactly the database behaviors this PR's Postgres harness is intended to verify, so add a real-Postgres API-key auth test before relying on this security boundary.
+**core/billing/handleWebhook.ts:83**
+* The failed-payment path has the same unresolved-customer problem: it invokes the hook with an empty `userId` and returns success when the event cannot be associated with an account. Fail the webhook so it is not acknowledged with an invalid hook payload.
+**core/billing/handleWebhook.ts:182**
+* Idempotency is keyed by event ID, but `checkout.session.completed` and `customer.subscription.created` can be processed concurrently for the same subscription. Both can observe no row and execute this insert, and the schema has no uniqueness constraint to prevent duplicate subscription records. Use a database uniqueness constraint plus an upsert/transactional claim for the subscription identity.
+**core/billing/handleWebhook.ts:26**
+* Any existing ledger row is treated as a completed event and immediately acknowledged. Because the row is inserted before `dispatch`, a concurrent delivery can return 2xx while the first is still processing, and a crash after claiming can leave the event permanently skipped; Stripe will not retry either acknowledged delivery, potentially losing a paid entitlement. Track processing/completed state with recovery/leases, or transactionally coordinate the claim with the mutation before acknowledging duplicates.
+**core/jobs/worker.ts:117**
+* `timeout.cancel()` clears only the timer; it cannot stop `handler(job.payload)` after `Promise.race` times out. The worker then marks the job failed and may retry while the original handler is still performing side effects, allowing duplicate work. Add cooperative cancellation to handlers or avoid retrying until the handler has actually stopped.
+**middleware.ts:62**
+* HTTP authentication scheme names are case-insensitive, but this accepts only the exact casing `Bearer `. Valid clients sending `bearer` or `BEARER` are treated as unauthenticated and their API key is never forwarded; parse the scheme case-insensitively.
+
+- **Files reviewed:** 75/76 changed files
+- **Comments generated:** 8
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T15:35:45Z ---
+### 🟡 Changes recommended
+
+Unresolved critical webhook delivery and retry flaws, plus an API-key authentication data-exposure issue, block approval.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (14)
+
+**Previously missed (1)** — in code that hasn't changed since the last review.
+
+**app/api/ai/completion/route.ts:42**
+* When `model` is omitted, this hardcodes `gpt-4o` and bypasses `ai.config.ts`'s `defaultModel`, so changing the configured default can never affect this endpoint. Resolve the default in `complete` or use the loaded AI configuration here.
+
+**app/(dashboard)/api-keys/page.tsx:46**
+* If the browser's `fetch` rejects (for example, a network failure), execution skips the `setLoading(false)` at line 46 and leaves the create button permanently loading with no recovery. Wrap the request in try/finally and surface a failure toast so the modal remains usable after transient errors.
+```
+    setLoading(false)
+```
+**app/api/ai/usage/route.ts:16**
+* `getUserUsage` is typed as returning numbers, but its PostgreSQL `SUM`/`count` aggregates are `bigint` values that node-postgres returns as strings; `sql<number>` does not convert them. This endpoint therefore emits string totals despite its contract, so normalize the aggregate values before returning the response.
+```
+  const stats = await getUserUsage(user.id, since)
+```
+**app/api/ai/usage/route.ts:17**
+* The endpoint calls `getUsageHistory` with a limit of 20, but that helper orders ascending before applying the limit, so after 20 records this response contains the oldest entries rather than the recent completions promised by the API. Order by `createdAt DESC` in the core query (reversing only for presentation if needed).
+```
+  const history = await getUsageHistory(user.id, 20)
+```
+**components/landing/Pricing.tsx:101**
+* There is no `/contact` page or route in this repository, so the new Enterprise CTA navigates to a 404 instead of a sales destination. Add the route or point this link at an existing configured contact URL.
+```
+                href="/contact"
+```
+**core/ai/completion.ts:18**
+* The static import now makes `ai.config` readable, but `complete()` still never checks `config.enabled`; setting that flag to `false` does not disable provider calls. Add a disabled-config guard before credentials/provider execution.
+```
+  return AIWrapperConfigSchema.parse(aiConfig)
+```
+**core/api-keys/create.ts:60**
+* The new API-key CRUD paths are tested only with mocked Drizzle builders; there is no integration suite exercising the real `api_keys` table. That leaves the key-hash lookup, expiration/revocation predicates, unique constraint, and returned columns unverified, despite this PR's stated integration-test rule for database behavior. Add real-Postgres coverage for create, validate, list, and revoke.
+**core/api-keys/revoke.ts:24**
+* `NotFoundError` appends `not found` to its resource argument, so this produces the user-facing message `API key not found not found`. Pass only the resource name here.
+**core/api-keys/validate.test.ts:24**
+* This new API-key test replaces the database and Drizzle query builder with mocks, so it cannot verify the actual `api_keys` schema, revoked/expired predicates, or `lastUsedAt` update. Add a real-Postgres integration test for this credential path rather than relying on the mocked chain for security behavior.
+**core/api-keys/validate.ts:44**
+* The new API-key operations are covered only by mocked Drizzle chains. That cannot verify the real `api_keys` schema, keyHash/revocation/expiry predicates, or whether the insert/update actually persists; the repository's integration-test guidance specifically requires real Postgres for database-dependent behavior. Add an API-key integration suite rather than relying on these mocks.
+**core/billing/handleWebhook.ts:148**
+* `checkout.session.completed` and `customer.subscription.created` are distinct Stripe events for the same subscription and can enter this read-then-insert path concurrently. The subscriptions table has no unique constraint on the Stripe customer or subscription ID, so both can observe no row and insert duplicate entitlements. Make provisioning atomic with a unique constraint and upsert (or equivalent race handling).
+**core/billing/handleWebhook.ts:95**
+* This has the same idempotency problem as the success path: after the event is claimed, `break` returns 2xx and prevents all future retries when user resolution is temporarily unavailable, dropping the failed-payment hook. Throw or retain a retryable failure state instead of acknowledging an unapplied event.
+**core/jobs/worker.ts:83**
+* Cancelling the timeout only clears the timer; it does not cancel `handler(job.payload)`. If the timeout wins after the handler has performed an external side effect, this catch reschedules the job while the original handler continues, allowing the retry to duplicate that side effect. Pass an abort signal to cancellable handlers or make timeout/retry semantics explicitly idempotent.
+**core/security/csrf.ts:26**
+* This validator's length check is on JavaScript characters, but `timingSafeEqual` compares UTF-8 bytes. A same-length non-ASCII `headerToken` can therefore produce different buffer lengths and throw instead of returning `false`, turning a malformed OAuth callback into a server error. Compare the encoded buffer lengths before calling `timingSafeEqual`.
+
+- **Files reviewed:** 76/77 changed files
+- **Comments generated:** 6
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T15:49:51Z ---
+### 🟡 Changes recommended
+
+Unresolved critical issues remain in AI provider routing and login-CSRF protection.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (17)
+
+**Previously missed (2)** — in code that hasn't changed since the last review.
+
+**blocks/testing/integration.ts:37**
+* This only closes the harness pool. The integration code under test calls `core/db/client.getDb()`, which creates a separate module-level `pg.Pool`; none of the integration suites close or reset that pool, leaving idle connections/timers behind and potentially delaying or hanging `vitest` teardown. Add a test-only close/reset hook for the core client and invoke it during integration teardown.
+**core/api-keys/validate.ts:55**
+* Validation now relies on real SQL predicates for revocation and `lastUsedAt` persistence, but its tests mock the query builder. Add a PostgreSQL integration case covering a valid, revoked, and expired key so a wrong predicate or table mapping cannot pass unnoticed.
+
+**app/api/ai/completion/route.ts:24**
+* `maxTokens` is passed directly to provider APIs that require an integer, but this schema accepts fractional values such as `1.5`. Such requests pass validation and then fail downstream; require an integer here (and keep the configured cap).
+```
+  temperature: z.number().min(0).max(2).optional(),
+```
+**app/api/ai/completion/route.ts:37**
+* This limiter is process-local (`rateLimiter.ts` stores counters in a module `Map`), so a horizontally scaled Next deployment allows 20 calls per minute per instance and does not bound the paid-provider spend as this comment claims. Use a shared Redis/database limiter or an account-level budget check for this endpoint.
+```
+  //
+  // Scope, stated plainly: checkRateLimit keeps its counters in a process-local
+  // Map, so the ceiling is per instance. Across N replicas or serverless
+  // workers the effective limit is N x maxAttempts, and it resets on deploy.
+```
+**components/landing/Pricing.tsx:101**
+* The new enterprise CTA links to `/contact`, but there is no matching app page or route in this repository, so users who click Contact Sales receive a 404. Add the destination before exposing this link, or point it at an existing/contact configuration URL.
+```
+                href="/contact"
+```
+**components/ui/CopyButton.tsx:21**
+* As a reusable button, this defaults to `type="submit"`; when placed inside a form, copying text will submit the form after `handleCopy()`. Set `type="button"` explicitly.
+```
+    <button
+      onClick={handleCopy}
+```
+**components/ui/Dropdown.tsx:38**
+* These menu buttons do not set `type="button"`, so a Dropdown rendered inside a form will submit that form when an item is clicked instead of only invoking `item.onClick()`. Set the type explicitly, as this reusable primitive cannot assume it is outside a form.
+```
+            <button
+              key={i}
+              onClick={() => { item.onClick(); setOpen(false) }}
+```
+**components/ui/Modal.tsx:35**
+* This reusable close button has no `type`, so when a Modal is rendered inside a form the browser treats it as a submit button and can submit the form while closing. Set `type="button"` explicitly.
+```
+          <button
+            onClick={onClose}
+```
+**core/api-keys/create.ts:68**
+* The new persistence path is covered only by mocked Drizzle tests. Add a real-Postgres integration case that creates a key and verifies the stored row has the blind index (not the secret), the defaults, and the expected foreign-key/unique behavior; mocks cannot catch a schema or column mismatch.
+**core/api-keys/list.ts:40**
+* The correctness-critical revoked-key filter is now expressed in SQL, but the added tests only compare mocked query-builder objects; they cannot verify that revoked rows are actually excluded. The new integration harness should cover this database behavior against Postgres (and similarly exercise the API-key persistence/validation paths) before relying on this security boundary.
+**core/api-keys/revoke.ts:34**
+* The revoke write and ownership behavior are only exercised through mocked database calls. Add a real-Postgres integration case proving one user's key can be revoked, another user's key is rejected, and the revoked timestamp is actually persisted.
+**core/billing/handleWebhook.ts:95**
+* The failed-invoice branch never checks `invoiceSubscriptionId`, unlike the success branch above. A one-off or manually issued invoice for a customer who has a subscription row will therefore fire `onPaymentFailed` as if it were a subscription invoice. Add the same subscription-invoice guard before resolving the user.
+**core/billing/handleWebhook.ts:79**
+* When the customer cannot be mapped to a user, this `break` acknowledges the webhook successfully after the claim has been inserted, so the payment event is permanently dropped and Stripe will not retry it. Throw here (and in the analogous failed-invoice branch) so `releaseEvent` runs and the provider can retry instead of silently losing a payment hook.
+**core/billing/handleWebhook.ts:95**
+* This `break` has the same lost-event failure mode as the success path: an unlinkable failed invoice is claimed, returns 2xx, and can never reach the dunning hook on retry. Throw an error so the outer handler releases the claim and Stripe retries.
+**core/billing/handleWebhook.ts:33**
+* The ledger row is inserted before dispatch and is only removed from the catch path. If the process dies after this insert (or a concurrent duplicate receives the early return while the first delivery later fails), future retries see the row and return 2xx without applying the subscription. For billing provisioning, use a claim state/lease or transactionally record completion rather than treating the initial insert as proof that handling finished.
+**core/billing/handleWebhook.ts:210**
+* Different signed events for a first-time customer can reach this branch concurrently (for example, `checkout.session.completed` and `customer.subscription.created`). Both can observe no row and insert, because `subscriptions` has no unique constraint on the Stripe customer/subscription IDs and this is a plain insert. That creates duplicate billing rows and makes later `.limit(1)` lookups nondeterministic; use a database uniqueness constraint with an atomic upsert/transaction.
+**core/security/headers.ts:24**
+* The new `contentSecurityPolicy` function has no test coverage, despite this module already having `headers.test.ts`. A regression in the production/dev distinction or a missing directive would weaken every response; add focused assertions for the generated directives, especially that `unsafe-eval` appears only for `dev: true`.
+
+- **Files reviewed:** 77/78 changed files
+- **Comments generated:** 4
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T16:05:46Z ---
+### 🟡 Changes recommended
+
+Unresolved critical middleware behavior and multiple moderate AI, OAuth, integration-test, and webhook reliability findings remain.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (19)
+
+**Previously missed (3)** — in code that hasn't changed since the last review.
+
+**blocks/testing/integration.ts:103**
+* The documented `docker compose up -d postgres_test && npm run test:integration` flow can race startup: `testDbAvailable` performs only one connection attempt with a 2-second timeout, while Compose returns before Postgres is ready. A slow local/CI host will fail the entire run even though the database becomes ready moments later; retry the probe until a deadline or make the startup command wait for readiness.
+**core/ai/completion.ts:1**
+* This static import pins all non-secret AI settings to a module under `core`, so an app cannot change `enabled`, the default model, token limits, or costs without editing core. The repository’s app-config contract loads user-owned `config/*.config.ts` files through `core/runtime/configLoader.ts:25-54`; expose AI settings through that mechanism (or another app-owned override) instead.
+**core/ai/usage.ts:129**
+* The static-import fix now reads the explicit `ai.config` model-cost map, but `z.object` defaults do not deep-merge a supplied `modelCosts` object. Any supported model omitted from that map falls through to the generic `{ input: 0.1, output: 0.3 }` below instead of the schema's model-specific default, so usage costs are misreported. Merge configured costs over the schema defaults before looking up the model.
+
+**README.md:95**
+* The README now advertises the AI feature, but the setup/environment documentation does not list `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GOOGLE_AI_API_KEY`. A new installation following the documented setup will therefore reach the endpoint and fail with a missing-provider-key error; document these variables in the setup guide and `.env.example`.
+```
+| **AI** | AI Completion | Multi-provider (OpenAI, Anthropic, Google) with usage tracking and cost estimation |
+```
+**app/api/ai/completion/route.ts:45**
+* The new endpoint calls a paid provider after only a process-local rate-limit check; the declared daily/monthly token limits are never enforced. With multiple replicas or a serverless deployment, each instance has its own counter, so an authenticated user can exceed any intended quota and generate unbounded provider spend. Enforce the token limits against the usage store and use a shared rate limiter for the spend guard.
+```
+  // Scope, stated plainly: checkRateLimit keeps its counters in a process-local
+  // Map, so the ceiling is per instance. Across N replicas or serverless
+  // workers the effective limit is N x maxAttempts, and it resets on deploy.
+  // That makes this a guard against runaway loops and casual abuse, NOT a
+  // billing control. A real spend cap needs the shared store (Redis is already
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+  await checkRateLimit(`ai:completion:${user.id}`, {
+    windowMs: 60 * 1000,
+    maxAttempts: 20,
+  })
+```
+**app/api/ai/completion/route.ts:19**
+* This limit is applied per message, so the schema still permits 50 messages of 24,000 characters each—about 1.2 million characters (roughly 300k tokens) in one provider request. That can exceed model context windows and still permits a substantial input-cost/memory spike; enforce an aggregate character/token budget in addition to the per-message limit.
+```
+        content: z.string().max(MAX_CONTENT_CHARS),
+```
+**app/api/ai/completion/route.ts:25**
+* `maxTokens` accepts fractional values such as `1.5`. `complete()` passes that value through as the provider's `max_tokens`, and the OpenAI/Anthropic APIs require an integer, so this request passes local validation and then fails remotely. Add integer validation here.
+```
+  maxTokens: z.number().int().min(1).optional(),
+```
+**app/api/auth/google/callback/route.ts:65**
+* This new safe-linking error redirects to a login page that does not read `oauth_link_required`, and the repository has no account-settings or provider-link flow. Existing password users who try Google OAuth therefore get no actionable explanation and cannot complete the sign-in/link path described by `OAuthLinkRequiredError`; implement that flow or surface a real recovery path here.
+```
+    if (err instanceof OAuthLinkRequiredError) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=oauth_link_required' },
+```
+**blocks/testing/integration.ts:37**
+* `closeTestDb()` only ends the harness pool, but code under test calls `core/db/client.getDb()` and creates a separate application `pg.Pool`. That pool remains open after integration suites, retaining sockets/timers and potentially preventing `npm run test:integration` from exiting. Expose/reset the application pool as part of teardown as well.
+```
+export async function closeTestDb(): Promise<void> {
+  await pool?.end()
+  pool = undefined
+```
+**components/landing/Pricing.tsx:101**
+* This link targets `/contact`, but the repository has no `/contact` page or configured contact destination, so Enterprise users reach a 404 instead of contacting sales. Add the route or point this CTA at the app’s actual sales channel.
+```
+                href="/contact"
+```
+**core/ai/usage.ts:4**
+* Usage tracking independently imports the core-local AI config, so even if completion settings are made app-configurable, cost estimation would still ignore the app’s override. Load the same app-owned AI config here rather than statically importing `./ai.config`.
+**core/ai/usage.ts:98**
+* The new newest-first behavior is not asserted: the unit mock always returns the older `usage-1` row first, and the test checks only mapping fields. That test would pass if `desc()` were removed or changed to ascending; add a real-Postgres integration assertion that `limit` selects and returns the newest records in descending `createdAt` order.
+**core/billing/handleWebhook.integration.test.ts:1**
+* This new integration suite is 418 lines, exceeding the repository’s 300-line file limit and combining provisioning, idempotency, invoice, and failure scenarios. Split it into focused suites so fixtures and regressions remain maintainable.
+**core/billing/handleWebhook.ts:179**
+* This check-then-insert is not safe when Stripe delivers different event IDs concurrently, such as `checkout.session.completed` and `customer.subscription.created`. Both can observe no row for the customer and insert duplicate subscriptions because `stripeCustomerId` is not unique, leaving entitlement reads ambiguous. Protect provisioning with a database uniqueness constraint and an atomic upsert/transaction.
+**core/billing/handleWebhook.ts:33**
+* The event is recorded before processing and is only removed in the catch path. If the process dies after this claim but before `dispatch` completes, Stripe retries the event, sees the existing row, and returns without provisioning the subscription or firing the payment hook. Store processing/completed state with an expiry/lease, or otherwise make stale claims retryable.
+**core/billing/stripeShapes.ts:47**
+* This new price mapping now depends on `getAllPlans()`, which calls `loadConfig('billing')`; that loader still uses `require()` inside an ESM module and catches the resulting error, silently returning schema defaults. In the Next ESM runtime, configured Stripe price IDs are therefore ignored and webhook events fall back to the wrong plan. Make billing config loading ESM-safe before using it for provisioning.
+**core/billing/webhookEventLog.ts:37**
+* Any conflicting insert is treated as a successfully processed event, even when the first delivery is still inside `dispatch` or its process died before dispatch. If that delivery then fails (or crashes), a concurrent/future Stripe retry returns here as `true` and acknowledges the event with 2xx, so the paid subscription or payment hook can be lost permanently. Store an in-progress/completed state with a reclaimable lease, and only short-circuit completed claims.
+**core/billing/webhookEventLog.ts:58**
+* When the delete fails, this leaves the claim row in place but still lets the caller rethrow the original error. Stripe will retry, hit `claimEvent`, receive `true`, and get a successful response without reprocessing the event, which permanently drops the delivery. Release failures need a durable retry/reclaim path rather than being swallowed.
+**core/jobs/worker.ts:116**
+* `timeout.cancel()` only clears the timer; it cannot stop a handler that is already running. After a timeout, the catch path can mark the job retryable while the original handler continues sending mail or writing data, so the retry may execute concurrently and duplicate side effects. Add cancellation-aware handlers (for example, pass an `AbortSignal`) or use a retry policy that cannot overlap a still-running timed-out execution.
+
+- **Files reviewed:** 79/80 changed files
+- **Comments generated:** 1
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T16:06:40Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T16:10:03Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T18:11:42Z ---
+### 🟡 Changes recommended
+
+Critical findings remain in AI limit enforcement, webhook concurrency and ordering, job timeout cancellation, license compatibility, and magic-link handling.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (15)
+
+**Previously missed (3)** — in code that hasn't changed since the last review.
+
+**README.md:96**
+* The feature summary says API keys can be scoped, but `createApiKey` currently rejects every non-wildcard scope and `serverAuth` accepts only wildcard keys until route-level enforcement exists. Either implement scope enforcement or describe the current issue/revoke-only behavior so the public documentation does not promise an unavailable restriction.
+**components/landing/Pricing.tsx:102**
+* This link targets `/contact`, but there is no matching contact page or route in the repository, so the new Enterprise CTA resolves to a 404. Please point it at an existing sales/contact mechanism or add the intended route before shipping; the correct destination is a product decision.
+**core/jobs/worker.ts:117**
+* The worker tests always mock `fetchNextJobs` to return an empty batch, so no handler reaches `createTimeout` or this `finally` block. The timer-cancellation regression is therefore untested; add a job-processing case with fake timers that completes before the deadline and verifies the timeout is cleared.
+
+**app/(dashboard)/ai/page.tsx:22**
+* This change makes the AI dashboard reachable, but the page still calculates every displayed value from the hard-coded `mockUsageByProvider` and `mockCompletions` arrays below. Users will see fabricated usage and costs instead of their `ai_usage` records; fetch `/api/ai/usage` (and map its real history) or keep this page gated until it is wired.
+```
+  await getCurrentUser()
+```
+**app/api/api-keys/route.ts:17**
+* The billing plans advertise limits of 3/25/100 API keys, but this rate limiter only permits another 20 creations after each hour and never checks the total. A user can therefore accumulate unlimited keys, contradicting the configured entitlement. Count active keys and enforce the plan limit atomically with the insert (and return a plan-limit error when it is reached).
+```
+  await checkRateLimit(`api-keys:create:${user.id}`, {
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 20,
+  })
+```
+**app/api/auth/google/callback/route.ts:66**
+* When the new safety check throws `OAuthLinkRequiredError`, the callback redirects with `oauth_link_required`, but the login page does not read or display that query parameter and there is no account-linking UI/endpoint. Affected users therefore see an ordinary login page with no explanation or actionable way to complete the promised sign-in-and-link flow; surface the error and implement the link step (or change the redirect contract).
+```
+    if (err instanceof OAuthLinkRequiredError) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=oauth_link_required' },
+      })
+```
+**blocks/testing/globalSetup.ts:18**
+* The documented local command starts Postgres with `docker compose up -d` and immediately runs Vitest, but this performs only one 2-second probe and fails if the container is still starting. CI's service health check hides this there, while local runs will be flaky on a cold start; retry until a bounded readiness deadline or use the container health status before throwing.
+```
+  if (!(await testDbAvailable())) {
+    throw new Error(
+      [
+        `No test database reachable at ${testDatabaseUrl()}`,
+```
+**components/ui/Dropdown.tsx:34**
+* The trigger is an arbitrary `ReactNode` wrapped in a clickable `<div>`, so a text/icon trigger cannot be opened with the keyboard and exposes no `aria-expanded`/menu relationship. Make the trigger an actual button (or require a renderable button element) and add menu semantics plus keyboard navigation.
+```
+  return (
+    <div ref={ref} className="relative inline-block">
+      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      {open && (
+        <div className="absolute right-0 z-10 mt-1 min-w-[140px] rounded-md border border-border bg-white py-1 shadow-lg">
+```
+**components/ui/Modal.tsx:30**
+* The modal overlay/content has no `role="dialog"`, `aria-modal`, or title association, and focus is neither moved into the dialog nor trapped/restored. Keyboard and assistive-technology users can therefore continue navigating the page behind the open modal. Add dialog semantics and a focus-management strategy (or use the native `<dialog>` element).
+```
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
+    >
+```
+**components/ui/Toast.tsx:42**
+* The toast is visually inserted but has no live-region role, so screen readers are not notified when a success or error message appears. Mark the container as `role="status"` for informational/success messages and `role="alert"` for errors (with an appropriate live setting).
+```
+    <div
+      className={`fixed bottom-4 right-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity ${
+        visible ? 'opacity-100' : 'opacity-0'
+      } ${typeStyles[type]}`}
+    >
+```
+**core/ai/usage.ts:78**
+* The new numeric coercion is not exercised by the current tests: the mocked aggregate row already contains JavaScript numbers, while node-postgres returns `SUM`/`count(*)` values as strings. Add a real-Postgres assertion for the API response types and values so this conversion cannot regress to leaking strings.
+**core/auth/oauth.ts:182**
+* This new error tells the user to sign in and link Google from account settings, but the callback redirects with only `oauth_link_required` and the repository has no account-settings/link flow that can consume it. The security check therefore turns an existing-account OAuth login into a dead end; add the explicit linking flow or return an actionable route/message that actually exists.
+**core/billing/handleWebhook.integration.test.ts:1**
+* This new integration suite is 418 lines, exceeding the repository's explicit 300-line file limit. Split the webhook cases into focused suites (for example provisioning/idempotency and invoice handling) so the tests remain maintainable and comply with the file-size convention.
+**core/security/blindIndex.entropy.test.ts:48**
+* The entropy regression test never invokes the production API-key generator; it only checks that a manually fabricated string containing 64 zeroes has the expected length. A future `createApiKey` implementation could return a fixed or low-entropy value and this test would still pass. Exercise the generator (with a mocked insert or an extracted pure generator) and assert independent outputs/entropy-related invariants.
+**lib/serverAuth.test.ts:53**
+* This new authorization suite mocks `drizzle-orm` and the entire user lookup chain, so it cannot catch a wrong selected column or `WHERE` clause in the status check. The repository's integration-test guidance prohibits extending this pattern for database-dependent behavior; add a real-Postgres `serverAuth` case and keep only pure branching behavior mocked.
+
+- **Files reviewed:** 91/92 changed files
+- **Comments generated:** 11
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T18:34:49Z ---
+> [!NOTE]
+> Copilot was unable to run its full agentic suite in this review.
+
+## Pull request overview
+
+Copilot reviewed 111 out of 112 changed files in this pull request and generated 5 comments.
+
+<details>
+<summary>Suppressed comments (1)</summary>
+
+**core/api-keys/create.test.ts:1**
+* This test passes even if `createApiKey()` ignores the provided `name` because the mocked DB row always returns `name: 'Test Key'`. Prefer making the mock return the inserted `name` (or assert on the `insert(...).values(...)` call) so the test actually verifies that the input is persisted.
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T18:58:04Z ---
+> [!NOTE]
+> Copilot was unable to run its full agentic suite in this review.
+
+## Pull request overview
+
+Copilot reviewed 112 out of 113 changed files in this pull request and generated 4 comments.
+
+<details>
+<summary>Suppressed comments (1)</summary>
+
+**core/api-keys/create.test.ts:1**
+* This assertion is effectively always true because prefix.slice(0, 8) is just the constant \"ub_live_\" (the API_KEY_PREFIX). It does not verify that the returned prefix actually matches the generated key’s identifying prefix. Update the expectation to check that result.key starts with result.apiKey.prefix (or that the random segment’s first 8 chars match).
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T19:13:50Z ---
+### 🟡 Changes recommended
+
+Unresolved critical billing and authentication findings, along with moderate AI and operational issues, remain.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (10)
+
+**app/api/ai/completion/route.ts:54**
+* The only guard here is a process-local 20-request rate limit; `dailyTokenLimit` and `monthlyTokenLimit` are declared as usage limits but `complete()` never enforces them. With multiple replicas, a user can exceed the configured cap and incur unbounded provider spend. Enforce the limits atomically against a shared usage store before calling the provider, or remove the advertised limit settings.
+```
+  // That makes this a guard against runaway loops and casual abuse, NOT a
+  // billing control. A real spend cap needs the shared store (Redis is already
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+  await checkRateLimit(`ai:completion:${user.id}`, {
+```
+**components/landing/Pricing.tsx:101**
+* This CTA points to `/contact`, but there is no `app/**/contact/**` route in the repository, so selecting Enterprise from the new pricing card leads to a 404 instead of a sales contact flow. Add the destination route or point this link at an existing/configured contact channel.
+```
+                href="/contact"
+```
+**core/ai/types.ts:32**
+* `CompletionRequest.model` is now optional, but the exported `openaiCompletion` and `anthropicCompletion` functions pass it directly to their providers. A consumer calling either lower-level public function without a model sends `undefined`; only `complete()` resolves `defaultModel`. Keep the provider-facing request model required and expose optional model input only at the high-level wrapper.
+**core/api-keys/validate.ts:55**
+* Every successful API request starts an `UPDATE` for `lastUsedAt`, turning each high-volume API-key read into a database write and potentially exhausting the pool or creating substantial write load. Throttle or coalesce this telemetry (for example, update only when the value is null or older than a short interval) instead of writing once per request.
+**core/billing/handleWebhook.ts:34**
+* A concurrent delivery that loses `claimEvent` returns successfully while the first request is still processing. If the first request then throws and this handler releases the claim, Stripe has already seen a 2xx for the duplicate and is not guaranteed to retry, so provisioning or payment hooks can be lost. Use a durable processing state/lease so an in-flight duplicate waits or retries instead of acknowledging the event before the owner succeeds.
+**core/billing/handleWebhook.ts:189**
+* This change now preserves separate rows for multiple subscriptions, but the billing read/mutation helpers still query by `userId` with `LIMIT 1`. After a customer has two subscriptions, those helpers and the dashboard can select an arbitrary row, so a plan display or cancellation/change operation may target the wrong Stripe subscription. Add an explicit subscription selection/id throughout those APIs or keep a single, well-defined active-subscription invariant.
+**core/billing/webhookEventLog.ts:35**
+* The claim row is committed before dispatch and is never marked in-progress or reclaimed. If this process dies after the insert but before `dispatch` completes, Stripe's retry sees the conflict, returns 2xx from `handleStripeWebhook`, and the paid event is permanently dropped. Persist a processing/completed state with a lease (and reclaim stale claims), or otherwise make a crashed claim retryable.
+**core/jobs/worker.ts:79**
+* `JobDefinition` exposes a per-job `timeout`, but the job record/schema does not persist it and this worker always uses `config.defaultTimeout`. Enqueuing a job with `{ timeout: 1000 }` therefore still waits for the global timeout, so the new timeout API is silently ignored. Persist/use the per-job value or remove that public field.
+**core/security/blindIndex.ts:136**
+* A decimal value such as `BLIND_INDEX_ITERATIONS=10000.5` passes this check but `pbkdf2Sync` rejects non-integer iteration counts at runtime, breaking every slow blind-index operation. Use an integer check so malformed deployment configuration falls back or fails predictably.
+**core/teams/inviteMember.ts:86**
+* Storing the blind index in `token` keeps the credential one-way, but `getTeamInvitations()` still maps this column to `TeamInvitation.token`. Its list results therefore expose a digest that cannot be passed to `acceptInvitation()` or used to build a working invite link. Return list metadata without a token (or use a separate type), and only return the plaintext secret from `inviteMember()` at creation time.
+
+- **Files reviewed:** 113/114 changed files
+- **Comments generated:** 7
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T19:34:22Z ---
+### 🟡 Changes recommended
+
+One or more issues must be addressed before approval.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (13)
+
+**README.md:96**
+* The README says API keys can be scoped, but `createApiKey` currently rejects every non-wildcard scope because route-level enforcement is not implemented. This advertises a capability users cannot use; either implement scope enforcement or describe management as issue/revoke only until it exists.
+```
+| **API Keys** | API Key Management | Issue, scope, and revoke `ub_live_` keys; Bearer auth alongside session cookies |
+```
+**app/api/ai/completion/route.ts:53**
+* The route documents `dailyTokenLimit`/`monthlyTokenLimit` as the required spend controls, but neither this path nor `complete()` enforces them. Setting a non-zero limit therefore has no effect; the process-local request counter is not a token budget and is multiplied across replicas. Add an atomic quota check/reservation before dispatch (and reconcile actual usage), or do not expose these settings as functional limits.
+```
+  // Scope, stated plainly: checkRateLimit keeps its counters in a process-local
+  // Map, so the ceiling is per instance. Across N replicas or serverless
+  // workers the effective limit is N x maxAttempts, and it resets on deploy.
+  // That makes this a guard against runaway loops and casual abuse, NOT a
+  // billing control. A real spend cap needs the shared store (Redis is already
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+```
+**blocks/testing/globalSetup.ts:24**
+* The integration command is documented as `docker compose up -d postgres_test` followed immediately by the test run, but setup performs only one reachability probe and fails if Postgres is still starting (especially on the first image pull). Add a bounded retry/readiness wait here or a compose healthcheck-based wait so the new CI/local test path is not timing-dependent.
+```
+  if (!(await testDbAvailable())) {
+    throw new Error(
+      [
+        `No test database reachable at ${testDatabaseUrl()}`,
+        '',
+        'Start one with:  docker compose up -d postgres_test',
+        'Or point DATABASE_URL_TEST at your own throwaway database.',
+      ].join('\n')
+    )
+  }
+```
+**components/landing/Pricing.tsx:102**
+* The Enterprise card links to `/contact`, but there is no `app/contact` route (or other contact page) in this repository, so clicking “Contact Sales” produces a 404. Point this at an existing contact mechanism or add the route before exposing the link.
+```
+              <Link
+                href="/contact"
+                className="block w-full rounded-md border border-border py-2.5 text-center text-sm font-medium text-foreground hover:bg-muted"
+```
+**core/ai/schema.ts:23**
+* Both usage queries filter by `user_id` and order/filter by `created_at`, but this table defines no index for that access pattern. As every completion adds a row, usage pages will eventually scan and sort the entire `ai_usage` table per request. Add a composite `(user_id, created_at)` index (and pair it with the planned retention strategy).
+**core/auth/magicLink.ts:30**
+* This synchronous 600,000-iteration PBKDF2 runs while processing unauthenticated requests that create new accounts through the public magic-link endpoint. That endpoint has no rate limit, so an attacker can submit distinct addresses repeatedly and block the Node event loop, degrading unrelated traffic. Apply an IP/email rate limit before this derivation and consider using the asynchronous KDF path; the fix spans the public route and security implementation.
+**core/billing/handleWebhook.ts:233**
+* This upsert path bypasses the `notStale(eventAt)` predicate used by the normal update path. Two different subscription events can both miss the row, after which an older event can win the unique-key conflict and overwrite a newer snapshot, rolling the customer's plan/status back. Add the same stale-event `where` condition to `onConflictDoUpdate` so concurrent first provisioning preserves event ordering.
+**core/billing/handleWebhook.ts:216**
+* This branch now deliberately permits multiple subscription rows for one customer, but the existing user-facing billing APIs still do `WHERE user_id = ? LIMIT 1` (`getSubscription`, `changePlan`, and `cancelSubscription`). After this handler creates a second subscription, the dashboard can show an arbitrary plan and a change/cancel request can act on the wrong Stripe subscription. Either keep one entitlement row per user or make those APIs select/accept the intended `stripeSubscriptionId` and add coverage.
+**core/billing/handleWebhook.ts:258**
+* When a deletion is delivered before any local row exists, this update affects zero rows and leaves no `lastEventAt` tombstone. A later-delivered older `customer.subscription.created` event then enters the missing-row branch and inserts an active subscription, resurrecting access after cancellation. Record a deletion tombstone (or otherwise make missing-row provisioning consult the current Stripe state) before acknowledging the delete.
+**core/billing/handleWebhook.ts:35**
+* `claimEvent` treats any existing ledger row as a completed event. If delivery A claims the row and later fails, a concurrent delivery B can return 2xx here before A releases the claim; Stripe may then stop retrying even though the event was never applied. The ledger needs an explicit in-progress/completed state so concurrent duplicates fail or wait rather than being acknowledged as processed.
+**core/billing/stripeShapes.ts:55**
+* For a subscription invoice whose price is unknown (or not present on the first line), this returns an empty plan and the webhook still fires `onPaymentSucceeded`. That acknowledges a paid event with misleading entitlement data; it should resolve the plan from the subscription record or throw so Stripe retries instead of emitting a blank plan.
+**core/billing/webhookResolution.ts:94**
+* This reads a customer placeholder and returns it without atomically claiming it. Two different subscriptions for the same customer can both observe the same row with a null `stripeSubscriptionId`, then both take the existing-row update path and one subscription overwrites the other; the unique subscription constraint never gets involved. Claim the placeholder with a conditional update/row lock and retry the lookup when the claim loses.
+**core/security/blindIndex.entropy.test.ts:9**
+* This test documentation still says `blindIndex` uses 4096 iterations, but the implementation now uses 1000. That makes the security rationale and future review misleading; update the comment to the current work factor.
+
+- **Files reviewed:** 127/128 changed files
+- **Comments generated:** 4
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T19:54:29Z ---
+### 🟡 Changes recommended
+
+One or more issues must be addressed before approval.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (18)
+
+**Previously missed (1)** — in code that hasn't changed since the last review.
+
+**core/billing/stripeShapes.ts:56**
+* An unconfigured or unrecognised subscription price silently becomes `plan: ''`, even though `OnPaymentSucceededArgs.plan` is required and the webhook's subscription provisioning path correctly fails on an unresolvable plan. This lets payment hooks run with invalid entitlement data; throw on an unknown price (so Stripe retries and the misconfiguration is visible) or make the hook contract explicitly nullable.
+
+**README.md:96**
+* This says API keys can be scoped, but the current implementation rejects every non-wildcard scope and route-level scope enforcement is intentionally absent. Users following this documentation will expect a usable restricted key but receive a validation error (or cannot use a manually stored scoped row). Describe the current issue/revoke-only behavior, or update the implementation and route authorization together.
+```
+| **API Keys** | API Key Management | Issue, scope, and revoke `ub_live_` keys; Bearer auth alongside session cookies |
+```
+**app/api/ai/completion/route.ts:26**
+* This schema permits multiple `system` messages, but the Anthropic adapter accepts only one top-level system string and currently drops every system message after the first. Requests that work with OpenAI can therefore lose instructions when the model selects Anthropic; either reject multiple system messages here or combine them in the adapter.
+```
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['system', 'user', 'assistant']),
+        content: z.string().max(MAX_CONTENT_CHARS),
+      })
+```
+**app/api/ai/completion/route.ts:54**
+* The endpoint invokes a paid provider, but the only guard is a process-local rate-limit map; callers can bypass it across replicas or by creating accounts, while `dailyTokenLimit` and `monthlyTokenLimit` are declared but never enforced. This leaves no reliable tenant spend cap. Enforce a persisted/shared token budget atomically before the provider call, or keep this endpoint unavailable until a real cap exists.
+```
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+  await checkRateLimit(`ai:completion:${user.id}`, {
+```
+**blocks/testing/integration.ts:119**
+* This performs only one two-second probe immediately after `docker compose up -d postgres_test`, even though container startup is asynchronous. The documented local command can therefore fail before Postgres is ready and require a manual rerun; retry the probe with a bounded backoff before declaring the integration database unavailable.
+```
+  try {
+    await probe.query('SELECT 1')
+    return true
+```
+**components/landing/Pricing.tsx:102**
+* This new CTA targets `/contact`, but there is no `/contact` page or route in the application, so the Enterprise action leads to a 404. Add the route or point the link at a configured contact URL/mailto address.
+```
+              <Link
+                href="/contact"
+                className="block w-full rounded-md border border-border py-2.5 text-center text-sm font-medium text-foreground hover:bg-muted"
+```
+**core/ai/completion.ts:1**
+* The static import makes the AI endpoint use the object in `core/ai/ai.config.ts`, but this is the only runtime configuration kept under `core/`; deployments cannot disable completion or change its defaults, provider URLs, or pricing through the user-owned `config/` layer used elsewhere (for example `core/runtime/configLoader.ts:22-50`). Move this to an app-owned `config/ai.config.ts` and register it with the loader, or provide an explicit app-owned override.
+**core/ai/usage.ts:133**
+* These model costs are fractional cents per 1K tokens, but `trackUsage` rounds each estimate into the integer `costCents` column. Most normal requests therefore persist zero and aggregate spend is systematically understated. Store a decimal or finer-grained integer unit and convert to whole cents only when presenting totals.
+**core/auth/magicLink.ts:31**
+* The existing-account branch skips `slowBlindIndex`, while every new address performs a synchronous 600,000-iteration PBKDF2 before the response. This defeats the route's claimed timing equalization (account existence is observable) and lets distributed unauthenticated requests repeatedly stall the event loop with fresh addresses. Do equivalent work on both branches using an async derivation, and add a shared/global limiter or avoid this expensive operation in the request path.
+**core/auth/passwordReset.ts:35**
+* The new blind-index token rows still flow through a select-then-mark-used reset path. Two concurrent reset requests can both pass the `usedAt IS NULL` read, both hash a new password, and both update the account; the last writer wins, so one one-time reset is effectively reusable. Atomically claim the token with a conditional update/`RETURNING` before changing the password.
+**core/billing/cancelSubscription.ts:23**
+* `getSubscription()` falls back to the newest row when all of a user's rows are canceled, but this guard only checks for an ID. As a result, canceling again can call Stripe with a canceled subscription instead of returning `NO_SUBSCRIPTION`, and the non-immediate path can even attempt to update its cancellation state. Include `sub.status === 'canceled'` in the rejection condition, as in `changePlan`.
+**core/billing/changePlan.ts:26**
+* `getSubscription()` intentionally falls back to the newest row when every row is canceled, so a user with only a canceled subscription still reaches this branch because it checks only `stripeSubscriptionId`. The subsequent Stripe update then targets a canceled subscription instead of returning the documented `NO_SUBSCRIPTION` error. Reject `sub.status === 'canceled'` here (and apply the same guard in `cancelSubscription`).
+**core/billing/webhookEventLog.ts:37**
+* The ledger row is inserted before dispatch and is only removed on a caught error. If the process is killed after this insert but before dispatch completes, Stripe's retry sees the existing row, returns early, and the event is permanently skipped. Track processing/completed state with a reclaimable lease (or an equivalent recovery mechanism) rather than treating every existing claim as successfully applied.
+**core/billing/webhookResolution.ts:142**
+* `Stripe.Event.created` has only one-second resolution, so distinct subscription events can produce the same `eventAt`. `lte` then considers both fresh; an older snapshot delivered after a newer snapshot in that second can overwrite the newer plan/status. Use a provider revision/resource update timestamp, or explicitly handle equal timestamps as an ordering conflict instead of relying on this timestamp alone.
+**core/db/schema/subscriptions.ts:24**
+* Making `stripe_subscription_id` unique allows multiple subscription rows per user, but existing consumers still select an arbitrary row: `checkPlanLimit` can apply a canceled/old plan, and `getOrCreateCustomer` can miss a customer ID and create another Stripe customer. Update all user-level subscription reads to use one deterministic active-subscription rule (or explicitly aggregate plans) before enabling this data model.
+**core/jobs/worker.ts:100**
+* The `try` covers `completeJob` and `onJobCompleted` as well as the handler. If the completion hook throws after the job has already been marked completed, control enters this catch and `failJob` moves that successful job back to pending/failed, causing a retry and duplicate side effects. Limit the failure path to handler/timeout errors, and isolate or separately report completion-hook failures after the job is terminal.
+**core/jobs/worker.ts:79**
+* The worker always uses `config.defaultTimeout`, so the public `JobDefinition.timeout` option is ignored for every queued job (and `retryBackoff` is likewise never persisted or read). A caller that requests a shorter timeout still gets the global five-minute timeout, which can delay retries and hold work far beyond the API contract. Persist per-job overrides and use them here, or remove the unused options from `JobDefinition`.
+**core/security/blindIndex.entropy.test.ts:9**
+* This test's premise comment still says `blindIndex` uses 4096 iterations, but the implementation and benchmark use 1000. That makes the security rationale and future failure diagnosis misleading; update the comment to the actual work factor.
+
+- **Files reviewed:** 130/131 changed files
+- **Comments generated:** 7
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T20:14:02Z ---
+### 🟡 Changes recommended
+
+Unresolved critical and moderate findings remain in AI requests, authentication, billing/webhook reliability, and token handling.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (16)
+
+**Previously missed (1)** — in code that hasn't changed since the last review.
+
+**core/jobs/worker.ts:79**
+* `JobDefinition` exposes a per-job `timeout`, but it is not persisted on the job record and this path always uses `config.defaultTimeout`. Callers supplying a job-specific timeout therefore get a silently ignored setting. Either remove that public field or carry it through enqueue/claim and use it when creating the timeout.
+
+**README.md:95**
+* The README now presents AI as a core feature and removes the optional `ai-wrapper` package, but `docs/ARCHITECTURE.md` still describes `blocks/ai-wrapper` and its package-level architecture. These contradictory instructions can lead users to install a package this change removes; update the architecture document in the same change.
+```
+| **AI** | AI Completion | Multi-provider (OpenAI, Anthropic, Google) with usage tracking and cost estimation |
+```
+**app/api/ai/completion/route.ts:54**
+* The configured `dailyTokenLimit` and `monthlyTokenLimit` are never checked before calling the paid provider. The process-local 20-per-minute limiter is explicitly not a spend cap, so a user can generate unbounded provider spend over time or across replicas even when those limits are configured. Enforce an atomic/shared token quota before `complete()` (or remove these settings until a real budget control exists).
+```
+  // billing control. A real spend cap needs the shared store (Redis is already
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+  await checkRateLimit(`ai:completion:${user.id}`, {
+```
+**components/landing/Pricing.tsx:102**
+* This new Enterprise CTA points to `/contact`, but there is no matching App Router page or API route in the repository, so clicking “Contact Sales” produces a 404. Add the contact destination or use an actual configured sales address before exposing this link.
+```
+              <Link
+                href="/contact"
+                className="block w-full rounded-md border border-border py-2.5 text-center text-sm font-medium text-foreground hover:bg-muted"
+```
+**core/ai/completion.ts:1**
+* This static import makes completion depend on deployment-specific settings under `core/ai/ai.config.ts`. The repository's application settings are user-owned `config/*.config.ts` files, so users still have to edit framework code to change the AI kill switch, model defaults, costs, or provider URLs. Route this dependency through a user-owned `config/ai.config.ts` and the config loader, updating the usage path as well.
+**core/ai/completion.ts:60**
+* The completion path recognizes `o1`/`o3` models in `detectProvider`, but it always supplies `temperature` and the legacy `maxTokens` request shape. OpenAI reasoning models reject unsupported sampling fields and expect `max_completion_tokens`, so selecting one of these recognized models fails instead of completing; build the request shape conditionally for reasoning models or remove those model prefixes from the supported path.
+**core/ai/usage.ts:4**
+* The usage estimator also statically imports deployment-specific AI settings from `core/ai/ai.config.ts`, so moving configuration to the user-owned config boundary requires updating this consumer too. Otherwise configured model pricing remains coupled to a core file and will diverge from the completion configuration.
+**core/api-keys/types.ts:26**
+* The schema accepts any positive `expiresInDays`, but sufficiently large client input makes `Date.now() + expiresInDays * ...` an invalid Date and causes the database insert to fail as a 500. Add a finite Date-range/maximum validation so an out-of-range expiration is reported as a 400.
+**core/billing/cancelSubscription.ts:24**
+* `getSubscription()` deliberately falls back to the newest cancelled row when no live row exists, but this guard only checks for an ID. After cancellation, the endpoint can call Stripe to cancel or schedule cancellation on an already-cancelled subscription instead of returning `NO_SUBSCRIPTION`; reject cancelled rows before the Stripe call.
+**core/billing/changePlan.ts:27**
+* `getSubscription()` deliberately falls back to the newest cancelled row when no live row exists, but this guard only checks for an ID. Once a customer has only cancelled subscriptions, this path still retrieves that cancelled Stripe subscription and attempts to change its items instead of returning `NO_SUBSCRIPTION`; reject `sub.status === 'canceled'` here (or query an active row for actions).
+**core/billing/getSubscription.ts:30**
+* This fallback is now used by `cancelSubscription` and `changePlan` as well as by dashboard history. If a user has only canceled rows, it returns a row with an ID and those mutations call Stripe instead of returning `NO_SUBSCRIPTION`; with multiple live rows they also silently choose the newest despite the helper's warning that mutations need a specific ID. Keep history selection separate from the mutation lookup or pass a subscription ID to mutation APIs.
+**core/billing/handleWebhook.ts:30**
+* The idempotency row is inserted before dispatch and has no lease or completion state. If the process dies after this claim and before the side effects finish, Stripe's retry sees the row, returns here, and the event is permanently skipped; releasing claims on ordinary exceptions does not cover this crash window. Use an expiring in-progress claim or another durable completion/retry mechanism.
+**core/billing/subscriptionWrites.ts:180**
+* If the deletion's initial update finds no row, a concurrent create can insert the active row before this insert. `onConflictDoNothing` then discards the deletion, leaving an active entitlement with no later event to correct it. The conflict path needs to apply `cancellation` when `notStale(eventAt)` allows it.
+**core/billing/webhookEventLog.ts:37**
+* The duplicate path acknowledges any existing ledger row as successfully processed, even when the first delivery is still inside `dispatch`. If the first delivery then fails and releases the row, this overlapping delivery has already returned 200, so Stripe may never retry the event and the event is lost. Track processing/completed state with a lease (or otherwise make in-flight duplicates wait/fail) and only acknowledge a completed event.
+**core/billing/webhookEventLog.ts:59**
+* When deletion of a failed event's claim fails, this catch leaves the row in the ledger while `claimEvent` treats every existing row as completed. The original request is retried with a non-2xx, but the next retry returns 2xx immediately and the failed event is permanently suppressed. Failed/in-flight rows need a retryable state or lease rather than being represented by an indistinguishable completed row.
+**core/teams/inviteMember.ts:88**
+* Although new rows store only `blindIndex(token)`, `acceptInvitation` still falls back to the legacy plaintext `token` column when `tokenHash` is null. Existing pending invitations therefore remain usable from a database dump, contrary to the one-way credential invariant; invalidate or migrate those rows as part of the rollout rather than continuing to accept the plaintext secret.
+
+- **Files reviewed:** 134/135 changed files
+- **Comments generated:** 5
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T20:37:31Z ---
+> [!NOTE]
+> Copilot was unable to run its full agentic suite in this review.
+
+## Pull request overview
+
+Copilot reviewed 136 out of 137 changed files in this pull request and generated 7 comments.
+
+<details>
+<summary>Suppressed comments (4)</summary>
+
+**core/billing/getSubscription.ts:1**
+* This fetches ALL subscription rows for a user and then filters in JS. That can become unnecessarily expensive over time and is avoidable: express the “prefer non-canceled, else newest” rule in SQL and add a LIMIT 1 (e.g., order by a computed rank for canceled vs non-canceled, then createdAt desc).
+**core/api-keys/validate.ts:1**
+* isApiKey() is materially more permissive than the format validateApiKey() requires. If isApiKey() is used for routing/auth-path decisions, it can misclassify arbitrary strings as API keys. Consider reusing the same full regex (or a shared helper) so “looks like an API key” matches the validator’s accepted shape.
+**core/api-keys/validate.ts:1**
+* isApiKey() is materially more permissive than the format validateApiKey() requires. If isApiKey() is used for routing/auth-path decisions, it can misclassify arbitrary strings as API keys. Consider reusing the same full regex (or a shared helper) so “looks like an API key” matches the validator’s accepted shape.
+**core/api-keys/create.test.ts:1**
+* The test uses input `{ name: 'My Key' }` but asserts the returned name is `'Test Key'` (coming from the stubbed DB row), so it isn’t validating the API contract that the created key name is persisted as requested. Also, the “unique keys each time” assertion relies on real randomness, which can make tests non-deterministic; consider mocking randomBytes to a deterministic sequence and asserting the exact key/prefix relationship.
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:02:27Z ---
+> [!NOTE]
+> Copilot was unable to run its full agentic suite in this review.
+
+## Pull request overview
+
+Copilot reviewed 136 out of 137 changed files in this pull request and generated 2 comments.
+
+<details>
+<summary>Suppressed comments (3)</summary>
+
+**core/billing/getSubscription.ts:1**
+* This now loads *all* subscription rows for a user and then filters in memory. If a user accumulates many historical subscription rows, this becomes unnecessary DB I/O and memory work on a request path. Prefer expressing the selection rule in SQL (e.g., ORDER BY a CASE that ranks non-canceled first, then created_at DESC, with LIMIT 1), or do two LIMIT 1 queries (non-canceled first, then fallback).
+**core/api-keys/create.ts:1**
+* This core function relies on callers (e.g., API routes) to validate `input` via `CreateApiKeySchema`, but it can also be called directly by other server code. Without enforcing the schema here, `expiresInDays` can be out of bounds and reintroduce the Invalid Date/overflow behavior the schema comment calls out. Consider parsing/validating `input` with `CreateApiKeySchema` inside `createApiKey` (or adding a narrow internal validator) so the safety properties hold regardless of caller.
+**core/billing/types.ts:1**
+* When the collision is within the same plan (e.g., monthly and yearly reuse the same price id), `owner` and `plan.id` will be identical, producing a confusing message (“used by both \\\"pro\\\" and \\\"pro\\\"”). Consider special-casing that scenario to emit a clearer message (e.g., 'Plan \"pro\" reuses price id \"...\" across intervals') so operators can resolve it quickly.
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:22:38Z ---
+### 🟡 Changes recommended
+
+Critical and moderate findings remain unresolved across authentication, billing, middleware, jobs, and UI.
+
+*Get a fresh assessment by requesting another Copilot review.*
+
+<details>
+<summary>Review details</summary>
+
+### Suppressed comments (11)
+
+**Previously missed (1)** — in code that hasn't changed since the last review.
+
+**core/jobs/worker.ts:106**
+* If `completeJob()` rejects after the handler succeeds, this callback rejects and `Promise.allSettled()` absorbs it, leaving the job in `processing` forever. Handle completion persistence failures with retry/recovery or requeue the job; otherwise the only state transition after successful work can be lost.
+
+**components/landing/Pricing.tsx:101**
+* This adds a navigation target with no matching App Router page or API route, so clicking Contact Sales returns a 404. Add the contact page/route or point this CTA at a configured contact destination before exposing the card.
+```
+                href="/contact"
+```
+**components/ui/CopyButton.tsx:16**
+* `navigator.clipboard` is unavailable outside secure contexts and `writeText()` rejects when permission is denied. The new one-time API-key flow then produces an unhandled rejection with no fallback or actionable feedback, leaving users unable to copy the secret. Handle rejection and provide a fallback or error state.
+```
+  async function handleCopy() {
+    await navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+```
+**core/ai/completion.ts:1**
+* Importing `./ai.config` hardcodes the AI settings inside `core`, while the established configuration surface is the app-owned `/config` modules registered by `core/runtime/configLoader.ts:22-50`. There is no `config/ai.config.ts` or `ai` registry entry, so `enabled`, model/limit, and cost settings cannot be changed by an application without modifying core; only provider environment keys are configurable. Move this configuration into the user-owned loader surface.
+**core/auth/createUser.ts:40**
+* This public registration path synchronously computes the 600,000-iteration email PBKDF2 (roughly 260 ms per request) before inserting the user. The process-local IP limiter does not prevent a distributed attacker from monopolizing the Node event loop with unique registrations. Use an asynchronous/worker-backed derivation and a shared limiter, or defer/remove the unused `emailHash` computation.
+**core/billing/handleWebhook.ts:33**
+* The event row is treated as permanently processed immediately after the insert. If the process crashes after `claimEvent` returns and before `dispatch` completes, Stripe's retry will hit this duplicate path, receive 2xx, and the subscription/payment side effect is lost; `releaseEvent` only handles caught exceptions. Track completion separately or add a lease/timeout that allows an in-flight claim to be reclaimed instead of treating every existing row as handled.
+**core/billing/stripeShapes.ts:64**
+* An invoice can contain multiple subscription/proration lines, and the first line is not a stable indication of the subscription's current plan. In a plan change or multi-item subscription, this can report the old or an unrelated mapped plan to `onPaymentSucceeded`, even when the local subscription row identifies the correct subscription. Resolve the line belonging to the subscription/current recurring item or reject ambiguity and use the subscription record.
+**core/billing/webhookEventLog.ts:59**
+* Swallowing a database error while deleting the claim makes the next Stripe delivery see the existing row, return 2xx, and skip dispatch forever. This turns a transient cleanup failure into permanent loss of entitlement or payment hooks; use a reclaimable processing/lease state (or otherwise retry release and avoid acknowledging the event) instead of silently abandoning it.
+**core/billing/webhookResolution.ts:154**
+* Comparing only `event.created` with `<=` does not actually prevent all stale Stripe snapshots: distinct events created in the same second have the same timestamp, so whichever delivery arrives last can still overwrite the newer state. Use a provider revision/state check (for example, reconcile the current subscription from Stripe) or another ordering/lease strategy if this path is intended to guarantee stale-event protection.
+**core/teams/inviteMember.ts:105**
+* This invitation-acceptance path never enforces `TeamsConfigSchema.requireEmailVerification`, which defaults to true. `requireAuth()` only establishes identity, so an unverified account can redeem a valid token and join a team; load the setting and accepting user before claiming the one-time token so a rejected user does not consume the invitation.
+**middleware.ts:181**
+* Because the public-path return happens before the API-key branch, a Bearer key is stripped and never copied to `x-api-key` for public routes. `/api/auth/session` is public in middleware but calls `getCurrentUser()`, so `Authorization: Bearer ub_live_...` always returns 401 there; move bearer forwarding before this check.
+
+- **Files reviewed:** 136/137 changed files
+- **Comments generated:** 3
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:33:05Z ---
+### 🔵 Needs a closer look
+
+It spans authentication, billing, job retries, credential storage, and database infrastructure with unresolved concurrency and failure-recovery paths.
+
+<details>
+<summary>Review details</summary>
+
+- **Files reviewed:** 138/139 changed files
+- **Comments generated:** 6
+- **Review effort level:** Lite
+</details>
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:33:55Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:36:26Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T21:37:47Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @copilot-pull-request-reviewer[bot] [COMMENTED] at 2026-09-14T22:11:38Z ---
+Copilot was unable to review this pull request because the user who requested the review has reached their quota limit.
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-09-14T22:11:39Z ---
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-09-14T14:08:07Z on core/api-keys/list.test.ts:32 ---
+## Unused variable, import, function or class
+
+Unused variable mockLimit.
+
+---
+
+<p>The best fix is to remove the unused <code>mockLimit</code> declaration from <code>core/api-keys/list.test.ts</code> without changing any test logic.</p>
+<ul>
+<li>**General approach:** delete unused variables that are not referenced by code paths or assertions.</li>
+<li>**Best specific fix here:** remove line 32 (<code>const mockLimit = vi.fn()</code>).</li>
+<li>**Scope:** only edit <code>core/api-keys/list.test.ts</code>; no imports, methods, or additional definitions are needed.</li>
+<li>**Behavior impact:** none; this variable is not read or invoked.</li>
+</ul>
+
+--- inline by @github-code-quality[bot] at 2026-09-14T14:08:07Z on core/api-keys/revoke.ts:1 ---
+## Unused variable, import, function or class
+
+Unused import and.
+
+---
+
+The general fix is to remove unused symbols from import statements when they are not referenced in the file.</p>
+<p>Best fix here (without changing behavior): in <code>core/api-keys/revoke.ts</code>, update the import on line 1 to remove <code>and</code> and keep only <code>eq</code>. No logic changes are required, no additional imports/methods/definitions are needed, and runtime behavior remains identical.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on core/billing/handleWebhook.ts:26 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Record webhook events only after successful handling**
+
+When any handler after this line throws—for example, an unlinkable paid subscription—the event row has already been committed. Stripe retries with the same event ID, `alreadyProcessed` returns true, and the retry receives a 2xx without ever applying the subscription change or firing the hook. Record completion only after the switch succeeds, or remove/mark the ledger entry as failed when processing throws.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on lib/serverAuth.ts:38 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reject API keys belonging to suspended users**
+
+When an administrator suspends or bans a user who already has an API key, this path still returns that user without checking `user.status`; the session-authentication path explicitly rejects non-active users. The old bearer key therefore continues to authorize every protected API endpoint after the account is disabled. Return null for non-active users or revoke their keys as part of the status change.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on lib/serverAuth.ts:31 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Enforce the scopes returned by API-key validation**
+
+For a key created with restrictive scopes such as `['teams:read']`, `validateApiKey` returns those scopes here, but this branch discards them and reduces authentication to a plain `User`. Repository-wide, protected handlers call `requireAuth()` without any subsequent scope check, so the restricted key can invoke all user endpoints, including writes and issuing additional keys. Preserve the API-key authorization context and require an appropriate scope at each route.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on core/api-keys/create.ts:68 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Enforce configured API-key limits before insertion**
+
+The new billing configuration advertises limits of 3, 25, and 100 API keys by plan, but key creation inserts unconditionally and no API-key code calls `checkPlanLimit`. Consequently, any authenticated user can create an unlimited number of active keys regardless of their plan. Count the user's active keys and enforce the configured limit atomically before inserting.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on app/(dashboard)/ai/page.tsx:22 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Keep the AI usage page gated until it uses real data**
+
+Removing the unavailable-block redirect makes this page reachable for every dashboard user, but it still derives request counts, token totals, completion history, and estimated cost from hard-coded mock arrays. Real completions recorded through the newly enabled endpoint never affect the displayed values, so users are shown fabricated usage and billing information. Load the actual usage records now exposed by `/api/ai/usage`, or keep the page gated until that wiring exists.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @Copilot at 2026-09-14T14:30:29Z on components/ui/Dropdown.tsx:68 ---
+The dropdown trigger is a non-interactive `div` with `onClick`, which is not keyboard accessible by default and doesn't expose state to assistive tech. Use a `button` for the trigger (or add `role=\"button\"`, `tabIndex={0}`, and key handlers), and set `aria-expanded` / `aria-haspopup` to reflect the open state.
+
+--- inline by @Copilot at 2026-09-14T14:30:29Z on components/ui/Modal.tsx:62 ---
+The modal lacks key accessibility semantics and focus management: it should expose `role=\"dialog\"` (or `alertdialog`), `aria-modal=\"true\"`, and associate the title via `aria-labelledby` (or `aria-label`). Consider setting initial focus inside the modal and restoring focus on close; without this, keyboard and screen reader users can end up interacting with background content.
+
+--- inline by @Copilot at 2026-09-14T14:30:29Z on components/ui/Table.tsx:4 ---
+This references `React.ReactNode` without importing `React` (or importing the `ReactNode` type). In TypeScript this commonly fails to typecheck unless `React` is in scope. Fix by importing the type (e.g., `import type { ReactNode } from 'react'`) and using it, or import `React` as a type-only namespace if that matches project conventions.
+
+--- inline by @Copilot at 2026-09-14T14:30:29Z on components/ui/Toast.tsx:51 ---
+Toasts should generally announce themselves to screen readers (e.g., `role=\"status\"` with `aria-live=\"polite\"`, or `role=\"alert\"` for errors). Also, the nested `setTimeout(onClose, 200)` isn't cleared on unmount, which can lead to late `onClose()` calls after the component is gone; store and clear that second timer in the effect cleanup.
+
+--- inline by @Copilot at 2026-09-14T14:30:29Z on app/api/api-keys/[id]/route.ts:13 ---
+`context.params` is not asynchronous; awaiting it is unnecessary and makes the handler harder to read. Prefer typing the handler context explicitly and destructuring params synchronously (e.g., `({ params }: { params: { id: string } }) => { ... }`) to match Next.js route handler conventions.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on app/api/api-keys/[id]/route.ts:6 ---
+`request` is unused here, and this repository's `@typescript-eslint/no-unused-vars` rule reports unused arguments unless their names start with `_`; with `npm run lint --max-warnings 0`, this new route fails CI. Rename the parameter to `_request` (or otherwise preserve the required first argument without triggering the rule).
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on app/api/api-keys/route.ts:21 ---
+`requireAuth()` returns only a `User`; the API-key scopes returned by validation are discarded, and no route checks them. A key created with `['ai:read']` can therefore call this POST to mint a new unrestricted `['*']` key, and the same key can reach every other state-changing or admin route. Propagate API-key auth metadata and enforce scopes before privileged handlers.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on core/billing/handleWebhook.ts:26 ---
+The idempotency row is inserted before processing, but it is never removed or marked failed if handling throws. A transient Stripe/DB/hook error therefore returns non-2xx (causing Stripe to retry), yet the retry sees this row and returns immediately, permanently dropping provisioning or payment work. Track processing/completed state or release the claim on failure while preserving concurrency control.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on core/billing/handleWebhook.ts:178 ---
+Different Stripe events for the same subscription (`checkout.session.completed` and `customer.subscription.created`) have different event IDs, so the idempotency ledger does not serialize them. Two concurrent deliveries can both observe no existing row and both insert because `stripeSubscriptionId` has no unique constraint, duplicating subscription records. Add a unique constraint and an atomic upsert/transaction keyed by the Stripe subscription ID.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on core/db/schema/index.ts:12 ---
+These new tables are exported and used at runtime, but the checkout contains no generated migration files under `core/db/migrations`. An existing installation running `npm run db:migrate` will not create `api_keys`, `webhook_events`, `ai_usage`, or `prompt_templates`, so the new routes and webhook can fail with missing-relation errors. Commit the generated migration or make the deployment step explicitly apply the schema.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on lib/serverAuth.ts:33 ---
+`validateApiKey` returns `scopes`, but this branch discards them and exposes only the user. As a result, every `requireAuth()` route—including admin and API-key management—accepts a key created with a restricted scope as full user access. Propagate an auth context/required scope and enforce it per route, or remove scope support until it is implemented.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on lib/serverAuth.ts:38 ---
+Session validation rejects non-active users, but the API-key branch returns the database user regardless of `status`. A suspended or banned user can therefore continue using any unrevoked API key. Reject inactive users in this branch as well.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on app/api/api-keys/route.ts:21 ---
+The plan configuration adds `apiKeys` caps, but this endpoint never counts existing keys or calls a limit check before inserting. As a result, free/pro/business users can create unlimited keys instead of being capped at 3/25/100. Enforce the plan limit atomically before creating the key.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on config/billing.config.ts:31 ---
+`apiKeys` is not part of `PlanLimitsSchema` in `core/billing/types.ts`, so these added properties are excess-property type errors and Zod strips them at runtime. The create route also never checks this limit, so the advertised caps are not enforced. Add the field to the schema and enforce it before insertion, or remove these misleading entries.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on core/api-keys/list.ts:36 ---
+When `includeRevoked` is false, `conditions[1]` is never passed to SQL; every revoked key for the user is fetched and then discarded in JavaScript. As revoked-key history grows, each list request scans/transfers unnecessary rows. Combine the predicates with Drizzle's `and(...)` in the query and remove the in-memory filter.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on core/billing/handleWebhook.ts:53 ---
+This now fires `onPaymentSucceeded` for every invoice. Invoices without a subscription (for example, one-off or manually issued invoices) still resolve a customer and invoke the payment hook with an empty plan, unlike the previous subscription guard. Keep the hook inside an `if (invoice.subscription)` check.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on .github/workflows/ci.yml:26 ---
+The PR description says integration tests are not covered by CI and must be run locally, but this diff adds a CI job with a Postgres service and runs `npm run test:integration`. Please update the description/verification status so it matches the workflow reviewers will actually rely on.
+
+--- inline by @Copilot at 2026-09-14T14:46:57Z on components/landing/Pricing.tsx:101 ---
+This new Enterprise CTA links to `/contact`, but there is no contact route in the repository, so clicking it leads to a 404. Add the contact page/endpoint or point the CTA at an existing contact channel.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/api-keys/create.ts:39 ---
+`teamId` is persisted without checking that the caller belongs to the team, so a user can attach a key to an arbitrary existing team's ID. `serverAuth` also discards this field, meaning the apparent team boundary is not enforced at all. Validate membership and propagate team authorization, or reject team-scoped keys until that boundary is implemented.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/billing/handleWebhook.ts:70 ---
+When an invoice belongs to a customer that cannot be resolved locally or from Stripe metadata, this still fires a user-specific hook with `userId: ''`. That includes one-off/unlinked invoices and violates the hook argument contract, allowing integrations to act on a nonexistent user; skip or route such invoices separately instead of invoking the hook with an empty ID.
+
+This issue also appears on line 120 of the same file.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/billing/types.ts:9 ---
+Because this field has a Zod default, it is required in the inferred `Plan['limits']` type, but existing typed fixtures in `core/billing/plans.test.ts`, `core/admin/metrics.test.ts`, `core/billing/checkPlanLimit.test.ts`, and other billing tests omit `apiKeys`. The advertised `tsc --noEmit` run will fail until those fixtures are updated or the type is made optional.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/billing/webhookEventLog.ts:22 ---
+A process crash or restart after this insert and before `dispatch` completes leaves the event permanently marked as handled; Stripe's retry then returns at the duplicate check without applying the subscription. The ledger needs an in-progress/processed state with an expiry or recovery mechanism, rather than treating every existing row as a completed event.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/jobs/worker.ts:85 ---
+Cancelling the timeout only clears its timer; it does not stop `handler(job.payload)`. When the timeout wins, this code marks the job retryable while the original handler continues, so a retry can execute the same side effects concurrently or twice. Use abortable handlers or avoid retrying until the timed-out execution is known to have stopped.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on vitest.integration.config.ts:18 ---
+This reuses `setup.ts`, which initializes `DATABASE_URL` to port 5432, while the integration harness probes port 5433 and the core DB client reads `DATABASE_URL`. The current suites manually override the variable, but any new integration suite that does not will connect to (and truncate) the development database, contradicting the separate-database guarantee.
+
+This issue also appears on line 18 of the same file.
+
+--- inline by @Copilot at 2026-09-14T15:00:33Z on core/api-keys/create.ts:76 ---
+The billing configuration now declares a maximum number of active API keys per plan, but creation inserts unconditionally and never counts non-revoked keys. Free users can consequently create unlimited keys and the advertised `limits.apiKeys` control is ineffective; enforce the limit before insertion with a concurrency-safe check.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on app/api/ai/completion/route.ts:66 ---
+This endpoint now dispatches every authenticated request to `complete()`, but the configured `dailyTokenLimit` and `monthlyTokenLimit` are never checked before the provider call. Any nonzero installation limits are ignored, allowing unbounded provider spend; enforce them with an atomic usage check before dispatch.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on core/ai/providers.test.ts:26 ---
+This assertion codifies a provider mapping that cannot work with the configured Google base URL: `openaiCompletion` appends `/chat/completions` to `https://generativelanguage.googleapis.com/v1beta`, while Google's OpenAI-compatible endpoint is under `/v1beta/openai`. The default Gemini path will therefore fail; add the compatibility path or implement Google's native transport instead of treating this mapping as tested.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on core/auth/oauth.ts:173 ---
+Checking only the provider's `emailVerified` flag does not close this takeover path. `verifyCredentials` permits an unverified local account to log in, so an attacker can register the victim's address, leave it unverified, and this branch will still link the victim's verified Google identity to that attacker-owned account. Require the existing local account to be verified or force an authenticated explicit-link flow; add a test for `existingUser.emailVerified === false` with `userInfo.emailVerified === true`.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on core/billing/handleWebhook.ts:71 ---
+If `resolveUserId` cannot link the invoice customer, this sends `onPaymentSucceeded` with `userId: ''` instead of failing the webhook. Hooks receive an invalid identity and the event is acknowledged, so the payment cannot be safely retried; throw on an unresolved customer as the subscription path does.
+
+This issue also appears on line 81 of the same file.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on core/billing/handleWebhook.ts:136 ---
+When Stripe Price metadata does not contain `planId` (the documented setup only asks users to copy price IDs), every subscription falls back to the first paid plan, `pro`. Thus a Business checkout is stored as Pro; resolve the local plan from `priceId` before using the generic fallback, as `planForInvoice` already does.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on lib/serverAuth.ts:53 ---
+The API-key path returns the complete database row cast to `User`, unlike the session path's explicit projection. That row includes `passwordHash`, encrypted PII, login metadata, and other fields excluded from the `User` interface; any protected route or hook that serializes or forwards this value can expose them. Return the same explicit safe-user projection used by `validateSession` instead of casting the row.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on lib/serverAuth.ts:53 ---
+`validateApiKey` returns `teamId`, but this branch returns only the user and never carries that identity into route authorization. A key created with a team ID therefore still operates against every team the user can access (and `createApiKey` does not verify membership). Enforce the team context in downstream authorization or remove the team-scoping input until it is enforced.
+
+--- inline by @Copilot at 2026-09-14T15:17:28Z on core/ai/completion.ts:19 ---
+This now loads the `enabled` flag, but `complete()` never consults it before invoking the provider. Setting `enabled: false` therefore does not disable the newly reachable completion endpoint or direct core callers. Reject disabled configurations before any provider call.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on app/api/ai/completion/route.ts:57 ---
+This is the only spend throttle, but `checkRateLimit` uses a process-local `Map`. With multiple replicas or serverless workers, each instance allows 20 calls per minute, so the cap is not global and can be bypassed by distributing requests. Use a shared limiter for a billing safeguard.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on core/billing/handleWebhook.ts:42 ---
+`releaseEvent` deletes the claim by event ID without checking which delivery owns it. If delivery B observes delivery A's claim and returns 2xx while A is processing, then A fails and deletes the row; Stripe will not retry B, so the event is permanently dropped. The claim needs an owner/processing lease (or equivalent) so only the owning delivery can release it and in-flight duplicates remain retryable.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on core/billing/handleWebhook.ts:79 ---
+Because this event was already claimed before dispatch, breaking when the invoice cannot be mapped to a user acknowledges the webhook with 2xx and permanently suppresses it. A transient lookup/replication failure therefore loses `onPaymentSucceeded`; throw so Stripe retries (as the subscription path does), or use a retryable claim state.
+
+This issue also appears on line 95 of the same file.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on core/billing/webhookEventLog.ts:58 ---
+If deleting the claim fails, the original delivery is retried with a non-2xx, but every retry then sees the stale row and returns as a duplicate. A transient database error during cleanup can therefore permanently drop a Stripe event; the ledger needs a lease/processing state or a durable retry strategy rather than swallowing this failure.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on lib/serverAuth.ts:53 ---
+The API-key path returns the full Drizzle `users` row, and `as User` only changes the TypeScript view; it does not remove `passwordHash`, `emailEncrypted`, `emailHash`, or other columns. Any caller that serializes this user can expose those fields. Map this row to the same allowlisted public shape used by `validateSession` (or select only those columns) before returning it.
+
+--- inline by @Copilot at 2026-09-14T15:35:45Z on core/billing/handleWebhook.ts:95 ---
+The success path filters out one-off invoices, but this failure path does not. A manually issued or one-off invoice for a known customer will therefore invoke `onPaymentFailed` and trigger dunning for a non-subscription charge; apply `invoiceSubscriptionId(invoice)` before resolving the user, as in the success branch.
+
+--- inline by @Copilot at 2026-09-14T15:49:52Z on core/ai/completion.ts:43 ---
+Selecting `google` here reaches the OpenAI-compatible provider, whose existing credential mapping uses `https://generativelanguage.googleapis.com/v1beta` while the compatibility endpoint is under `/v1beta/openai`; the resulting `/v1beta/chat/completions` request fails for Gemini models. Update the Google base URL or implement Google's native request shape before exposing this provider.
+
+--- inline by @Copilot at 2026-09-14T15:49:52Z on middleware.ts:166 ---
+This gate treats every `GET` as safe, but `/api/auth/magic-link/verify` is a public GET that consumes a token and sets the session cookie. An attacker can send a victim a link containing the attacker's own magic-link token and log the victim into the attacker's account (login CSRF). Make verification a non-GET flow or give this state-changing endpoint an explicit anti-login-CSRF handoff/state check instead of relying only on the HTTP method.
+
+--- inline by @Copilot at 2026-09-14T15:49:52Z on core/ai/completion.ts:28 ---
+`AIWrapperConfig` exposes `dailyTokenLimit` and `monthlyTokenLimit`, but this path never reads either value; after enabling them, callers can continue making completions without any token-limit check. Enforce the configured per-user windows before invoking the provider (or remove/document these settings as unsupported).
+
+--- inline by @Copilot at 2026-09-14T15:49:52Z on core/ai/usage.ts:98 ---
+This changes database ordering and pagination for the usage history, but the accompanying tests mock Drizzle rather than executing against PostgreSQL. A mocked query builder cannot verify that the `ORDER BY ... DESC LIMIT` returns the newest rows or that the selected columns match the `ai_usage` table; add an integration test using the real test database.
+
+--- inline by @Copilot at 2026-09-14T16:05:46Z on middleware.ts:97 ---
+This exemption checks only for an API-key-shaped `Authorization` value, while `getCurrentUser()` gives a session cookie priority when both credentials are present. A request carrying a session cookie plus any `Bearer ub_live_...` value therefore bypasses the same-origin check but is still authenticated as the ambient session. Only exempt API-key requests when no session cookie is present (or make the authentication and CSRF decisions use the same credential).
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on app/api/ai/completion/route.ts:57 ---
+The route explicitly acknowledges that `dailyTokenLimit` and `monthlyTokenLimit` are never enforced, while the process-local 20/minute map resets on deploy and multiplies across replicas. An authenticated user can consequently generate unbounded provider spend despite those configured limits. Enforce usage limits in shared storage (ideally with an atomic reservation) before calling the provider.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:30 ---
+The idempotency row is committed before `dispatch`, so a process crash between this insert and the handler leaves the event permanently claimed. Stripe's retry then returns here with 2xx even though provisioning or the payment hook never ran (and `processedAt` records the claim, not successful processing). Track processing/completed state with a reclaimable lease, or use an outbox/transaction so only successfully applied events are skipped.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:140 ---
+The two webhook types can arrive concurrently with different event IDs: both can pass `claimEvent`, observe no subscription row, and then insert the same Stripe subscription because this lookup is by customer and `stripe_subscription_id` is not unique/upserted. Idempotency for one event does not prevent this duplicate entitlement. Key provisioning on the Stripe subscription ID with a database uniqueness constraint and an atomic upsert (plus a concurrent-event regression test) is needed.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:151 ---
+For `checkout.session.completed`, `planHint` is the authoritative plan selected in the signed Checkout Session metadata, but this resolves the price first. With the default config, Pro and Business share placeholder price IDs, so a Business session can be persisted as Pro; the same ambiguity occurs when IDs are reused or rotated. Prefer `planHint` before the price lookup for this path.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:153 ---
+When the Stripe price is not recognized (or a plan hint is stale), this silently assigns the first paid plan, normally `pro`. A newly added/misconfigured Stripe price can therefore grant the wrong entitlement instead of failing and asking Stripe to retry. Resolve only to a validated configured plan and reject unknown prices rather than defaulting to a paid tier.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:178 ---
+Event-ID idempotency does not order different `customer.subscription.updated` deliveries. Stripe can deliver an older snapshot after a newer one, and this unconditional update will roll the local plan/status back to stale values. Carry the webhook's event timestamp/version into the row and ignore older snapshots, or fetch the current subscription state before applying the update.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/billing/handleWebhook.ts:219 ---
+A customer can have a newer subscription while Stripe is still delivering the deletion event for an older one. Filtering only by `stripeCustomerId` updates every subscription for that customer, so an out-of-order old deletion can cancel the current subscription and remove its entitlement. Apply the deletion to the matching `stripeSubscriptionId` row instead.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/jobs/worker.ts:83 ---
+`Promise.race` stops waiting when the timeout wins, but it does not cancel `handler(job.payload)`. The catch path marks the job retryable while the original handler can continue performing side effects, and a retry can then run concurrently and duplicate those effects. Pass an abort signal that handlers honor, or do not retry/claim completion until the timed-out execution has actually stopped.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/runtime/licenseValidator.ts:105 ---
+The new parser drops the previously recognized `ub_builder_` and `ub_team_` prefixes entirely, so existing license keys become invalid on upgrade and their users lose previously granted features. Preserve the legacy prefixes with an explicit tier mapping or provide a migration/rotation path before deploying this compatibility break.
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on middleware.ts:79 ---
+This method set still treats every GET as safe even though `/api/auth/magic-link/verify` is a public GET that creates a session cookie. An attacker can send a magic-link URL for the attacker's account to a victim and cause the victim's browser to log into that account, so subsequent actions are misattributed. Route the email link through an interstitial and create the session only on a same-origin POST (and handle the other mutating GET similarly).
+
+--- inline by @Copilot at 2026-09-14T18:11:42Z on core/ai/usage.ts:98 ---
+This test suite mocks the query builder and returns records in a fixed order, so it would pass if the new `desc(aiUsage.createdAt)` were removed. Because the behavior depends on PostgreSQL ordering plus LIMIT, add a real-Postgres integration test with more records than the limit and assert that the newest records are returned first.
+
+--- inline by @Copilot at 2026-09-14T18:34:49Z on components/ui/Dropdown.tsx:14 ---
+`React.ReactNode` is referenced but `React` isn't imported. As with `Modal.tsx`, import `type ReactNode` from `react` (or `type React`) and update the prop type to avoid a TS compile error.
+
+--- inline by @Copilot at 2026-09-14T18:34:49Z on components/ui/Modal.tsx:9 ---
+`React.ReactNode` is referenced but `React` is not imported in this module. This will fail type-checking unless the project provides a global `React` namespace type. Import `type ReactNode` from `react` (or import `type React`), and update `children` accordingly.
+
+--- inline by @Copilot at 2026-09-14T18:34:49Z on components/ui/CopyButton.tsx:17 ---
+`navigator.clipboard.writeText` can throw (permissions, insecure context, unavailable API). Consider catching errors and surfacing a failure state (or at least not leaving the UI implying success). Also consider clearing the timeout on unmount if this component can unmount quickly after a click.
+
+--- inline by @Copilot at 2026-09-14T18:34:49Z on components/ui/Dropdown.tsx:32 ---
+The dropdown trigger is a non-interactive `div` with an `onClick`, which is not keyboard accessible and lacks ARIA semantics. Use a `button` (or ensure the trigger is a focusable element), add keyboard handling, and include appropriate attributes like `aria-haspopup` and `aria-expanded`.
+
+--- inline by @Copilot at 2026-09-14T18:34:49Z on components/ui/Table.tsx:40 ---
+Using the array index as a React key can cause incorrect row reuse when `data` is reordered or items are inserted/removed. Prefer a stable row identifier (e.g., `row.id`) or allow `Table` to accept a `getRowKey` prop.
+
+--- inline by @Copilot at 2026-09-14T18:58:04Z on components/ui/Dropdown.tsx:38 ---
+The dropdown trigger is a clickable <div>, which is not keyboard-accessible by default and provides no ARIA state. Use a <button> for the trigger (or add role=\"button\", tabIndex=0, and key handlers), and expose state via aria-expanded plus appropriate menu semantics (e.g., role=\"menu\" / role=\"menuitem\") if this is intended as an action menu.
+
+--- inline by @Copilot at 2026-09-14T18:58:04Z on components/ui/Modal.tsx:64 ---
+The modal lacks required dialog semantics for assistive tech. Add role=\"dialog\" and aria-modal=\"true\" on the dialog container, and ensure the title is announced via aria-labelledby (or aria-label). Without these, screen readers may not recognize this as a modal dialog.
+
+--- inline by @Copilot at 2026-09-14T18:58:04Z on components/ui/Table.tsx:40 ---
+Using the array index as a React key can cause incorrect row reuse when items are added/removed/reordered (e.g., revoking an API key). Prefer a stable unique key derived from the row (like an id) or allow the caller to provide a rowKey function/prop.
+
+--- inline by @Copilot at 2026-09-14T18:58:04Z on components/ui/Toast.tsx:54 ---
+Toast notifications should be announced to screen readers. Consider adding role=\"status\" (or role=\"alert\" for error) and aria-live (e.g., polite/assertive) so assistive technologies receive the message. Without it, important feedback (like failed API-key creation) may be missed.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on config/billing.config.ts:86 ---
+Changing the sample price IDs does not enforce the invariant that plans must have unique Stripe price IDs: `BillingConfigSchema` accepts duplicates, while `planIdForPrice` returns the first matching plan. A subscription event without Checkout metadata can therefore grant the wrong entitlement whenever a deployment repeats a price ID. Validate duplicate non-null monthly/yearly IDs when loading billing configuration.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/auth/magicLink.ts:30 ---
+This changes magic-link creation to a synchronous 600,000-iteration PBKDF2 for every email. The public magic-link request path has no corresponding rate limit, so unauthenticated callers can repeatedly consume the Node event loop (and trigger email work) without restriction. Add an IP/email limiter before this derivation, preferably backed by a shared store, or move the expensive work to a bounded queue.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/auth/oauth.ts:227 ---
+When the provider reports `emailVerified: false` for a new address, this still creates a user and links the provider identity; the callback route then immediately creates a session for it. A provider that permits arbitrary unverified email claims can therefore pre-claim a victim's email and retain OAuth access even after the real owner later verifies that address via a magic link. Reject unverified new OAuth signups or quarantine the identity until ownership is proven, rather than issuing an authenticated linked account.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/billing/handleWebhook.ts:233 ---
+The conflict-update path is not guarded by `notStale(eventAt)`. If two different events both miss `findSubscriptionRow` and race to provision the same subscription, an older event can win the conflict update after the newer row is inserted and roll the plan/status back. Add the same stale-event predicate used by the normal update path to this conflict update.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/billing/handleWebhook.ts:258 ---
+If a `customer.subscription.deleted` delivery arrives before any create/update delivery has created the row, this update affects zero rows but the event is still claimed and discarded. A later-delivered older snapshot then inserts an active subscription because there is no `lastEventAt` tombstone, restoring entitlement after cancellation. Persist a cancellation tombstone or reconcile the provider state before acknowledging a delete for a missing row.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/billing/webhookResolution.ts:57 ---
+`planIdForPrice` returns the first matching plan, while the billing schema currently permits duplicate non-null Stripe price IDs. For subscription events without a Checkout `planHint`, two plans sharing a price therefore grant whichever entitlement happens to appear first in configuration. Reject duplicate price IDs during config validation or throw on an ambiguous match instead of selecting the first plan.
+
+--- inline by @Copilot at 2026-09-14T19:13:51Z on core/billing/webhookResolution.ts:111 ---
+This placeholder is selected before the caller updates it, so two first-time subscription events for the same customer can both select the same null-subscription row and then overwrite each other's `stripeSubscriptionId`; one paid subscription disappears. Claim the placeholder with an atomic conditional update (or avoid reusing one shared placeholder) before applying subscription data.
+
+--- inline by @Copilot at 2026-09-14T19:34:22Z on app/api/auth/magic-link/verify/route.ts:96 ---
+This new confirmation flow calls `verifyMagicLink` to establish a session, but that function performs the unused-token SELECT and `usedAt` UPDATE separately. Two concurrent POSTs can therefore both pass the check and create sessions from the same link. The token must be atomically claimed (`UPDATE ... WHERE used_at IS NULL ... RETURNING`) before this session is created.
+
+--- inline by @Copilot at 2026-09-14T19:34:22Z on core/auth/createUser.ts:40 ---
+Registration now performs the same synchronous 600,000-iteration PBKDF2 for every new address, but the public registration route has no rate limit. Unique-email signup requests can therefore monopolize the Node event loop even before the existing password work completes. Add an IP/account creation limit before this operation or move the slow derivation out of the request path.
+
+--- inline by @Copilot at 2026-09-14T19:34:22Z on core/billing/stripeShapes.ts:51 ---
+`find()` silently chooses the first plan when multiple configured plans share a Stripe price ID. Subscription events without a Checkout Session hint will therefore grant whichever entitlement happens to come first in the config, rather than failing closed as the resolver contract requires. Reject duplicate price mappings during config validation or make this lookup report ambiguity and abort provisioning.
+
+--- inline by @Copilot at 2026-09-14T19:34:22Z on core/security/blindIndex.ts:156 ---
+`deriveSalt` relies on `getHmacKey()`, whose `BLIND_INDEX_KEY` branch accepts malformed hex and lets `Buffer.from(..., 'hex')` silently produce a truncated or empty key. A deployment typo can therefore make these indexes computable offline (especially the enumerable email indexes); validate the documented 64-character hex format and fail closed before deriving the salt.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on blocks/testing/globalSetup.ts:13 ---
+This assigns `DATABASE_URL` only in `globalSetup`, but Vitest runs global setup in a different scope from `setupFiles` and test workers; `blocks/testing/setup.ts` still falls back to port 5432 there. A future integration suite that omits its own `beforeAll` can therefore have the harness truncate port 5433 while the code under test connects to the development database. Set the test URL in an integration-specific setup file (or fail closed unless an explicit test URL is present).
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/api-keys/validate.ts:41 ---
+Checking only `startsWith` allows any arbitrarily long Bearer value through to synchronous PBKDF2 before the database lookup. An attacker can send malformed `ub_live_...` values repeatedly to consume CPU; reject anything that does not match the generated format (`ub_live_` plus exactly 64 lowercase hex characters) before calling `blindIndex`.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/auth/createUser.ts:40 ---
+Registration reaches this synchronous 600,000-iteration PBKDF2 through `/api/auth/register`, but that route has no rate limit. An attacker can submit unique addresses so every request takes the slow branch, serially blocking the Node event loop and starving other traffic. Add an IP-based limiter before `createUser` (or move this derivation off the request thread); the per-email limiter on magic-link requests does not cover registration.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/auth/magicLink.ts:102 ---
+The confirmation flow now makes `verifyMagicLink` a directly reachable POST, but this function still selects an unused token and marks it used in a separate operation. Two simultaneous confirmation requests can both pass the `isNull(usedAt)` read and create two sessions from one link. Consume the token atomically with an `UPDATE ... WHERE used_at IS NULL ... RETURNING` (or a transaction with a row lock) before creating the session.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/teams/inviteMember.ts:92 ---
+The new blind-index token path still feeds into a non-atomic invitation acceptance flow: two users can read the same unaccepted row, both insert themselves as members, and only then set `acceptedAt`. The flag therefore does not enforce one-time redemption. Claim the invitation atomically in a transaction (with a conditional update/row lock) before inserting the member.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/teams/inviteMember.ts:97 ---
+Returning the plaintext token is now the only way for a caller to build an invitation link, but the only application flow returns this object from the API and `InviteForm` discards `token`; no email or link is sent to the invitee. Invitations created through the UI therefore cannot be accepted. Send the link through a server-side email/hook (and avoid returning the secret), or explicitly surface it to the inviter.
+
+--- inline by @Copilot at 2026-09-14T19:54:29Z on core/billing/subscriptionWrites.ts:180 ---
+`onConflictDoNothing` loses a deletion to a concurrent create: if the create inserts this subscription after the initial `UPDATE`/`findSubscriptionRow` but before this insert, the conflict is ignored and the active row remains even though the deletion may be newer. Use a conflict update guarded by `notStale(eventAt)` (or otherwise serialize this write) so the tombstone is applied when appropriate.
+
+--- inline by @Copilot at 2026-09-14T20:14:02Z on core/auth/magicLink.ts:88 ---
+This public lookup eventually derives a synchronous PBKDF2 index from the raw query-string token, but no length/format bound is applied before that derivation. An oversized token can monopolize the event loop before the database lookup; generated magic links have a fixed 64-character hex shape, so validate that shape before hashing (and share the check with the other token entry points).
+
+--- inline by @Copilot at 2026-09-14T20:14:02Z on core/auth/verificationTokens.ts:53 ---
+This derives a synchronous PBKDF2 index from an unbounded token supplied by public verification/reset endpoints. A caller can submit an oversized token and make the event loop hash attacker-controlled input repeatedly, causing avoidable CPU denial of service before the database lookup. Reject the expected 64-character token format/length before calling `blindIndex` (and apply the same bound at the other public token entry points).
+
+--- inline by @Copilot at 2026-09-14T20:14:02Z on core/billing/handleWebhook.ts:89 ---
+This event is claimed before `runHook`, but the shared hook runner catches and logs handler exceptions instead of rejecting. If `onPaymentSucceeded` or `onPaymentFailed` fails, `dispatch` still resolves, the ledger row remains, and Stripe receives 2xx with the payment hook lost permanently. Webhook processing needs a propagating/durable hook path so an unapplied payment event remains retryable.
+
+--- inline by @Copilot at 2026-09-14T20:14:02Z on core/billing/webhookResolution.ts:154 ---
+`event.created` is only second-resolution, but this predicate treats equal timestamps as fresh. Two different subscription snapshots created in the same second can therefore arrive newest-first and then older-first; the second write still passes `lastEventAt <= eventAt` and rolls the plan/status back. Use a total ordering or reconcile equal-timestamp snapshots instead of treating equality as safe.
+
+--- inline by @Copilot at 2026-09-14T20:14:02Z on lib/serverAuth.ts:32 ---
+`validateApiKey` returns `teamId`, but this branch checks only `valid` and `userId` and then treats a wildcard key as unrestricted. Any persisted team-scoped key is therefore accepted as a user-wide credential even though no team boundary is enforced. Reject non-null `teamId` here until team-aware authorization exists.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on app/(auth)/magic-link/confirm/page.tsx:46 ---
+Same as the dashboard page: `searchParams` being typed as a Promise is likely inconsistent with Next.js’s expected props types for `page.tsx`. Consider using a plain object type and removing `await` to prevent TS/Next build errors.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on app/(dashboard)/page.tsx:14 ---
+Typing `searchParams` as a Promise is likely incompatible with Next.js App Router’s Page component prop types (commonly a plain object). This can cause type-check/build failures. Prefer typing it as an object and avoid `await` (or align with the project’s Next.js version’s official `PageProps` shape).
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on app/api/auth/register/route.ts:2 ---
+getClientIp` is used but not imported in this file, which should cause a TypeScript/build failure. Import it from the same helper used elsewhere (e.g. `@/lib/routeHandler`) or replace the call with an already-imported equivalent.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on app/api/auth/register/route.ts:32 ---
+getClientIp` is used but not imported in this file, which should cause a TypeScript/build failure. Import it from the same helper used elsewhere (e.g. `@/lib/routeHandler`) or replace the call with an already-imported equivalent.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on components/ui/Dropdown.tsx:32 ---
+The dropdown trigger is a plain `div` with an onClick handler, which is not keyboard-accessible by default and lacks button semantics. Use a `button` element (or add `role="button"`, `tabIndex={0}`, and key handlers for Enter/Space) so keyboard and assistive-technology users can operate it.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on components/ui/Modal.tsx:33 ---
+The modal lacks common dialog accessibility semantics (e.g., `role="dialog"`, `aria-modal="true"`, and wiring `aria-labelledby` to the title). Without these, screen readers may not announce the dialog correctly. Consider adding the ARIA attributes and (optionally) focus management/trapping to keep keyboard focus within the modal while open.
+
+--- inline by @Copilot at 2026-09-14T20:37:32Z on components/ui/Toast.tsx:54 ---
+Toasts are typically announced via screen readers using an aria live region. Consider adding `role="status"` (or `role="alert"` for errors) and `aria-live`/`aria-atomic` attributes so important feedback isn’t missed by users relying on assistive tech.
+
+--- inline by @Copilot at 2026-09-14T21:02:27Z on components/ui/Table.tsx:40 ---
+Using the array index as a React key can cause incorrect row reuse when rows are inserted/removed/reordered, leading to subtle UI bugs. Since this is a generic table, consider accepting an explicit `getRowKey` prop (or requiring a stable id field) and using that for `<tr key=...>`.
+
+--- inline by @Copilot at 2026-09-14T21:22:38Z on core/auth/magicLink.ts:25 ---
+This public magic-link request now performs a synchronous 600,000-iteration PBKDF2 before responding (the implementation documents roughly 260 ms per call). Because the rate limiter is process-local, requests distributed across IPs can still block the Node event loop and starve unrelated traffic. Use an asynchronous/worker-backed derivation and a shared limiter, or avoid this derivation until there is a real lookup consumer for `emailHash`.
+
+--- inline by @Copilot at 2026-09-14T21:22:38Z on core/auth/oauth.ts:181 ---
+This local-account check is bypassed by the magic-link flow: an attacker can register `victim@example.com` locally, request a link, and the victim's click marks the row verified and signs into it while the attacker's password remains. The next verified OAuth login then passes this guard and links to the attacker's account. Do not let an unverified local account become usable this way; require verification before account/password creation or reconcile/reset credentials when the first proof arrives.
+
+--- inline by @Copilot at 2026-09-14T21:22:38Z on core/billing/customer.ts:32 ---
+This non-locking lookup still permits two concurrent checkout/portal requests to observe no customer and each call `customers.create`; the later database write can overwrite the row while the callers use different Stripe customer IDs. That splits billing and can attach later webhooks to the wrong customer. Serialize the mapping or combine a stable Stripe idempotency key with an atomic database upsert.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on components/landing/Pricing.tsx:101 ---
+This new CTA points to `/contact`, but the repository has no matching App Router page or route, so clicking Contact Sales leads to a 404. Add the contact page/route or point this link at an existing configured sales destination.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on core/ai/completion.ts:58 ---
+`dailyTokenLimit` and `monthlyTokenLimit` are configuration fields, but no check runs before this provider call; setting either limit has no effect. The request-count limiter is per-process and does not provide a token spend cap, so enforce the configured limits atomically before dispatching a paid completion.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on core/billing/customer.ts:36 ---
+Two concurrent calls can both pass this no-customer lookup, create separate Stripe Customer objects, and then race to write only one local subscription row. The resulting checkout sessions can be attached to different Stripe customers for the same user. Serialize customer creation or add a durable per-user customer mapping with a recheck/unique guard before creating the second customer.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on core/billing/webhookEventLog.ts:22 ---
+The ledger row is inserted before dispatch but is treated as fully processed immediately. If a duplicate delivery arrives while the first is still running, it gets a 2xx; if the first then fails and releases the row, Stripe may stop retrying and the event is lost. A process crash between claim and release has the same effect. Track processing versus completed state with a lease, or make in-flight duplicates wait/fail rather than acknowledge them.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on core/jobs/worker.ts:104 ---
+`Promise.race` returns on timeout while the handler continues, and `failJob` can immediately make the same row pending for retry. Because `AbortSignal` is cooperative, a handler that ignores it can overlap its retry and duplicate side effects such as emails or charges. Require the attempt to settle before requeueing, or add an attempt/lease fence and an explicit idempotency contract for handlers.
+
+--- inline by @Copilot at 2026-09-14T21:33:05Z on core/jobs/worker.ts:106 ---
+If `completeJob` throws here (for example, a transient database failure), the callback rejects directly into `Promise.allSettled`; no failure transition or recovery runs, so the row remains `processing` indefinitely and will never be claimed again. Handle completion persistence with a retryable, fenced transition (also accounting for an error after the update committed).
+
+--- inline by @github-code-quality[bot] at 2026-09-14T22:11:39Z on core/auth/emailVerification.ts:1 ---
+## Unused variable, import, function or class
+
+<p>Unused import eq.</p>
+
+--- inline by @github-code-quality[bot] at 2026-09-14T22:11:39Z on core/auth/passwordReset.ts:1 ---
+## Unused variable, import, function or class
+
+<p>Unused import eq.</p>
