@@ -18,7 +18,6 @@ vi.mock('../db/client', () => ({
           name: 'Test Key',
           prefix: 'ub_live_abcdef12',
           keyHash: 'hash123',
-          keyEncrypted: 'encrypted123',
           scopes: ['*'],
           lastUsedAt: null,
           expiresAt: null,

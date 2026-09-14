@@ -9,6 +9,7 @@ export {
   exchangeGoogleCode,
   getGoogleUserInfo,
   handleOAuthCallback,
+  OAuthLinkRequiredError,
 } from './oauth'
 export { createMagicLink, verifyMagicLink } from './magicLink'
 export { requestPasswordReset, resetPassword } from './passwordReset'

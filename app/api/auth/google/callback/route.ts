@@ -2,6 +2,7 @@ import {
   exchangeGoogleCode,
   getGoogleUserInfo,
   handleOAuthCallback,
+  OAuthLinkRequiredError,
   createSession,
 } from '@unblocks/core/auth'
 import {
@@ -10,6 +11,7 @@ import {
   serializeCookie,
   clearCookie,
 } from '@unblocks/core/security/cookies'
+import { validateCsrfToken } from '@unblocks/core/security/csrf'
 import { withErrorHandler, getClientIp, getUserAgent } from '@/lib/routeHandler'
 import { cookies } from 'next/headers'
 
@@ -29,7 +31,8 @@ export const GET = withErrorHandler(async (request) => {
   const cookieStore = await cookies()
   const storedState = cookieStore.get(OAUTH_STATE_COOKIE)?.value
 
-  if (!stateParam || !storedState || stateParam !== storedState) {
+  // Constant-time compare: a plain !== leaks match position via timing.
+  if (!validateCsrfToken(storedState, stateParam ?? undefined)) {
     return new Response(null, { status: 302, headers: { Location: '/login?error=oauth_state_mismatch' } })
   }
 
@@ -41,17 +44,29 @@ export const GET = withErrorHandler(async (request) => {
   const tokens = await exchangeGoogleCode(code, clientId, clientSecret, redirectUri)
   const userInfo = await getGoogleUserInfo(tokens.accessToken)
 
-  const user = await handleOAuthCallback(
-    'google',
-    userInfo.sub,
-    tokens.accessToken,
-    tokens.refreshToken,
-    {
-      email: userInfo.email,
-      name: userInfo.name,
-      avatarUrl: userInfo.picture,
+  let user
+  try {
+    user = await handleOAuthCallback(
+      'google',
+      userInfo.sub,
+      tokens.accessToken,
+      tokens.refreshToken,
+      {
+        email: userInfo.email,
+        name: userInfo.name,
+        avatarUrl: userInfo.picture,
+        emailVerified: userInfo.email_verified,
+      }
+    )
+  } catch (err) {
+    if (err instanceof OAuthLinkRequiredError) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: '/login?error=oauth_link_required' },
+      })
     }
-  )
+    throw err
+  }
 
   const session = await createSession(user.id, {
     ipAddress: getClientIp(request),

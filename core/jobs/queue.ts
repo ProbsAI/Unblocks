@@ -72,7 +72,16 @@ export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
       SELECT id FROM ${jobs}
       WHERE status = 'pending'
         AND scheduled_at <= NOW()
-      ORDER BY priority ASC, scheduled_at ASC
+      -- priority is a varchar, so a plain ASC sort is alphabetical and orders
+      -- high, low, normal — running low-priority jobs ahead of normal ones.
+      -- Rank explicitly instead.
+      ORDER BY CASE priority
+                 WHEN 'high' THEN 1
+                 WHEN 'normal' THEN 2
+                 WHEN 'low' THEN 3
+                 ELSE 2
+               END ASC,
+               scheduled_at ASC
       LIMIT ${limit}
       FOR UPDATE SKIP LOCKED
     )

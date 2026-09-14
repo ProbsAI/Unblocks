@@ -6,7 +6,14 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/*.test.ts'],
-    exclude: ['node_modules', '.next', 'drizzle'],
+    // Integration tests need a live Postgres and run via
+    // vitest.integration.config.ts, not in the unit suite.
+    exclude: [
+      'node_modules',
+      '.next',
+      'drizzle',
+      '**/*.integration.test.ts',
+    ],
     setupFiles: ['./blocks/testing/setup.ts'],
     testTimeout: 10_000,
     coverage: {

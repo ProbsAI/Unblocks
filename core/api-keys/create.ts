@@ -1,7 +1,6 @@
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { apiKeys } from '../db/schema/apiKeys'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import type { CreateApiKeyInput, CreateApiKeyResult, ApiKey } from './types'
 import { API_KEY_PREFIX } from './types'
@@ -25,11 +24,9 @@ export async function createApiKey(
   // Visible prefix for identification (first 8 chars of random part)
   const prefix = `${API_KEY_PREFIX}${randomPart.slice(0, 8)}`
 
-  // Hash for lookup (blind index)
+  // Blind index for lookup. This is the only derivation we persist — the key
+  // itself is returned once below and is not recoverable from the database.
   const keyHash = blindIndex(fullKey)
-
-  // Encrypt for storage
-  const keyEncrypted = encrypt(fullKey)
 
   // Calculate expiration
   const expiresAt = input.expiresInDays
@@ -42,7 +39,6 @@ export async function createApiKey(
     name: input.name,
     prefix,
     keyHash,
-    keyEncrypted,
     scopes: input.scopes ?? ['*'],
     expiresAt,
   }).returning()

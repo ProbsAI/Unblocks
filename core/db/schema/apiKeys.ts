@@ -2,7 +2,6 @@ import {
   pgTable,
   uuid,
   varchar,
-  text,
   jsonb,
   timestamp,
 } from 'drizzle-orm/pg-core'
@@ -16,10 +15,15 @@ export const apiKeys = pgTable('api_keys', {
   name: varchar('name', { length: 255 }).notNull(),
   /** Visible prefix for identification (e.g., "ub_live_a3f8b2c1") */
   prefix: varchar('prefix', { length: 20 }).notNull(),
-  /** HMAC-SHA256 blind index of the full key for lookup */
+  /**
+   * HMAC-SHA256 blind index of the full key, used for lookup.
+   *
+   * This is the ONLY stored derivation of the key and it is one-way: the key is
+   * shown once at creation and is unrecoverable afterwards. Do not add a
+   * reversible copy — validation only ever needs the blind index, so storing
+   * decryptable keys would create a credential dump with no benefit.
+   */
   keyHash: varchar('key_hash', { length: 64 }).notNull().unique(),
-  /** AES-256-GCM encrypted full key */
-  keyEncrypted: text('key_encrypted').notNull(),
   /** Allowed scopes (e.g., ["ai:read", "ai:write", "teams:read"]) */
   scopes: jsonb('scopes').notNull().default(['*']),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),

@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
+import { webhookEvents } from '../db/schema/webhookEvents'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
 import { getAllPlans } from './plans'
@@ -20,7 +21,18 @@ export async function handleStripeWebhook(
 
   const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret)
 
+  // Idempotency gate. Stripe retries on any non-2xx, and a retry must not
+  // re-apply a plan change or re-fire a payment hook.
+  if (await alreadyProcessed(event.id, event.type)) return
+
   switch (event.type) {
+    // The primary provisioning event. Without this, a first-time subscriber
+    // completes payment and nothing grants them access.
+    case 'checkout.session.completed': {
+      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+      break
+    }
+
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       await handleSubscriptionUpdate(event.data.object as Stripe.Subscription)
@@ -34,21 +46,21 @@ export async function handleStripeWebhook(
 
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice
-      if (invoice.subscription) {
-        void runHook('onPaymentSucceeded', {
-          userId: invoice.metadata?.userId ?? '',
-          amount: (invoice.amount_paid ?? 0) / 100,
-          plan: invoice.metadata?.planId ?? '',
-          invoiceUrl: invoice.hosted_invoice_url,
-        })
-      }
+      const userId = await resolveUserId(customerIdOf(invoice.customer))
+      await runHook('onPaymentSucceeded', {
+        userId: userId ?? '',
+        amount: (invoice.amount_paid ?? 0) / 100,
+        plan: await planForInvoice(invoice),
+        invoiceUrl: invoice.hosted_invoice_url,
+      })
       break
     }
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
-      void runHook('onPaymentFailed', {
-        userId: invoice.metadata?.userId ?? '',
+      const userId = await resolveUserId(customerIdOf(invoice.customer))
+      await runHook('onPaymentFailed', {
+        userId: userId ?? '',
         amount: (invoice.amount_due ?? 0) / 100,
         error: 'Payment failed',
       })
@@ -57,14 +69,53 @@ export async function handleStripeWebhook(
   }
 }
 
+/**
+ * Record an event as processed. Returns true when it had already been recorded,
+ * meaning this delivery is a duplicate and must be skipped.
+ *
+ * The insert is the lock: concurrent deliveries of the same event collide on the
+ * primary key and only one of them gets a row back.
+ */
+async function alreadyProcessed(
+  eventId: string,
+  type: string
+): Promise<boolean> {
+  const db = getDb()
+
+  const inserted = await db
+    .insert(webhookEvents)
+    .values({ eventId, provider: 'stripe', type })
+    .onConflictDoNothing({ target: webhookEvents.eventId })
+    .returning({ eventId: webhookEvents.eventId })
+
+  return inserted.length === 0
+}
+
+async function handleCheckoutCompleted(
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const subscriptionId =
+    typeof session.subscription === 'string'
+      ? session.subscription
+      : session.subscription?.id
+
+  // One-off (non-subscription) checkouts have nothing to provision here.
+  if (!subscriptionId) return
+
+  const stripe = getStripe()
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+
+  // client_reference_id is the most reliable user link at checkout time: the
+  // subscription row may not exist yet for a first-time subscriber.
+  await handleSubscriptionUpdate(subscription, session.client_reference_id)
+}
+
 async function handleSubscriptionUpdate(
-  stripeSubscription: Stripe.Subscription
+  stripeSubscription: Stripe.Subscription,
+  userIdHint?: string | null
 ): Promise<void> {
   const db = getDb()
-  const customerId =
-    typeof stripeSubscription.customer === 'string'
-      ? stripeSubscription.customer
-      : stripeSubscription.customer.id
+  const customerId = customerIdOf(stripeSubscription.customer)
 
   const [existing] = await db
     .select()
@@ -80,6 +131,8 @@ async function handleSubscriptionUpdate(
     firstPaidPlan?.id ??
     'pro'
 
+  const period = periodBounds(stripeSubscription)
+
   const subData = {
     stripeSubscriptionId: stripeSubscription.id,
     stripeSubscriptionIdEncrypted: encryptNullable(stripeSubscription.id),
@@ -88,10 +141,8 @@ async function handleSubscriptionUpdate(
     status: stripeSubscription.status,
     interval:
       stripeSubscription.items.data[0]?.price.recurring?.interval ?? null,
-    currentPeriodStart: new Date(
-      stripeSubscription.current_period_start * 1000
-    ),
-    currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+    currentPeriodStart: period.start,
+    currentPeriodEnd: period.end,
     cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
     trialEnd: stripeSubscription.trial_end
       ? new Date(stripeSubscription.trial_end * 1000)
@@ -104,17 +155,34 @@ async function handleSubscriptionUpdate(
       .update(subscriptions)
       .set(subData)
       .where(eq(subscriptions.id, existing.id))
+    return
   }
+
+  // No local row for this customer yet — a first-time subscriber, or a row that
+  // was never created. Previously this event was dropped silently and the
+  // customer paid without ever receiving entitlement.
+  const userId = userIdHint ?? (await resolveUserId(customerId))
+
+  if (!userId) {
+    // Throwing returns a non-2xx so Stripe retries rather than treating the
+    // event as delivered. Never swallow an unlinkable paid subscription.
+    throw new Error(
+      `Cannot link Stripe customer ${customerId} to a user; subscription ${stripeSubscription.id} not applied`
+    )
+  }
+
+  await db.insert(subscriptions).values({
+    userId,
+    stripeCustomerId: customerId,
+    ...subData,
+  })
 }
 
 async function handleSubscriptionDeleted(
   stripeSubscription: Stripe.Subscription
 ): Promise<void> {
   const db = getDb()
-  const customerId =
-    typeof stripeSubscription.customer === 'string'
-      ? stripeSubscription.customer
-      : stripeSubscription.customer.id
+  const customerId = customerIdOf(stripeSubscription.customer)
 
   await db
     .update(subscriptions)
@@ -125,4 +193,74 @@ async function handleSubscriptionDeleted(
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.stripeCustomerId, customerId))
+}
+
+function customerIdOf(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null
+): string {
+  if (!customer) return ''
+  return typeof customer === 'string' ? customer : customer.id
+}
+
+/**
+ * Map a Stripe customer to a local user id.
+ *
+ * Prefers the local subscriptions row, then falls back to the Stripe customer's
+ * metadata, which getOrCreateCustomer stamps with the user id at creation time.
+ */
+async function resolveUserId(customerId: string): Promise<string | null> {
+  if (!customerId) return null
+  const db = getDb()
+
+  const [row] = await db
+    .select({ userId: subscriptions.userId })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeCustomerId, customerId))
+    .limit(1)
+
+  if (row?.userId) return row.userId
+
+  const stripe = getStripe()
+  const customer = await stripe.customers.retrieve(customerId)
+  if (customer.deleted) return null
+
+  return customer.metadata?.userId ?? null
+}
+
+async function planForInvoice(invoice: Stripe.Invoice): Promise<string> {
+  const priceId = invoice.lines?.data[0]?.price?.id
+  if (!priceId) return ''
+  const match = getAllPlans().find(
+    (p) =>
+      p.stripePriceId.monthly === priceId || p.stripePriceId.yearly === priceId
+  )
+  return match?.id ?? ''
+}
+
+/**
+ * Read the billing period bounds.
+ *
+ * Stripe moved current_period_start/end from the subscription onto its items in
+ * API version 2025-03-31.basil. Read the item first and fall back to the
+ * subscription so this keeps working whichever version the account is pinned to.
+ */
+function periodBounds(subscription: Stripe.Subscription): {
+  start: Date | null
+  end: Date | null
+} {
+  const item = subscription.items.data[0] as
+    | { current_period_start?: number; current_period_end?: number }
+    | undefined
+  const legacy = subscription as unknown as {
+    current_period_start?: number
+    current_period_end?: number
+  }
+
+  const startUnix = item?.current_period_start ?? legacy.current_period_start
+  const endUnix = item?.current_period_end ?? legacy.current_period_end
+
+  return {
+    start: typeof startUnix === 'number' ? new Date(startUnix * 1000) : null,
+    end: typeof endUnix === 'number' ? new Date(endUnix * 1000) : null,
+  }
 }

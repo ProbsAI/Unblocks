@@ -5,6 +5,12 @@ import { jwtVerify } from 'jose'
 
 const API_KEY_PREFIX = 'ub_live_'
 
+/**
+ * Internal header carrying a middleware-validated API key to the route handler.
+ * Never accepted from the client — see the strip in middleware() below.
+ */
+const INTERNAL_API_KEY_HEADER = 'x-api-key'
+
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET
   if (!secret) return new TextEncoder().encode('')
@@ -53,12 +59,96 @@ function getBearerToken(request: NextRequest): string | null {
   return auth.slice(7)
 }
 
+const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+/**
+ * Endpoints authenticated by request signature rather than by an ambient
+ * cookie. They are invoked server-to-server, legitimately carry no Origin, and
+ * are not CSRF-able because no browser credential is involved.
+ */
+const CSRF_EXEMPT_PATHS = ['/api/billing/webhook']
+
+/**
+ * Decide whether a state-changing request must be rejected as cross-site.
+ *
+ * This replaces the unused double-submit token module: it needs no cooperation
+ * from client code, so it cannot be silently skipped by a form that forgot to
+ * attach a header — which is how the previous CSRF implementation ended up
+ * providing no protection at all.
+ *
+ * CSRF is only possible with an *ambient* credential the browser attaches by
+ * itself, so the rule is:
+ *
+ *  - Bearer API key present -> never blocked. The token is not ambient; an
+ *    attacker's page cannot make a browser send it. Blocking here would break
+ *    every server-to-server call.
+ *  - Origin present -> it must match. Browsers always send Origin on
+ *    cross-origin state-changing requests, so this is what stops the attack.
+ *  - Origin absent -> only blocked when a session cookie is present. That keeps
+ *    non-browser clients (curl, mobile) working while still failing closed
+ *    whenever there is actually a cookie to hijack.
+ */
+function isCrossSiteRequest(request: NextRequest): boolean {
+  const bearer = getBearerToken(request)
+  if (bearer?.startsWith(API_KEY_PREFIX)) return false
+
+  const source =
+    request.headers.get('origin') ?? request.headers.get('referer')
+
+  if (!source) {
+    return Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value)
+  }
+
+  // Prefer the configured public origin: behind a proxy or load balancer,
+  // nextUrl.origin can be the internal address rather than the browser's.
+  const expected = process.env.APP_URL ?? request.nextUrl.origin
+
+  try {
+    return new URL(source).origin !== new URL(expected).origin
+  } catch {
+    return true
+  }
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
 
+  // x-api-key is an INTERNAL header: serverAuth trusts it as proof that this
+  // middleware validated a Bearer token. A client must never be able to set it
+  // directly, so strip any inbound copy before anything else can observe it.
+  // This runs ahead of the public-path check because public routes reach
+  // getCurrentUser() too.
+  const sanitized = new Headers(request.headers)
+  const forged = sanitized.has(INTERNAL_API_KEY_HEADER)
+  sanitized.delete(INTERNAL_API_KEY_HEADER)
+
+  const passThrough = (): NextResponse =>
+    forged
+      ? NextResponse.next({ request: { headers: sanitized } })
+      : NextResponse.next()
+
+  // --- CSRF: same-origin enforcement on state-changing requests ---
+  // Runs before the public-path check because unauthenticated POST endpoints
+  // (login, register, password reset) are themselves CSRF targets.
+  if (
+    STATE_CHANGING_METHODS.has(request.method) &&
+    !CSRF_EXEMPT_PATHS.includes(pathname) &&
+    isCrossSiteRequest(request)
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'CSRF_ERROR',
+          message: 'Cross-origin request rejected',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   // Allow public paths
   if (isPublicPath(pathname)) {
-    return NextResponse.next()
+    return passThrough()
   }
 
   // --- API Key auth for API routes ---
@@ -69,11 +159,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   if (pathname.startsWith('/api/')) {
     const bearerToken = getBearerToken(request)
     if (bearerToken?.startsWith(API_KEY_PREFIX)) {
-      const response = NextResponse.next()
-      // Forward the API key to the route handler via an internal header
-      const headers = new Headers(request.headers)
-      headers.set('x-api-key', bearerToken)
-      return NextResponse.next({ request: { headers } })
+      // Set on the sanitized copy so a forged inbound value cannot survive.
+      sanitized.set(INTERNAL_API_KEY_HEADER, bearerToken)
+      return NextResponse.next({ request: { headers: sanitized } })
     }
   }
 
@@ -96,6 +184,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Verify JWT signature/expiry (full session validation happens in requireAuth)
   try {
     await jwtVerify(sessionToken, getSecret())
+    return passThrough()
   } catch {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(

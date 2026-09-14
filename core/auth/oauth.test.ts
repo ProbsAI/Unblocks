@@ -244,7 +244,7 @@ describe('handleOAuthCallback', () => {
       'google-123',
       'access-token',
       'refresh-token',
-      { email: 'test@example.com', name: 'Test', avatarUrl: 'https://photo.url' }
+      { email: 'test@example.com', name: 'Test', avatarUrl: 'https://photo.url', emailVerified: true }
     )
 
     expect(result.id).toBe('user-1')
@@ -268,7 +268,7 @@ describe('handleOAuthCallback', () => {
       'google-456',
       'access-token',
       null,
-      { email: 'test@example.com', name: 'New Name', avatarUrl: 'new-url' }
+      { email: 'test@example.com', name: 'New Name', avatarUrl: 'new-url', emailVerified: true }
     )
 
     expect(result.id).toBe('user-1')
@@ -288,7 +288,7 @@ describe('handleOAuthCallback', () => {
       'google-789',
       'access-token',
       'refresh-token',
-      { email: 'new@example.com', name: 'New User', avatarUrl: 'https://avatar.url' }
+      { email: 'new@example.com', name: 'New User', avatarUrl: 'https://avatar.url', emailVerified: true }
     )
 
     expect(result.id).toBe('user-1')
@@ -310,9 +310,53 @@ describe('handleOAuthCallback', () => {
       'google-456',
       'access-token',
       null,
-      { email: 'test@example.com', name: 'OAuth Name', avatarUrl: 'https://new-avatar.url' }
+      { email: 'test@example.com', name: 'OAuth Name', avatarUrl: 'https://new-avatar.url', emailVerified: true }
     )
 
     expect(mockUpdate).toHaveBeenCalled()
+  })
+})
+
+describe('handleOAuthCallback — unverified email linking', () => {
+  it('refuses to link to an existing account when the provider did not verify the email', async () => {
+    // First select: no linked account. Second: an existing user with that email.
+    setupMultiSelectChains([
+      [],
+      [{ ...mockDbUser, email: 'victim@example.com' }],
+      [mockDbUser],
+    ])
+    setupInsertChain()
+
+    await expect(
+      handleOAuthCallback('google', 'attacker-sub', 'access-token', null, {
+        email: 'victim@example.com',
+        name: 'Attacker',
+        avatarUrl: '',
+        emailVerified: false,
+      })
+    ).rejects.toThrow(/did not verify/i)
+
+    // The account link must not have been written.
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('allows linking when the provider verified the email', async () => {
+    setupMultiSelectChains([
+      [],
+      [{ ...mockDbUser, email: 'owner@example.com' }],
+      [mockDbUser],
+    ])
+    setupInsertChain()
+
+    await expect(
+      handleOAuthCallback('google', 'owner-sub', 'access-token', null, {
+        email: 'owner@example.com',
+        name: 'Owner',
+        avatarUrl: '',
+        emailVerified: true,
+      })
+    ).resolves.toBeDefined()
+
+    expect(mockInsert).toHaveBeenCalled()
   })
 })

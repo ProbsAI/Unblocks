@@ -80,12 +80,31 @@ export async function getGoogleUserInfo(
   return response.json() as Promise<GoogleUserInfo>
 }
 
+/**
+ * Raised when an OAuth identity resolves to an existing local account that it
+ * has not proven ownership of. Callers should surface a "sign in with your
+ * password, then link this provider" flow rather than granting a session.
+ */
+export class OAuthLinkRequiredError extends Error {
+  readonly code = 'OAUTH_LINK_REQUIRED'
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'OAuthLinkRequiredError'
+  }
+}
+
 export async function handleOAuthCallback(
   provider: string,
   providerAccountId: string,
   accessToken: string,
   refreshToken: string | null,
-  userInfo: { email: string; name: string; avatarUrl: string }
+  userInfo: {
+    email: string
+    name: string
+    avatarUrl: string
+    emailVerified: boolean
+  }
 ): Promise<User> {
   const db = getDb()
 
@@ -142,6 +161,16 @@ export async function handleOAuthCallback(
   let userId: string
 
   if (existingUser) {
+    // Auto-linking by email address is an account-takeover vector unless the
+    // provider asserts the address is verified: an attacker can register a
+    // local password account for someone else's address and silently inherit
+    // the session the moment the real owner signs in with this provider.
+    if (!userInfo.emailVerified) {
+      throw new OAuthLinkRequiredError(
+        `${provider} did not verify this email address; sign in and link ${provider} from account settings instead`
+      )
+    }
+
     userId = existingUser.id
     // Update user info if not set
     if (!existingUser.name || !existingUser.avatarUrl) {
@@ -152,7 +181,6 @@ export async function handleOAuthCallback(
           name: updatedName,
           nameEncrypted: encryptNullable(updatedName),
           avatarUrl: existingUser.avatarUrl ?? userInfo.avatarUrl,
-          emailVerified: true,
           updatedAt: new Date(),
         })
         .where(eq(users.id, existingUser.id))
@@ -169,7 +197,8 @@ export async function handleOAuthCallback(
         name: userInfo.name,
         nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,
-        emailVerified: true,
+        // Trust the provider's assertion rather than assuming verification.
+        emailVerified: userInfo.emailVerified,
       })
       .returning()
 

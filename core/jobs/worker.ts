@@ -76,13 +76,11 @@ async function poll(): Promise<void> {
           }
 
           const startTime = Date.now()
+          const timeout = createTimeout(config.defaultTimeout, job.type)
 
           try {
             // Run with timeout
-            await Promise.race([
-              handler(job.payload),
-              createTimeout(config.defaultTimeout, job.type),
-            ])
+            await Promise.race([handler(job.payload), timeout.promise])
 
             await completeJob(job.id)
 
@@ -113,6 +111,9 @@ async function poll(): Promise<void> {
               willRetry,
             }
             await runHook('onJobFailed', hookArgs)
+          } finally {
+            // Release the timer whether the job succeeded, failed, or timed out.
+            timeout.cancel()
           }
         })
       )
@@ -128,8 +129,30 @@ async function poll(): Promise<void> {
   }
 }
 
-function createTimeout(ms: number, jobType: string): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Job ${jobType} timed out after ${ms}ms`)), ms)
+/**
+ * A timeout promise plus the means to cancel it.
+ *
+ * Promise.race leaves the loser pending, so without cancel() every completed
+ * job would strand a live timer for the full timeout duration — leaking memory
+ * and holding the event loop open on shutdown.
+ */
+function createTimeout(
+  ms: number,
+  jobType: string
+): { promise: Promise<never>; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const promise = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Job ${jobType} timed out after ${ms}ms`)),
+      ms
+    )
   })
+
+  return {
+    promise,
+    cancel: () => {
+      if (timer !== undefined) clearTimeout(timer)
+    },
+  }
 }
