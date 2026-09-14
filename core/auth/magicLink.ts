@@ -131,5 +131,9 @@ export async function verifyMagicLink(token: string): Promise<User> {
       .where(eq(users.id, dbUser.id))
   }
 
-  return toUser(dbUser)
+  // emailVerified is overridden rather than read from the row: receiving the
+  // link proves control of the address, and the UPDATE above has just recorded
+  // that. dbUser is the pre-update snapshot, so returning it unmodified would
+  // report the account as unverified immediately after verifying it.
+  return toUser({ ...dbUser, emailVerified: true })
 }

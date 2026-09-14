@@ -5,6 +5,7 @@ import {
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 
 /**
@@ -41,15 +42,7 @@ let otherId = ''
 let teamId = ''
 
 async function createUser(email: string): Promise<string> {
-  const db = getTestDb()
-  const [row] = (
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified)
-      VALUES (${email}, ${email}, true)
-      RETURNING id
-    `)
-  ).rows as Array<{ id: string }>
-  return row.id
+  return seedUser({ email })
 }
 
 beforeEach(async () => {

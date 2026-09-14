@@ -5,6 +5,7 @@ import {
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 
 /**
@@ -25,6 +26,7 @@ import {
 beforeAll(() => {
   process.env.DATABASE_URL = testDatabaseUrl()
   process.env.ENCRYPTION_KEY = 'a'.repeat(64)
+  process.env.BLIND_INDEX_KEY = 'b'.repeat(64)
 })
 
 afterAll(async () => {
@@ -36,15 +38,7 @@ let userId = ''
 beforeEach(async () => {
   await truncateAll()
 
-  const db = getTestDb()
-  const [user] = (
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified)
-      VALUES ('holder@example.com', 'Holder', true)
-      RETURNING id
-    `)
-  ).rows as Array<{ id: string }>
-  userId = user.id
+  userId = await seedUser({ email: 'holder@example.com', name: 'Holder' })
 })
 
 async function seedSubscription(

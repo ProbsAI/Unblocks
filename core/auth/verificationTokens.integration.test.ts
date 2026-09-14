@@ -5,6 +5,7 @@ import {
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 
 /**
@@ -139,12 +140,12 @@ describe('the consumers that depend on it', () => {
 
   it('applies one password reset per link', async () => {
     const { requestPasswordReset, resetPassword } = await import('./passwordReset')
-    const db = getTestDb()
 
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified, password_hash)
-      VALUES ('reset@example.com', 'Reset', true, 'old-hash')
-    `)
+    await seedUser({
+      email: 'reset@example.com',
+      name: 'Reset',
+      passwordHash: 'old-hash',
+    })
 
     const requested = await requestPasswordReset('reset@example.com')
     expect(requested).not.toBeNull()

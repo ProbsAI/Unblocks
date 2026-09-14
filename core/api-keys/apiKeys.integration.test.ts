@@ -5,6 +5,7 @@ import {
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 import { apiKeys } from '@unblocks/core/db/schema/apiKeys'
 
@@ -40,15 +41,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await truncateAll()
-  const db = getTestDb()
-  const [row] = (
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified)
-      VALUES ('keyholder@example.com', 'Key Holder', true)
-      RETURNING id
-    `)
-  ).rows as Array<{ id: string }>
-  userId = row.id
+  userId = await seedUser({
+    email: 'keyholder@example.com',
+    name: 'Key Holder',
+  })
 })
 
 describe('API keys — issuance', () => {
@@ -191,15 +187,12 @@ describe('API keys — listing and revocation', () => {
     const { apiKey } = await createApiKey(userId, { name: 'Mine' })
 
     const db = getTestDb()
-    const [other] = (
-      await db.execute(sql`
-        INSERT INTO users (email, name, email_verified)
-        VALUES ('attacker@example.com', 'Attacker', true)
-        RETURNING id
-      `)
-    ).rows as Array<{ id: string }>
+    const otherId = await seedUser({
+      email: 'attacker@example.com',
+      name: 'Attacker',
+    })
 
-    await expect(revokeApiKey(apiKey.id, other.id)).rejects.toThrow(
+    await expect(revokeApiKey(apiKey.id, otherId)).rejects.toThrow(
       /cannot revoke/i
     )
 

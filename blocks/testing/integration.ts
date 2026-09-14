@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { sql } from 'drizzle-orm'
+import { users } from '@unblocks/core/db/schema/users'
+import { emailColumns } from '@unblocks/core/security/piiStorage'
 
 /**
  * Integration-test database access.
@@ -102,6 +104,42 @@ export async function truncateAll(): Promise<void> {
   await db.execute(
     sql`TRUNCATE TABLE ${identifiers} RESTART IDENTITY CASCADE`
   )
+}
+
+/**
+ * Insert a user the way the application would, and return its id.
+ *
+ * Use this instead of `INSERT INTO users (email, ...)`. Which column holds an
+ * address is decided by `privacy.encryptUserEmail`, so a raw insert naming
+ * `email` writes a plaintext row that the running mode cannot look up — every
+ * suite that seeded that way started failing the moment encrypted mode became
+ * the default, and the failure looked like a broken query rather than a broken
+ * fixture. Going through `emailColumns` keeps a fixture correct in either mode,
+ * which is also what makes these suites meaningful coverage of both.
+ *
+ * Defaults are "an ordinary, usable account": verified, named after its
+ * address, no password. Pass `emailVerified: false` when the unverified state
+ * is the thing under test.
+ */
+export async function seedUser(user: {
+  email: string
+  name?: string | null
+  emailVerified?: boolean
+  passwordHash?: string | null
+}): Promise<string> {
+  const db = getTestDb()
+
+  const [row] = await db
+    .insert(users)
+    .values({
+      ...emailColumns(user.email),
+      name: user.name ?? user.email,
+      emailVerified: user.emailVerified ?? true,
+      passwordHash: user.passwordHash ?? null,
+    })
+    .returning({ id: users.id })
+
+  return row.id
 }
 
 /**

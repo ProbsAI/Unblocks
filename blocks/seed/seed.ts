@@ -11,6 +11,7 @@ import { notifications } from '../../core/db/schema/notifications'
 import { jobs } from '../../core/db/schema/jobs'
 import { files } from '../../core/db/schema/files'
 import { sql } from 'drizzle-orm'
+import { emailColumns } from '../../core/security/piiStorage'
 import type { SeedConfig, SeedResult } from './types'
 import { SeedConfigSchema } from './types'
 import {
@@ -55,7 +56,10 @@ export async function seed(rawConfig?: Partial<SeedConfig>): Promise<SeedResult>
     const [user] = await db
       .insert(users)
       .values({
-        email: generateEmail(i),
+        // Not `email:` directly — which column holds an address depends on
+        // privacy.encryptUserEmail, and seeding the wrong one produces users
+        // nothing can look up and a database the startup check refuses.
+        ...emailColumns(generateEmail(i)),
         name: generateUserName(i),
         passwordHash: '$2a$12$seedhashedpasswordplaceholder.placeholder',
         emailVerified: true,

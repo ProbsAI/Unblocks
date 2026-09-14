@@ -5,6 +5,7 @@ import {
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 import {
   buildStripeSubscription,
@@ -93,15 +94,7 @@ beforeEach(async () => {
   hookCalls.length = 0
   vi.clearAllMocks()
 
-  const db = getTestDb()
-  const [user] = (
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified)
-      VALUES ('payer@example.com', 'Payer', true)
-      RETURNING id
-    `)
-  ).rows as Array<{ id: string }>
-  knownUserId = user.id
+  knownUserId = await seedUser({ email: 'payer@example.com', name: 'Payer' })
 })
 
 async function rows(): Promise<Array<typeof subscriptions.$inferSelect>> {

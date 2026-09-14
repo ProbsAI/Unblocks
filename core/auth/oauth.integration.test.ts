@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
-import { sql, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import {
   getTestDb,
   truncateAll,
   closeTestDb,
   testDatabaseUrl,
+  seedUser,
 } from '@unblocks/blocks/testing/integration'
 import { users } from '@unblocks/core/db/schema/users'
 import { accounts } from '@unblocks/core/db/schema/accounts'
@@ -50,15 +51,7 @@ async function seedLocalUser(
   email: string,
   emailVerified = false
 ): Promise<string> {
-  const db = getTestDb()
-  const [row] = (
-    await db.execute(sql`
-      INSERT INTO users (email, name, email_verified)
-      VALUES (${email}, 'Existing User', ${emailVerified})
-      RETURNING id
-    `)
-  ).rows as Array<{ id: string }>
-  return row.id
+  return seedUser({ email, name: 'Existing User', emailVerified })
 }
 
 describe('handleOAuthCallback — linking to an existing account', () => {
