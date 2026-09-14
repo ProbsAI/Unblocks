@@ -55,7 +55,6 @@ vi.mock('../errors/types', () => {
 
 import { getDb } from '../db/client'
 import { loadConfig } from '../runtime/configLoader'
-import { runHook } from '../runtime/hookRunner'
 import { getUserTeamRole } from './getTeam'
 // acceptInvitation moved to inviteMember.integration.test.ts: redemption now
 // turns on an atomic claim, which a stubbed query builder cannot observe.

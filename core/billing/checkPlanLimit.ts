@@ -1,6 +1,3 @@
-import { eq } from 'drizzle-orm'
-import { getDb } from '../db/client'
-import { subscriptions } from '../db/schema/subscriptions'
 import { getPlanById, getFreePlan } from './plans'
 import { getSubscription } from './getSubscription'
 
@@ -15,8 +12,6 @@ export async function checkPlanLimit(
   limitKey: string,
   currentUsage: number
 ): Promise<PlanLimitResult> {
-  const db = getDb()
-
   // Same deterministic selection as everywhere else. A user can hold several
   // subscription rows, and a bare LIMIT 1 could hand back a cancelled one —
   // silently applying free-tier limits to a paying customer, or the reverse.
