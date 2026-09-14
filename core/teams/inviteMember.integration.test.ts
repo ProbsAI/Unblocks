@@ -63,7 +63,9 @@ beforeEach(async () => {
   const db = getTestDb()
   const [team] = (
     await db.execute(sql`
-      INSERT INTO teams (name, slug) VALUES ('Team', 'team') RETURNING id
+      INSERT INTO teams (name, slug, owner_id)
+      VALUES ('Team', 'team', ${ownerId})
+      RETURNING id
     `)
   ).rows as Array<{ id: string }>
   teamId = team.id
