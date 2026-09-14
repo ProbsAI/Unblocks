@@ -35,6 +35,7 @@ export function Dropdown({ trigger, items }: DropdownProps) {
           {items.map((item, i) => (
             <button
               key={i}
+              type="button"
               onClick={() => { item.onClick(); setOpen(false) }}
               className={`block w-full px-4 py-2 text-left text-sm hover:bg-muted ${
                 item.variant === 'danger' ? 'text-red-600' : 'text-foreground'

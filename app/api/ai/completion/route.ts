@@ -22,7 +22,7 @@ const completionSchema = z.object({
     .min(1)
     .max(MAX_MESSAGES),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().min(1).optional(),
+  maxTokens: z.number().int().min(1).optional(),
 })
 
 export const POST = withErrorHandler(async (request: Request) => {

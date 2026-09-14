@@ -280,6 +280,21 @@ endpoints are listed in `CSRF_EXEMPT_PATHS` — currently just the Stripe webhoo
 `core/security/csrf.ts` still exists but is only for the OAuth `state`
 parameter. It is not the app's CSRF defence; the middleware check is.
 
+> **Known gap — state-changing GETs are not covered.** The check keys off the
+> HTTP method, and `GET` is treated as safe. That assumption does not hold here:
+> `/api/auth/magic-link/verify` is a public **GET** that calls `createSession`
+> and sets the session cookie. An attacker can request a magic link for their
+> own account and send the victim that URL; clicking it logs the victim into the
+> **attacker's** account, and anything they do next — adding a card, uploading a
+> document — lands in the attacker's account. `/api/auth/verify-email` is a
+> public GET that mutates state too, at lower severity.
+>
+> Method-based CSRF protection cannot close this. The standard fix is an
+> interstitial: the emailed link lands on a page, and the session is created by a
+> same-origin `POST` from that page. That changes what the email link does, so it
+> is a product decision rather than a patch — but until it is made, do not read
+> the invariant above as covering the whole app.
+
 ### Security headers come from one place
 
 `next.config.ts` derives its header list from `core/security/headers.ts`. They

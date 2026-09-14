@@ -63,6 +63,12 @@ function getBearerToken(request: NextRequest): string | null {
   return auth.slice(7)
 }
 
+// Known gap: this keys off the method, so a state-changing GET is not covered.
+// /api/auth/magic-link/verify is a public GET that creates a session, which
+// makes it a login-CSRF target — an attacker sends the victim a link bearing
+// the attacker's token and the victim ends up signed into the attacker's
+// account. Method-based checking cannot close that; it needs an interstitial
+// that turns the emailed link into a same-origin POST. See CLAUDE.md.
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**

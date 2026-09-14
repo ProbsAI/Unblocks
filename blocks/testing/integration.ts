@@ -35,6 +35,18 @@ export function getTestDb(): ReturnType<typeof drizzle> {
 export async function closeTestDb(): Promise<void> {
   await pool?.end()
   pool = undefined
+
+  // Also dispose the pool the code under test opened. core/db/client caches its
+  // own module-level pg.Pool, so closing only the harness one left live
+  // connections and timers behind and could hang vitest teardown.
+  try {
+    const client: { closeDb?: () => Promise<void> } = await import(
+      '@unblocks/core/db/client'
+    )
+    await client.closeDb?.()
+  } catch {
+    // The suite may never have touched the core client.
+  }
 }
 
 /**

@@ -137,7 +137,9 @@ function getProviderCredentials(
     case 'google':
       return {
         apiKey: providers?.google?.apiKey ?? '',
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+        // Google's OpenAI-compatible surface is under /v1beta/openai; the
+        // bare /v1beta produced /v1beta/chat/completions, which 404s.
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       }
     default:
       return { apiKey: '', baseUrl: '' }
