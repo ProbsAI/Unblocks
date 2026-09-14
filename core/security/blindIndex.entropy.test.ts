@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 
 /**
  * Enforces the premise that makes HMAC-SHA256 the right construction for
@@ -14,6 +14,30 @@ import { describe, it, expect, beforeAll } from 'vitest'
  * These tests make that premise checkable. If one fails, the CodeQL alert has
  * become true and the construction needs revisiting, not re-dismissing.
  */
+
+/**
+ * Only the database is faked, so createApiKey's real key generation runs. The
+ * point of the API-key case below is to exercise the generator itself; stubbing
+ * it out would leave exactly the hole this suite exists to close.
+ */
+vi.mock('../db/client', () => ({
+  getDb: () => ({
+    insert: () => ({
+      values: (values: Record<string, unknown>) => ({
+        returning: async () => [
+          {
+            id: 'key-row',
+            lastUsedAt: null,
+            revokedAt: null,
+            createdAt: new Date(),
+            teamId: null,
+            ...values,
+          },
+        ],
+      }),
+    }),
+  }),
+}))
 
 beforeAll(() => {
   process.env.ENCRYPTION_KEY = 'a'.repeat(64)
@@ -39,14 +63,30 @@ describe('secrets reaching blindIndex are high-entropy', () => {
     expect(seen.size).toBe(200)
   })
 
-  it('API keys carry 256 bits after the identifying prefix', async () => {
+  it('createApiKey emits 256 bits after the identifying prefix', async () => {
+    const { createApiKey } = await import('../api-keys/create')
     const { API_KEY_PREFIX } = await import('../api-keys/types')
 
-    // createApiKey builds `${API_KEY_PREFIX}${randomBytes(32).toString('hex')}`.
-    // Asserting the shape here keeps the check independent of a live database.
-    const sample = `${API_KEY_PREFIX}${'0'.repeat(64)}`
-    expect(sample.slice(API_KEY_PREFIX.length)).toHaveLength(64)
+    // The real generator, not a fabricated sample. An earlier version of this
+    // test asserted the shape of a hand-written string, which would have stayed
+    // green if createApiKey started returning a constant or a counter — the one
+    // change that would actually invalidate the CodeQL dismissal.
+    const keys = await Promise.all(
+      Array.from({ length: 50 }, async (_unused, i) => {
+        const { key } = await createApiKey('user-1', { name: `key-${i}` })
+        return key
+      })
+    )
+
     expect(API_KEY_PREFIX).toBe('ub_live_')
+    for (const key of keys) {
+      expect(key.startsWith(API_KEY_PREFIX)).toBe(true)
+      expect(key.slice(API_KEY_PREFIX.length)).toMatch(CSPRNG_HEX_256)
+    }
+
+    // Independent draws. A fixed, seeded or counter-based generator collides
+    // here; 50 draws from 2^256 do not.
+    expect(new Set(keys).size).toBe(keys.length)
   })
 
   it('the OAuth state token is 256 bits', async () => {
