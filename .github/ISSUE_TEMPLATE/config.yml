@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security Vulnerability
+    url: mailto:security@probsai.com
+    about: Do not open a public issue for security vulnerabilities. Email us instead.
+  - name: Questions & Discussion
+    url: https://github.com/ProbsAI/Unblocks/discussions
+    about: Use GitHub Discussions for questions, not issues.
