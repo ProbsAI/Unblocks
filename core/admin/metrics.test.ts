@@ -30,7 +30,7 @@ const freePlan: Plan = {
   name: 'Free',
   price: { monthly: 0, yearly: 0 },
   stripePriceId: { monthly: null, yearly: null },
-  limits: { projects: 3, teamMembers: 1, storageGb: 1, apiRequestsPerDay: 100 },
+  limits: { projects: 3, teamMembers: 1, storageGb: 1, apiRequestsPerDay: 100, apiKeys: 3 },
   features: ['basic_dashboard'],
 }
 
@@ -39,7 +39,7 @@ const proPlan: Plan = {
   name: 'Pro',
   price: { monthly: 20, yearly: 200 },
   stripePriceId: { monthly: 'price_pro_m', yearly: 'price_pro_y' },
-  limits: { projects: 50, teamMembers: 10, storageGb: 100, apiRequestsPerDay: 10000 },
+  limits: { projects: 50, teamMembers: 10, storageGb: 100, apiRequestsPerDay: 10000, apiKeys: 25 },
   features: ['basic_dashboard', 'priority_support'],
 }
 
@@ -48,7 +48,7 @@ const enterprisePlan: Plan = {
   name: 'Enterprise',
   price: { monthly: 100, yearly: 1000 },
   stripePriceId: { monthly: 'price_ent_m', yearly: 'price_ent_y' },
-  limits: { projects: 999, teamMembers: 100, storageGb: 1000, apiRequestsPerDay: 100000 },
+  limits: { projects: 999, teamMembers: 100, storageGb: 1000, apiRequestsPerDay: 100000, apiKeys: 100 },
   features: ['basic_dashboard', 'priority_support', 'sla'],
 }
 

@@ -171,7 +171,7 @@ describe('changePlan', () => {
       name: 'Basic',
       price: { monthly: 10, yearly: 100 },
       stripePriceId: { monthly: null, yearly: null },
-      limits: { projects: 5, teamMembers: 2, storageGb: 5, apiRequestsPerDay: 500 },
+      limits: { projects: 5, teamMembers: 2, storageGb: 5, apiRequestsPerDay: 500, apiKeys: 3 },
       features: [],
     })
 
@@ -186,7 +186,7 @@ describe('changePlan', () => {
       name: 'Enterprise',
       price: { monthly: 50, yearly: 500 },
       stripePriceId: { monthly: 'price_ent_m', yearly: 'price_ent_y' },
-      limits: { projects: 999, teamMembers: 100, storageGb: 1000, apiRequestsPerDay: 100000 },
+      limits: { projects: 999, teamMembers: 100, storageGb: 1000, apiRequestsPerDay: 100000, apiKeys: 100 },
       features: [],
     })
     setupSelectChain([{

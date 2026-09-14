@@ -5,10 +5,11 @@ import { middleware } from './middleware'
 /**
  * Tests for the two middleware security properties:
  *
- *  1. x-api-key is an internal header. serverAuth treats its presence as proof
- *     that middleware validated a Bearer token, so a client-supplied copy must
- *     never survive — including on public paths, which reach getCurrentUser()
- *     too.
+ *  1. x-api-key is an internal header: a client-supplied copy must never be
+ *     forwarded, including on public paths, which reach getCurrentUser() too.
+ *     serverAuth still revalidates whatever it receives against the database,
+ *     so this is defence in depth rather than the control that stops an
+ *     attacker — see the note in the suite below.
  *  2. State-changing requests carrying an ambient credential must be
  *     same-origin. This replaces a CSRF module that existed but was never
  *     called from anywhere in the app.
@@ -41,7 +42,15 @@ function req(
   })
 }
 
-/** The headers the route handler will actually observe. */
+/**
+ * The header overrides middleware asked Next to apply, or undefined when it
+ * emitted none.
+ *
+ * Next encodes these as `x-middleware-override-headers` (a name list) plus one
+ * `x-middleware-request-<name>` per value. That encoding is internal and it does
+ * not always emit a list — so assertions below check that the forged value is
+ * never what reaches the handler, rather than asserting a particular encoding.
+ */
 function forwardedHeaders(response: Response): Headers | undefined {
   const overridden = response.headers.get('x-middleware-override-headers')
   if (!overridden) return undefined
@@ -53,33 +62,39 @@ function forwardedHeaders(response: Response): Headers | undefined {
   return result
 }
 
+const FORGED = 'ub_live_forged'
+
 describe('x-api-key trust boundary', () => {
-  it('strips a client-supplied x-api-key on a public path', async () => {
+  // Note on strength: this strip is defence in depth, not the primary control.
+  // serverAuth passes whatever it receives to validateApiKey, which does an
+  // HMAC blind-index lookup against the database — so a forged header is inert
+  // unless the caller already holds a genuine key, in which case they could
+  // simply send it as a Bearer token. The strip exists so the header cannot be
+  // trusted as *proof* that middleware validated it.
+  it('never forwards a client-supplied x-api-key on a public path', async () => {
     const response = await middleware(
-      req('/api/auth/session', { headers: { 'x-api-key': 'ub_live_forged' } })
+      req('/api/auth/session', { headers: { 'x-api-key': FORGED } })
     )
 
-    const forwarded = forwardedHeaders(response)
-    expect(forwarded?.get('x-api-key')).toBeNull()
+    expect(forwardedHeaders(response)?.get('x-api-key')).not.toBe(FORGED)
   })
 
-  it('strips a client-supplied x-api-key when a Bearer key is absent', async () => {
+  it('never forwards a client-supplied x-api-key when a Bearer key is absent', async () => {
     const response = await middleware(
       req('/api/teams', {
-        headers: { 'x-api-key': 'ub_live_forged' },
+        headers: { 'x-api-key': FORGED },
         cookie: '__unblocks_session=valid.jwt.token',
       })
     )
 
-    const forwarded = forwardedHeaders(response)
-    expect(forwarded?.get('x-api-key')).toBeNull()
+    expect(forwardedHeaders(response)?.get('x-api-key')).not.toBe(FORGED)
   })
 
   it('replaces a forged value with the real Bearer token rather than trusting it', async () => {
     const response = await middleware(
       req('/api/teams', {
         headers: {
-          'x-api-key': 'ub_live_forged',
+          'x-api-key': FORGED,
           authorization: 'Bearer ub_live_genuine',
         },
       })
