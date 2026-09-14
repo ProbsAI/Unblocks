@@ -149,7 +149,12 @@ function deriveSalt(domain: string): Buffer {
  */
 function getIterations(): number {
   const raw = Number(process.env.BLIND_INDEX_ITERATIONS)
-  return Number.isFinite(raw) && raw >= 10_000 ? raw : 600_000
+
+  // Integer, not merely finite: pbkdf2Sync throws on a fractional iteration
+  // count, so `BLIND_INDEX_ITERATIONS=10000.5` passed a `Number.isFinite`
+  // check and then broke every slow derivation at runtime. Malformed config
+  // falls back to the default instead.
+  return Number.isInteger(raw) && raw >= 10_000 ? raw : 600_000
 }
 
 /** Distinguishes slow digests from fast ones in the same column. */

@@ -1,20 +1,13 @@
 import Stripe from 'stripe'
-import { eq, and } from 'drizzle-orm'
-import { getDb } from '../db/client'
-import { subscriptions } from '../db/schema/subscriptions'
 import { claimEvent, releaseEvent } from './webhookEventLog'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
-import { encryptNullable } from '../security/encryption'
-import { customerIdOf, periodBounds, planForInvoice } from './stripeShapes'
+import { planForInvoice } from './stripeShapes'
+import { isSubscriptionInvoice, requireInvoiceUser } from './webhookResolution'
 import {
-  resolvePlan,
-  findSubscriptionRow,
-  notStale,
-  isSubscriptionInvoice,
-  requireInvoiceUser,
-  resolveUserId,
-} from './webhookResolution'
+  handleSubscriptionUpdate,
+  handleSubscriptionDeleted,
+} from './subscriptionWrites'
 
 export async function handleStripeWebhook(
   payload: string,
@@ -147,114 +140,4 @@ async function handleCheckoutCompleted(
     userIdHint,
     session.metadata?.planId ?? null
   )
-}
-
-async function handleSubscriptionUpdate(
-  stripeSubscription: Stripe.Subscription,
-  eventAt: Date,
-  userIdHint?: string | null,
-  planHint?: string | null
-): Promise<void> {
-  const db = getDb()
-  const customerId = customerIdOf(stripeSubscription.customer)
-  const item = stripeSubscription.items.data[0]
-  const priceId = item?.price.id ?? null
-
-  const planId = resolvePlan(
-    priceId,
-    planHint,
-    item?.price.metadata?.planId,
-    stripeSubscription.id
-  )
-
-  const period = periodBounds(stripeSubscription)
-
-  const subData = {
-    stripeSubscriptionId: stripeSubscription.id,
-    stripeSubscriptionIdEncrypted: encryptNullable(stripeSubscription.id),
-    stripePriceId: priceId,
-    plan: planId,
-    status: stripeSubscription.status,
-    interval: item?.price.recurring?.interval ?? null,
-    currentPeriodStart: period.start,
-    currentPeriodEnd: period.end,
-    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-    trialEnd: stripeSubscription.trial_end
-      ? new Date(stripeSubscription.trial_end * 1000)
-      : null,
-    lastEventAt: eventAt,
-    updatedAt: new Date(),
-  }
-
-  const existing = await findSubscriptionRow(customerId, stripeSubscription.id)
-
-  if (existing) {
-    await db
-      .update(subscriptions)
-      .set(subData)
-      .where(and(eq(subscriptions.id, existing.id), notStale(eventAt)))
-    return
-  }
-
-  // No local row yet — a first-time subscriber, or a row that was never
-  // created. Previously this event was dropped silently and the customer paid
-  // without ever receiving entitlement.
-  const userId = userIdHint ?? (await resolveUserId(customerId))
-
-  if (!userId) {
-    // Throwing returns a non-2xx so Stripe retries rather than treating the
-    // event as delivered. Never swallow an unlinkable paid subscription.
-    throw new Error(
-      `Cannot link Stripe customer ${customerId} to a user; subscription ${stripeSubscription.id} not applied`
-    )
-  }
-
-  // Upsert rather than plain insert. Two events for the same subscription can
-  // reach this branch concurrently — they carry different event ids, so the
-  // idempotency ledger lets both through — and the unique constraint would
-  // otherwise turn the loser into an error instead of an update.
-  //
-  // userId is deliberately absent from the conflict update: a row's owner is
-  // established once, and a later event must not move a subscription between
-  // accounts.
-  await db
-    .insert(subscriptions)
-    .values({
-      userId,
-      stripeCustomerId: customerId,
-      // getOrCreateCustomer stores both; provisioning through this path must
-      // not leave the encrypted-at-rest copy missing.
-      stripeCustomerIdEncrypted: encryptNullable(customerId),
-      ...subData,
-    })
-    .onConflictDoUpdate({
-      target: subscriptions.stripeSubscriptionId,
-      set: subData,
-    })
-}
-
-async function handleSubscriptionDeleted(
-  stripeSubscription: Stripe.Subscription,
-  eventAt: Date
-): Promise<void> {
-  const db = getDb()
-
-  // Scoped to the subscription being deleted. Filtering by customer cancelled
-  // every subscription that customer held, so an out-of-order deletion of an
-  // old subscription revoked entitlement for the current one.
-  await db
-    .update(subscriptions)
-    .set({
-      status: 'canceled',
-      plan: 'free',
-      cancelAtPeriodEnd: false,
-      lastEventAt: eventAt,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(subscriptions.stripeSubscriptionId, stripeSubscription.id),
-        notStale(eventAt)
-      )
-    )
 }

@@ -20,8 +20,11 @@ import { invoiceSubscriptionId, customerIdOf, planIdForPrice } from './stripeSha
  *
  *  1. `planHint` — the plan the user actually selected, read back from the
  *     signed Checkout Session metadata. Resolving the price first went wrong
- *     wherever two plans share a price id, which the shipped config does (its
- *     placeholders are identical), persisting a Business purchase as Pro.
+ *     wherever two plans shared a price id, which the shipped config did, so a
+ *     Business purchase was persisted as Pro. BillingConfigSchema now rejects
+ *     duplicate price ids outright; this ordering is the second line of
+ *     defence, and the one that still holds for a config loaded before that
+ *     check existed.
  *  2. The configured price mapping.
  *  3. `price.metadata.planId`, for deployments that map on the Stripe side.
  *
@@ -57,29 +60,45 @@ export function resolvePlan(
 }
 
 /**
- * Find the row a Stripe subscription belongs to.
+ * Find the row already holding a Stripe subscription.
  *
- * Keyed on the SUBSCRIPTION id, not the customer. Matching by customer meant a
- * customer's second subscription overwrote the row holding their first.
+ * Keyed on the SUBSCRIPTION id, never the customer. Matching by customer meant
+ * a customer's second subscription overwrote the row holding their first.
  */
 export async function findSubscriptionRow(
-  customerId: string,
   subscriptionId: string
 ): Promise<{ id: string } | null> {
   const db = getDb()
 
-  const [bySubscription] = await db
+  const [row] = await db
     .select({ id: subscriptions.id })
     .from(subscriptions)
     .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
     .limit(1)
 
-  if (bySubscription) return bySubscription
+  return row ?? null
+}
 
-  // Adopt the placeholder getOrCreateCustomer writes: customer linked, nothing
-  // subscribed yet. Only a row carrying NO subscription id may be adopted —
-  // taking one that already holds a different subscription is the overwrite
-  // this function exists to prevent.
+/**
+ * Take over the placeholder row `getOrCreateCustomer` writes — customer linked,
+ * nothing subscribed yet — applying this subscription's data to it.
+ *
+ * Returns false when there is no placeholder, or when another delivery claimed
+ * it first; the caller then inserts instead.
+ *
+ * **The `IS NULL` in the UPDATE's WHERE is the claim, and it has to be there.**
+ * Selecting a placeholder and then updating it by id is not atomic: two
+ * first-time subscription events for the same customer both see the same null
+ * row, both write to it, and one paid subscription silently disappears.
+ * Postgres re-checks the predicate after taking the row lock, so exactly one
+ * of them matches and the loser falls through to its own insert.
+ */
+export async function claimPlaceholderRow(
+  customerId: string,
+  subData: Partial<typeof subscriptions.$inferInsert>
+): Promise<boolean> {
+  const db = getDb()
+
   const [placeholder] = await db
     .select({ id: subscriptions.id })
     .from(subscriptions)
@@ -91,7 +110,21 @@ export async function findSubscriptionRow(
     )
     .limit(1)
 
-  return placeholder ?? null
+  if (!placeholder) return false
+
+  const claimed = await db
+    .update(subscriptions)
+    .set(subData)
+    .where(
+      and(
+        eq(subscriptions.id, placeholder.id),
+        // Re-asserted, not assumed: this is the atomic part.
+        isNull(subscriptions.stripeSubscriptionId)
+      )
+    )
+    .returning({ id: subscriptions.id })
+
+  return claimed.length > 0
 }
 
 /**

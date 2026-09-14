@@ -8,7 +8,12 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { getUserTeamRole } from './getTeam'
-import type { TeamInvitation, TeamRole, OnTeamMemberAddedArgs } from './types'
+import type {
+  TeamInvitation,
+  CreatedTeamInvitation,
+  TeamRole,
+  OnTeamMemberAddedArgs,
+} from './types'
 
 /**
  * Invite a user to a team by email.
@@ -18,7 +23,7 @@ export async function inviteMember(
   email: string,
   role: TeamRole,
   invitedBy: string
-): Promise<TeamInvitation> {
+): Promise<CreatedTeamInvitation> {
   const config = loadConfig('teams')
   const db = getDb()
 
@@ -85,11 +90,9 @@ export async function inviteMember(
     })
     .returning()
 
-  // Return the plaintext token (not the blind index stored in the DB)
-  // so the caller can build an invite link.
-  const result = toInvitation(invitation)
-  result.token = token
-  return result
+  // The plaintext token exists only here. The DB holds a blind index, so this
+  // is the sole opportunity to build an invite link.
+  return { ...toInvitation(invitation), token }
 }
 
 /**
@@ -194,7 +197,6 @@ function toInvitation(row: typeof teamInvitations.$inferSelect): TeamInvitation 
     email: row.email,
     role: row.role as TeamRole,
     invitedBy: row.invitedBy,
-    token: row.token,
     expiresAt: row.expiresAt,
     acceptedAt: row.acceptedAt,
     createdAt: row.createdAt,

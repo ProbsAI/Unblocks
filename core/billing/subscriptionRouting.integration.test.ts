@@ -6,28 +6,49 @@ import {
   closeTestDb,
   testDatabaseUrl,
 } from '@unblocks/blocks/testing/integration'
+import {
+  buildStripeSubscription,
+  stripeEvent,
+} from '@unblocks/blocks/testing/stripeFixtures'
 import { subscriptions } from '@unblocks/core/db/schema/subscriptions'
 
 /**
  * Which row a Stripe event lands on, against a real Postgres.
  *
  * The handler used to key every subscription lookup on the CUSTOMER id. That is
- * wrong whenever a customer holds more than one subscription, and it fails in
- * two directions:
+ * wrong whenever a customer holds more than one subscription, and it failed in
+ * two directions: an update for a second subscription overwrote the row holding
+ * the first, and a deletion cancelled every subscription the customer had.
  *
- *   - An update for a second subscription overwrote the row holding the first.
- *   - A deletion cancelled every subscription the customer had, so an
- *     out-of-order deletion of an old subscription revoked entitlement for the
- *     current one.
+ * Also covered: plan resolution, where an unrecognised price must not silently
+ * grant a paid tier and the plan the buyer actually selected beats a price
+ * lookup.
  *
- * Also covered: plan resolution (an unrecognised price must not silently grant
- * a paid tier, and the plan the buyer actually selected beats a price lookup)
- * and delivery ordering (Stripe does not promise it, so a late older snapshot
- * must not roll a subscription back).
- *
- * Every one of these depends on which rows a WHERE clause selects, which is
- * exactly what a suite mocking the query builder cannot see.
+ * All of it depends on which rows a WHERE clause selects, which is exactly what
+ * a suite mocking the query builder cannot see. Ordering and concurrency live
+ * in subscriptionOrdering.integration.test.ts.
  */
+
+let knownUserId = ''
+
+const NOW = Math.floor(Date.now() / 1000)
+
+function buildSubscription(
+  overrides: Record<string, unknown> = {},
+  planId: string | null = 'pro',
+  priceId = 'price_test_1'
+): Record<string, unknown> {
+  return buildStripeSubscription(overrides, planId, priceId, NOW)
+}
+
+function event(
+  type: string,
+  object: Record<string, unknown>,
+  id: string,
+  created = NOW
+): string {
+  return stripeEvent(type, object, id, created)
+}
 
 const hookCalls: Array<{ name: string; args: unknown }> = []
 
@@ -36,8 +57,6 @@ vi.mock('../runtime/hookRunner', () => ({
     hookCalls.push({ name, args })
   }),
 }))
-
-let knownUserId = ''
 
 const stripeMock = {
   webhooks: {
@@ -84,45 +103,6 @@ beforeEach(async () => {
   ).rows as Array<{ id: string }>
   knownUserId = user.id
 })
-
-const NOW = Math.floor(Date.now() / 1000)
-
-function buildSubscription(
-  overrides: Record<string, unknown> = {},
-  planId: string | null = 'pro',
-  priceId = 'price_test_1'
-): Record<string, unknown> {
-  return {
-    id: 'sub_a',
-    customer: 'cus_1',
-    status: 'active',
-    cancel_at_period_end: false,
-    trial_end: null,
-    items: {
-      data: [
-        {
-          price: {
-            id: priceId,
-            metadata: planId ? { planId } : {},
-            recurring: { interval: 'month' },
-          },
-          current_period_start: NOW,
-          current_period_end: NOW + 30 * 24 * 3600,
-        },
-      ],
-    },
-    ...overrides,
-  }
-}
-
-function event(
-  type: string,
-  object: Record<string, unknown>,
-  id: string,
-  created = NOW
-): string {
-  return JSON.stringify({ id, type, created, data: { object } })
-}
 
 async function rows(): Promise<Array<typeof subscriptions.$inferSelect>> {
   const db = getTestDb()
@@ -285,93 +265,6 @@ describe('plan resolution', () => {
     // The Checkout Session metadata records what the user actually clicked, so
     // it outranks a price lookup — which is ambiguous whenever two plans share
     // a price id, as the shipped placeholders once did.
-    expect(all[0].plan).toBe('business')
-  })
-})
-
-describe('out-of-order delivery', () => {
-  it('does not let an older snapshot roll the subscription back', async () => {
-    const { handleStripeWebhook } = await import('./handleWebhook')
-
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.created',
-        buildSubscription({}, 'business'),
-        'evt_new',
-        NOW
-      ),
-      'sig'
-    )
-
-    // A genuinely different event, so the idempotency ledger lets it through —
-    // ordering is a separate problem from duplication, and only the event's
-    // own timestamp can distinguish them.
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.updated',
-        buildSubscription({ status: 'canceled' }, 'pro'),
-        'evt_old',
-        NOW - 600
-      ),
-      'sig'
-    )
-
-    const all = await rows()
-    expect(all[0].plan).toBe('business')
-    expect(all[0].status).toBe('active')
-  })
-
-  it('still applies a newer snapshot', async () => {
-    const { handleStripeWebhook } = await import('./handleWebhook')
-
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.created',
-        buildSubscription({}, 'pro'),
-        'evt_first',
-        NOW - 600
-      ),
-      'sig'
-    )
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.updated',
-        buildSubscription({}, 'business'),
-        'evt_second',
-        NOW
-      ),
-      'sig'
-    )
-
-    const all = await rows()
-    expect(all[0].plan).toBe('business')
-  })
-
-  it('does not let an old deletion cancel a resubscription', async () => {
-    const { handleStripeWebhook } = await import('./handleWebhook')
-
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.updated',
-        buildSubscription({}, 'business'),
-        'evt_current',
-        NOW
-      ),
-      'sig'
-    )
-
-    await handleStripeWebhook(
-      event(
-        'customer.subscription.deleted',
-        buildSubscription({}),
-        'evt_stale_delete',
-        NOW - 600
-      ),
-      'sig'
-    )
-
-    const all = await rows()
-    expect(all[0].status).toBe('active')
     expect(all[0].plan).toBe('business')
   })
 })

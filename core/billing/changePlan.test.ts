@@ -53,7 +53,12 @@ vi.mock('../runtime/hookRunner', () => ({
   runHook: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('./getSubscription', () => ({
+  getSubscription: vi.fn(),
+}))
+
 import { changePlan } from './changePlan'
+import { getSubscription } from './getSubscription'
 import { getPlanById } from './plans'
 import { runHook } from '../runtime/hookRunner'
 import { AppError } from '../errors/types'
@@ -61,7 +66,14 @@ import { AppError } from '../errors/types'
 const mockGetPlanById = vi.mocked(getPlanById)
 const mockRunHook = vi.mocked(runHook)
 
+// Which row belongs to a user is getSubscription's job now, and a user can
+// hold several. Stubbing it here keeps these cases about cancel/change
+// behaviour; the selection rule itself is covered by
+// getSubscription.integration.test.ts against a real Postgres.
 function setupSelectChain(result: unknown[]) {
+  vi.mocked(getSubscription).mockResolvedValue(
+    (result[0] ?? null) as never
+  )
   mockLimit.mockResolvedValue(result)
   mockWhere.mockReturnValue({ limit: mockLimit })
   mockFrom.mockReturnValue({ where: mockWhere })

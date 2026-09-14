@@ -203,6 +203,25 @@ export async function handleOAuthCallback(
         .where(eq(users.id, existingUser.id))
     }
   } else {
+    // An unverified address cannot be used to create an account either.
+    //
+    // Refusing to *link* an unverified identity to an existing account was only
+    // half the problem. A provider that lets anyone claim an arbitrary address
+    // could still register victim@example.com here, and the callback would
+    // issue a session for it. The account then sits there until the real owner
+    // arrives — and because createMagicLink finds an existing user by email and
+    // marks it verified, the owner ends up signing into the ATTACKER's account,
+    // with the attacker's provider identity still linked to it.
+    //
+    // Google, the only provider implemented, always asserts email_verified, so
+    // this costs nothing today. It is here so adding a laxer provider does not
+    // silently open the path.
+    if (!userInfo.emailVerified) {
+      throw new OAuthLinkRequiredError(
+        `${provider} did not verify this email address, so it cannot be used to create an account; sign up directly and link ${provider} afterwards`
+      )
+    }
+
     // Create new user with encrypted PII
     const emailLower = userInfo.email.toLowerCase()
     const [newUser] = await db

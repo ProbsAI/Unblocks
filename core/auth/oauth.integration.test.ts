@@ -165,24 +165,33 @@ describe('handleOAuthCallback — linking to an existing account', () => {
 })
 
 describe('handleOAuthCallback — new users', () => {
-  it('records the provider assertion rather than assuming verified', async () => {
-    const { handleOAuthCallback } = await import('./oauth')
+  it('refuses to create an account from an unverified address', async () => {
+    const { handleOAuthCallback, OAuthLinkRequiredError } = await import('./oauth')
 
-    await handleOAuthCallback('google', 'sub-new-unverified', 'tok', null, {
-      email: 'fresh@example.com',
-      name: 'Fresh',
-      avatarUrl: '',
-      emailVerified: false,
-    })
+    // Creating the account and simply marking it unverified was not enough.
+    // A provider that lets anyone claim an arbitrary address could register
+    // the victim's, and the callback would issue a session for it. The account
+    // then waits: createMagicLink finds an existing user by email and marks it
+    // verified, so the real owner ends up signing into the ATTACKER's account
+    // with the attacker's provider identity still linked.
+    await expect(
+      handleOAuthCallback('google', 'sub-new-unverified', 'tok', null, {
+        email: 'fresh@example.com',
+        name: 'Fresh',
+        avatarUrl: '',
+        emailVerified: false,
+      })
+    ).rejects.toThrow(OAuthLinkRequiredError)
 
     const db = getTestDb()
-    const [row] = await db
+    const rows = await db
       .select()
       .from(users)
       .where(eq(users.email, 'fresh@example.com'))
 
-    expect(row).toBeDefined()
-    expect(row.emailVerified).toBe(false)
+    // Nothing may be left behind — a half-created account is the thing being
+    // defended against.
+    expect(rows).toHaveLength(0)
   })
 
   it('marks a new user verified when the provider verified them', async () => {

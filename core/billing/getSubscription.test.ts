@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockSelect = vi.fn()
 const mockFrom = vi.fn()
 const mockWhere = vi.fn()
-const mockLimit = vi.fn()
+const mockOrderBy = vi.fn()
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
@@ -14,11 +14,13 @@ vi.mock('../db/client', () => ({
 vi.mock('../db/schema/subscriptions', () => ({
   subscriptions: {
     userId: 'userId',
+    createdAt: 'createdAt',
   },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((a, b) => ({ a, b })),
+  desc: vi.fn((column) => ({ desc: column })),
 }))
 
 import { getSubscription } from './getSubscription'
@@ -41,8 +43,12 @@ const mockSub = {
 }
 
 function setupSelectChain(result: unknown[]) {
-  mockLimit.mockResolvedValue(result)
-  mockWhere.mockReturnValue({ limit: mockLimit })
+  // Ordering and the not-cancelled preference are properties of the query and
+  // the data, which a stubbed builder cannot check. getSubscription.integration
+  // .test.ts covers the selection rule against a real Postgres; these cases
+  // only cover field mapping.
+  mockOrderBy.mockResolvedValue(result)
+  mockWhere.mockReturnValue({ orderBy: mockOrderBy })
   mockFrom.mockReturnValue({ where: mockWhere })
   mockSelect.mockReturnValue({ from: mockFrom })
 }

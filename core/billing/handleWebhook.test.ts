@@ -144,8 +144,15 @@ describe('handleStripeWebhook — idempotency gate', () => {
       type: 'customer.subscription.deleted',
       data: { object: { customer: 'cus_1' } },
     })
+    // The deletion path now reads back what it updated, so it can tell
+    // "already cancelled by a newer event" from "no row exists yet".
+    // Returning a row means it matched and returns early.
     mockUpdate.mockReturnValue({
-      set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn().mockResolvedValue([{ id: 'sub-row-1' }]),
+        })),
+      })),
     })
 
     await handleStripeWebhook('{}', 'sig')

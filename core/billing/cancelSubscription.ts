@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { getStripe } from './customer'
+import { getSubscription } from './getSubscription'
 import { AppError } from '../errors/types'
 
 export async function cancelSubscription(
@@ -11,11 +12,12 @@ export async function cancelSubscription(
   const db = getDb()
   const stripe = getStripe()
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1)
+  // Route through getSubscription rather than repeating a bare LIMIT 1. A user
+  // can now hold several rows — webhook handling keys on
+  // stripe_subscription_id so a second subscription no longer overwrites the
+  // first — and an unordered LIMIT 1 picked in heap order. That could act on a
+  // cancelled row (silently doing nothing) or on the wrong live subscription.
+  const sub = await getSubscription(userId)
 
   if (!sub?.stripeSubscriptionId) {
     throw new AppError('NO_SUBSCRIPTION', 'No active subscription found', 400)
