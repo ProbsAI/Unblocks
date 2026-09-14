@@ -261,6 +261,31 @@ handler without this gate re-applies plan changes and re-fires payment hooks.
 Never remove the gate, and never swallow an event you cannot apply — throw, so
 the provider retries instead of treating it as delivered.
 
+**Idempotency is not ordering, and not concurrency.** Two deliveries of the
+*same* event carry the same id and the gate stops the second. Two *different*
+events both pass it, which leaves three separate problems the gate cannot touch:
+
+- **Ordering.** Stripe does not promise it, so an older
+  `customer.subscription.updated` can land after a newer one. Every
+  subscription write is guarded by `notStale()`, a SQL predicate against
+  `subscriptions.last_event_at`, so a late snapshot is discarded rather than
+  rolling plan and status back.
+- **Which row.** Subscription lookups key on `stripe_subscription_id`, never on
+  the customer — a customer may hold several. Keying on the customer meant a
+  second subscription overwrote the first's row, and a deletion cancelled
+  every subscription that customer had.
+- **Concurrent first provisioning.** `stripe_subscription_id` is `UNIQUE` and
+  the insert is an upsert, so two events racing to create the same row cannot
+  produce two rows or an error.
+
+**Plan resolution never guesses.** `resolvePlan()` takes the Checkout Session's
+`planId` first (what the buyer actually selected), then the configured price
+mapping, then `price.metadata.planId` — validating both hints against the
+configured plans — and throws if nothing resolves. The old fallback was "first
+paid plan, else `pro`", which granted a paid tier for a price nobody had
+configured. Two plans must never share a `stripePriceId`: a webhook cannot tell
+them apart.
+
 ### `x-api-key` is internal, never client-supplied
 
 `middleware.ts` strips any inbound `x-api-key` before routing, then sets it only

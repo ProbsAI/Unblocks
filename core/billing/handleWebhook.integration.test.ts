@@ -125,9 +125,14 @@ function buildSubscription(
 function event(
   type: string,
   object: Record<string, unknown>,
-  id = 'evt_1'
+  id = 'evt_1',
+  // Stripe stamps every event with a creation time, and the handler uses it to
+  // discard snapshots that arrive out of order. Ordering itself is covered in
+  // subscriptionRouting.integration.test.ts; here it only needs to be present
+  // and consistent.
+  created = Math.floor(Date.now() / 1000)
 ): string {
-  return JSON.stringify({ id, type, data: { object } })
+  return JSON.stringify({ id, type, created, data: { object } })
 }
 
 describe('handleStripeWebhook — provisioning a first-time subscriber', () => {

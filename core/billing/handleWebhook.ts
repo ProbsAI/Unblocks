@@ -1,19 +1,20 @@
 import Stripe from 'stripe'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { claimEvent, releaseEvent } from './webhookEventLog'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
-import { getAllPlans } from './plans'
 import { encryptNullable } from '../security/encryption'
+import { customerIdOf, periodBounds, planForInvoice } from './stripeShapes'
 import {
-  invoiceSubscriptionId,
-  customerIdOf,
-  periodBounds,
-  planIdForPrice,
-  planForInvoice,
-} from './stripeShapes'
+  resolvePlan,
+  findSubscriptionRow,
+  notStale,
+  isSubscriptionInvoice,
+  requireInvoiceUser,
+  resolveUserId,
+} from './webhookResolution'
 
 export async function handleStripeWebhook(
   payload: string,
@@ -48,22 +49,36 @@ export async function handleStripeWebhook(
 }
 
 async function dispatch(event: Stripe.Event): Promise<void> {
+  // Stripe does not promise delivery order. Carrying the event's creation time
+  // into the write lets a stale snapshot be recognised and skipped instead of
+  // rolling a subscription back to an older plan or status.
+  const at = eventTime(event)
+
   switch (event.type) {
     // The primary provisioning event. Without this, a first-time subscriber
     // completes payment and nothing grants them access.
     case 'checkout.session.completed': {
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+      await handleCheckoutCompleted(
+        event.data.object as Stripe.Checkout.Session,
+        at
+      )
       break
     }
 
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
-      await handleSubscriptionUpdate(event.data.object as Stripe.Subscription)
+      await handleSubscriptionUpdate(
+        event.data.object as Stripe.Subscription,
+        at
+      )
       break
     }
 
     case 'customer.subscription.deleted': {
-      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
+      await handleSubscriptionDeleted(
+        event.data.object as Stripe.Subscription,
+        at
+      )
       break
     }
 
@@ -96,8 +111,16 @@ async function dispatch(event: Stripe.Event): Promise<void> {
   }
 }
 
+/** Stripe stamps `created` in seconds; fall back to now if it is absent. */
+function eventTime(event: Stripe.Event): Date {
+  return typeof event.created === 'number'
+    ? new Date(event.created * 1000)
+    : new Date()
+}
+
 async function handleCheckoutCompleted(
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
+  eventAt: Date
 ): Promise<void> {
   const subscriptionId =
     typeof session.subscription === 'string'
@@ -120,6 +143,7 @@ async function handleCheckoutCompleted(
 
   await handleSubscriptionUpdate(
     subscription,
+    eventAt,
     userIdHint,
     session.metadata?.planId ?? null
   )
@@ -127,30 +151,21 @@ async function handleCheckoutCompleted(
 
 async function handleSubscriptionUpdate(
   stripeSubscription: Stripe.Subscription,
+  eventAt: Date,
   userIdHint?: string | null,
   planHint?: string | null
 ): Promise<void> {
   const db = getDb()
   const customerId = customerIdOf(stripeSubscription.customer)
+  const item = stripeSubscription.items.data[0]
+  const priceId = item?.price.id ?? null
 
-  const [existing] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.stripeCustomerId, customerId))
-    .limit(1)
-
-  const priceId = stripeSubscription.items.data[0]?.price.id ?? null
-
-  // Resolve the plan from the price first. createCheckoutSession puts planId in
-  // the SESSION metadata, not on the Stripe Price, so price.metadata.planId is
-  // normally absent — relying on it meant every checkout fell through to "first
-  // paid plan" and a Business subscription was persisted as Pro.
-  const planId =
-    planIdForPrice(priceId) ??
-    planHint ??
-    stripeSubscription.items.data[0]?.price.metadata?.planId ??
-    getAllPlans().find((p) => p.price.monthly > 0)?.id ??
-    'pro'
+  const planId = resolvePlan(
+    priceId,
+    planHint,
+    item?.price.metadata?.planId,
+    stripeSubscription.id
+  )
 
   const period = periodBounds(stripeSubscription)
 
@@ -160,28 +175,30 @@ async function handleSubscriptionUpdate(
     stripePriceId: priceId,
     plan: planId,
     status: stripeSubscription.status,
-    interval:
-      stripeSubscription.items.data[0]?.price.recurring?.interval ?? null,
+    interval: item?.price.recurring?.interval ?? null,
     currentPeriodStart: period.start,
     currentPeriodEnd: period.end,
     cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
     trialEnd: stripeSubscription.trial_end
       ? new Date(stripeSubscription.trial_end * 1000)
       : null,
+    lastEventAt: eventAt,
     updatedAt: new Date(),
   }
+
+  const existing = await findSubscriptionRow(customerId, stripeSubscription.id)
 
   if (existing) {
     await db
       .update(subscriptions)
       .set(subData)
-      .where(eq(subscriptions.id, existing.id))
+      .where(and(eq(subscriptions.id, existing.id), notStale(eventAt)))
     return
   }
 
-  // No local row for this customer yet — a first-time subscriber, or a row that
-  // was never created. Previously this event was dropped silently and the
-  // customer paid without ever receiving entitlement.
+  // No local row yet — a first-time subscriber, or a row that was never
+  // created. Previously this event was dropped silently and the customer paid
+  // without ever receiving entitlement.
   const userId = userIdHint ?? (await resolveUserId(customerId))
 
   if (!userId) {
@@ -192,82 +209,52 @@ async function handleSubscriptionUpdate(
     )
   }
 
-  await db.insert(subscriptions).values({
-    userId,
-    stripeCustomerId: customerId,
-    // getOrCreateCustomer stores both; provisioning through this path must not
-    // leave the encrypted-at-rest copy missing.
-    stripeCustomerIdEncrypted: encryptNullable(customerId),
-    ...subData,
-  })
+  // Upsert rather than plain insert. Two events for the same subscription can
+  // reach this branch concurrently — they carry different event ids, so the
+  // idempotency ledger lets both through — and the unique constraint would
+  // otherwise turn the loser into an error instead of an update.
+  //
+  // userId is deliberately absent from the conflict update: a row's owner is
+  // established once, and a later event must not move a subscription between
+  // accounts.
+  await db
+    .insert(subscriptions)
+    .values({
+      userId,
+      stripeCustomerId: customerId,
+      // getOrCreateCustomer stores both; provisioning through this path must
+      // not leave the encrypted-at-rest copy missing.
+      stripeCustomerIdEncrypted: encryptNullable(customerId),
+      ...subData,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.stripeSubscriptionId,
+      set: subData,
+    })
 }
 
 async function handleSubscriptionDeleted(
-  stripeSubscription: Stripe.Subscription
+  stripeSubscription: Stripe.Subscription,
+  eventAt: Date
 ): Promise<void> {
   const db = getDb()
-  const customerId = customerIdOf(stripeSubscription.customer)
 
+  // Scoped to the subscription being deleted. Filtering by customer cancelled
+  // every subscription that customer held, so an out-of-order deletion of an
+  // old subscription revoked entitlement for the current one.
   await db
     .update(subscriptions)
     .set({
       status: 'canceled',
       plan: 'free',
       cancelAtPeriodEnd: false,
+      lastEventAt: eventAt,
       updatedAt: new Date(),
     })
-    .where(eq(subscriptions.stripeCustomerId, customerId))
-}
-
-/** A one-off or manually issued invoice has no subscription to act on. */
-function isSubscriptionInvoice(invoice: Stripe.Invoice): boolean {
-  return invoiceSubscriptionId(invoice) !== null
-}
-
-/**
- * Resolve the user behind a subscription invoice, or throw.
- *
- * Throwing matters because the event was already claimed by the idempotency
- * gate. Returning normally acknowledges the delivery with a 2xx, so a transient
- * lookup failure would suppress the payment hook permanently. Throwing releases
- * the claim and lets Stripe retry — the same contract handleSubscriptionUpdate
- * uses for an unlinkable subscription.
- */
-async function requireInvoiceUser(invoice: Stripe.Invoice): Promise<string> {
-  const customerId = customerIdOf(invoice.customer)
-  const userId = await resolveUserId(customerId)
-
-  if (!userId) {
-    throw new Error(
-      `Cannot link Stripe customer ${customerId} to a user; invoice ${invoice.id} not applied`
+    .where(
+      and(
+        eq(subscriptions.stripeSubscriptionId, stripeSubscription.id),
+        notStale(eventAt)
+      )
     )
-  }
-
-  return userId
 }
-
-/**
- * Map a Stripe customer to a local user id.
- *
- * Prefers the local subscriptions row, then falls back to the Stripe customer's
- * metadata, which getOrCreateCustomer stamps with the user id at creation time.
- */
-async function resolveUserId(customerId: string): Promise<string | null> {
-  if (!customerId) return null
-  const db = getDb()
-
-  const [row] = await db
-    .select({ userId: subscriptions.userId })
-    .from(subscriptions)
-    .where(eq(subscriptions.stripeCustomerId, customerId))
-    .limit(1)
-
-  if (row?.userId) return row.userId
-
-  const stripe = getStripe()
-  const customer = await stripe.customers.retrieve(customerId)
-  if (customer.deleted) return null
-
-  return customer.metadata?.userId ?? null
-}
-

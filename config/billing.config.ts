@@ -78,8 +78,12 @@ const billingConfig: BillingConfig = {
       id: 'business',
       name: 'Business',
       price: { monthly: 299, yearly: 2990 },
-      // Replace with your Stripe price IDs from https://dashboard.stripe.com/prices
-      stripePriceId: { monthly: 'price_xxx', yearly: 'price_yyy' },
+      // Replace with your Stripe price IDs from https://dashboard.stripe.com/prices.
+      // These MUST differ from every other plan's — two plans sharing a price id
+      // cannot be told apart from a webhook, and the subscription is persisted
+      // as whichever plan the config lists first. The shipped placeholders used
+      // to be identical to Pro's, so a Business purchase provisioned as Pro.
+      stripePriceId: { monthly: 'price_zzz', yearly: 'price_www' },
       limits: {
         projects: 999,
         teamMembers: 999,
