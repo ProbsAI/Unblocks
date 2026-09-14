@@ -25,7 +25,7 @@ beforeEach(async () => {
 
 async function seedJob(
   type: string,
-  priority: 'high' | 'normal' | 'low',
+  priority: 'critical' | 'high' | 'normal' | 'low',
   scheduledAt = new Date(Date.now() - 1000)
 ): Promise<void> {
   const db = getTestDb()
@@ -63,6 +63,18 @@ describe('fetchNextJobs — priority ordering', () => {
 
     expect(claimed).toHaveLength(1)
     expect(claimed[0].type).toBe('normal-job')
+  })
+
+  it('runs critical ahead of high', async () => {
+    // 'critical' is part of JobPriority but was absent from the CASE, so it fell
+    // through to the default rank and tied with 'normal'.
+    await seedJob('high-job', 'high')
+    await seedJob('critical-job', 'critical')
+
+    const { fetchNextJobs } = await import('./queue')
+    const claimed = await fetchNextJobs(2)
+
+    expect(claimed.map((j) => j.type)).toEqual(['critical-job', 'high-job'])
   })
 
   it('breaks ties by scheduled_at, oldest first', async () => {

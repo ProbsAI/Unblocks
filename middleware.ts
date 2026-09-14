@@ -58,7 +58,8 @@ function isPublicPath(pathname: string): boolean {
  */
 function getBearerToken(request: NextRequest): string | null {
   const auth = request.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) return null
+  // RFC 7235: the scheme token is case-insensitive, so `bearer ...` is valid.
+  if (!auth || !/^bearer /i.test(auth)) return null
   return auth.slice(7)
 }
 

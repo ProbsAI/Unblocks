@@ -98,15 +98,17 @@ export async function truncateAll(): Promise<void> {
  * treat a skip as a failure.
  */
 export async function testDbAvailable(): Promise<boolean> {
+  const probe = new Pool({
+    connectionString: testDatabaseUrl(),
+    connectionTimeoutMillis: 2000,
+  })
   try {
-    const probe = new Pool({
-      connectionString: testDatabaseUrl(),
-      connectionTimeoutMillis: 2000,
-    })
     await probe.query('SELECT 1')
-    await probe.end()
     return true
   } catch {
     return false
+  } finally {
+    // Close on both paths; a probe that failed still holds pool timers.
+    await probe.end().catch(() => {})
   }
 }

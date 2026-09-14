@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { apiKeys } from '../db/schema/apiKeys'
 import { blindIndex } from '../security/blindIndex'
+import { ValidationError } from '../errors/types'
 import type { CreateApiKeyInput, CreateApiKeyResult, ApiKey } from './types'
 import { API_KEY_PREFIX } from './types'
 
@@ -16,6 +17,29 @@ export async function createApiKey(
   input: CreateApiKeyInput
 ): Promise<CreateApiKeyResult> {
   const db = getDb()
+
+  // Reject what cannot yet be enforced, rather than handing back a key that can
+  // never authenticate.
+  //
+  // serverAuth accepts only wildcard keys because no route checks scopes, and it
+  // discards teamId entirely because no route enforces a team boundary. Issuing
+  // a narrow or team-scoped key would therefore return a working-looking secret
+  // that fails every request, and imply a restriction that does not exist.
+  // Remove these guards in the same change that adds per-route enforcement.
+  const scopes = input.scopes ?? ['*']
+  if (!scopes.includes('*')) {
+    throw new ValidationError(
+      'Scoped API keys are not supported yet; omit scopes to create a full-access key',
+      { scopes: 'Per-route scope enforcement is not implemented' }
+    )
+  }
+
+  if (input.teamId) {
+    throw new ValidationError(
+      'Team-scoped API keys are not supported yet',
+      { teamId: 'Team membership is not verified and the boundary is not enforced' }
+    )
+  }
 
   // Generate a cryptographically secure random key
   const randomPart = randomBytes(32).toString('hex')
@@ -35,11 +59,11 @@ export async function createApiKey(
 
   const [row] = await db.insert(apiKeys).values({
     userId,
-    teamId: input.teamId ?? null,
+    teamId: null,
     name: input.name,
     prefix,
     keyHash,
-    scopes: input.scopes ?? ['*'],
+    scopes,
     expiresAt,
   }).returning()
 

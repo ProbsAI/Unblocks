@@ -66,11 +66,15 @@ export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
   // priority is a varchar, so a plain ASC sort is alphabetical and yields
   // high, low, normal — running low-priority jobs ahead of normal ones.
   // Rank explicitly instead.
+  // Every member of JobPriority must appear here. 'critical' was previously
+  // absent and fell through to ELSE, tying it with 'normal' and running it
+  // behind 'high' — the opposite of its meaning.
   const priorityRank = sql`CASE priority
-                             WHEN 'high' THEN 1
-                             WHEN 'normal' THEN 2
-                             WHEN 'low' THEN 3
-                             ELSE 2
+                             WHEN 'critical' THEN 1
+                             WHEN 'high' THEN 2
+                             WHEN 'normal' THEN 3
+                             WHEN 'low' THEN 4
+                             ELSE 3
                            END`
 
   // The inner ORDER BY decides WHICH rows are claimed, but UPDATE ... RETURNING

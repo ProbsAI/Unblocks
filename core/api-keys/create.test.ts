@@ -62,3 +62,27 @@ describe('createApiKey', () => {
     expect(result.key.startsWith(result.apiKey.prefix.slice(0, 8))).toBe(true)
   })
 })
+
+describe('createApiKey — guards for unenforced features', () => {
+  it('rejects scoped keys while no route checks scopes', async () => {
+    // serverAuth accepts only wildcard keys, so issuing a narrow one would
+    // hand back a secret that fails every request.
+    await expect(
+      createApiKey('user-123', { name: 'Scoped', scopes: ['teams:read'] })
+    ).rejects.toThrow(/scoped api keys are not supported/i)
+  })
+
+  it('rejects team-scoped keys while no team boundary is enforced', async () => {
+    await expect(
+      createApiKey('user-123', {
+        name: 'Team key',
+        teamId: '11111111-1111-1111-1111-111111111111',
+      })
+    ).rejects.toThrow(/team-scoped api keys are not supported/i)
+  })
+
+  it('still accepts an explicit wildcard scope', async () => {
+    const result = await createApiKey('user-123', { name: 'Full', scopes: ['*'] })
+    expect(result.key).toMatch(/^ub_live_/)
+  })
+})

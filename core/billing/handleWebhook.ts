@@ -7,6 +7,13 @@ import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
 import { getAllPlans } from './plans'
 import { encryptNullable } from '../security/encryption'
+import {
+  invoiceSubscriptionId,
+  customerIdOf,
+  periodBounds,
+  planIdForPrice,
+  planForInvoice,
+} from './stripeShapes'
 
 export async function handleStripeWebhook(
   payload: string,
@@ -67,10 +74,14 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       if (!invoiceSubscriptionId(invoice)) break
 
       const userId = await resolveUserId(customerIdOf(invoice.customer))
+      // Never invoke a user-scoped hook with an empty id: integrations treat
+      // the argument as a real user and would act on one that does not exist.
+      if (!userId) break
+
       await runHook('onPaymentSucceeded', {
-        userId: userId ?? '',
+        userId,
         amount: (invoice.amount_paid ?? 0) / 100,
-        plan: await planForInvoice(invoice),
+        plan: planForInvoice(invoice),
         invoiceUrl: invoice.hosted_invoice_url,
       })
       break
@@ -79,8 +90,12 @@ async function dispatch(event: Stripe.Event): Promise<void> {
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
       const userId = await resolveUserId(customerIdOf(invoice.customer))
+      // Same contract as the success path — an unlinkable invoice must not
+      // reach a dunning hook with an empty user id.
+      if (!userId) break
+
       await runHook('onPaymentFailed', {
-        userId: userId ?? '',
+        userId,
         amount: (invoice.amount_due ?? 0) / 100,
         error: 'Payment failed',
       })
@@ -111,12 +126,17 @@ async function handleCheckoutCompleted(
   const userIdHint =
     session.client_reference_id ?? session.metadata?.userId ?? null
 
-  await handleSubscriptionUpdate(subscription, userIdHint)
+  await handleSubscriptionUpdate(
+    subscription,
+    userIdHint,
+    session.metadata?.planId ?? null
+  )
 }
 
 async function handleSubscriptionUpdate(
   stripeSubscription: Stripe.Subscription,
-  userIdHint?: string | null
+  userIdHint?: string | null,
+  planHint?: string | null
 ): Promise<void> {
   const db = getDb()
   const customerId = customerIdOf(stripeSubscription.customer)
@@ -128,11 +148,16 @@ async function handleSubscriptionUpdate(
     .limit(1)
 
   const priceId = stripeSubscription.items.data[0]?.price.id ?? null
-  // Fall back to first paid plan in config rather than hardcoding 'pro'
-  const firstPaidPlan = getAllPlans().find((p) => p.price.monthly > 0)
+
+  // Resolve the plan from the price first. createCheckoutSession puts planId in
+  // the SESSION metadata, not on the Stripe Price, so price.metadata.planId is
+  // normally absent — relying on it meant every checkout fell through to "first
+  // paid plan" and a Business subscription was persisted as Pro.
   const planId =
+    planIdForPrice(priceId) ??
+    planHint ??
     stripeSubscription.items.data[0]?.price.metadata?.planId ??
-    firstPaidPlan?.id ??
+    getAllPlans().find((p) => p.price.monthly > 0)?.id ??
     'pro'
 
   const period = periodBounds(stripeSubscription)
@@ -178,6 +203,9 @@ async function handleSubscriptionUpdate(
   await db.insert(subscriptions).values({
     userId,
     stripeCustomerId: customerId,
+    // getOrCreateCustomer stores both; provisioning through this path must not
+    // leave the encrypted-at-rest copy missing.
+    stripeCustomerIdEncrypted: encryptNullable(customerId),
     ...subData,
   })
 }
@@ -197,35 +225,6 @@ async function handleSubscriptionDeleted(
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.stripeCustomerId, customerId))
-}
-
-/**
- * The subscription an invoice belongs to, or null for a one-off invoice.
- *
- * Stripe moved this from `invoice.subscription` onto
- * `invoice.parent.subscription_details.subscription` in the 2025 API versions,
- * so check both rather than pinning to one shape.
- */
-function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
-  const legacy = (invoice as unknown as { subscription?: string | { id: string } })
-    .subscription
-  if (legacy) return typeof legacy === 'string' ? legacy : legacy.id
-
-  const nested = (
-    invoice as unknown as {
-      parent?: { subscription_details?: { subscription?: string | { id: string } } }
-    }
-  ).parent?.subscription_details?.subscription
-  if (nested) return typeof nested === 'string' ? nested : nested.id
-
-  return null
-}
-
-function customerIdOf(
-  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null
-): string {
-  if (!customer) return ''
-  return typeof customer === 'string' ? customer : customer.id
 }
 
 /**
@@ -253,40 +252,3 @@ async function resolveUserId(customerId: string): Promise<string | null> {
   return customer.metadata?.userId ?? null
 }
 
-async function planForInvoice(invoice: Stripe.Invoice): Promise<string> {
-  const priceId = invoice.lines?.data[0]?.price?.id
-  if (!priceId) return ''
-  const match = getAllPlans().find(
-    (p) =>
-      p.stripePriceId.monthly === priceId || p.stripePriceId.yearly === priceId
-  )
-  return match?.id ?? ''
-}
-
-/**
- * Read the billing period bounds.
- *
- * Stripe moved current_period_start/end from the subscription onto its items in
- * API version 2025-03-31.basil. Read the item first and fall back to the
- * subscription so this keeps working whichever version the account is pinned to.
- */
-function periodBounds(subscription: Stripe.Subscription): {
-  start: Date | null
-  end: Date | null
-} {
-  const item = subscription.items.data[0] as
-    | { current_period_start?: number; current_period_end?: number }
-    | undefined
-  const legacy = subscription as unknown as {
-    current_period_start?: number
-    current_period_end?: number
-  }
-
-  const startUnix = item?.current_period_start ?? legacy.current_period_start
-  const endUnix = item?.current_period_end ?? legacy.current_period_end
-
-  return {
-    start: typeof startUnix === 'number' ? new Date(startUnix * 1000) : null,
-    end: typeof endUnix === 'number' ? new Date(endUnix * 1000) : null,
-  }
-}
