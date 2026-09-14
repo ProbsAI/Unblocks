@@ -35,7 +35,12 @@ const mockRows = [
 // it.
 const { mockOrderBy, mockWhere } = vi.hoisted(() => {
   const orderBy = vi.fn()
-  return { mockOrderBy: orderBy, mockWhere: vi.fn(() => ({ orderBy })) }
+  return {
+    mockOrderBy: orderBy,
+    // The parameter is declared so the recorded args tuple is typed
+    // [unknown] rather than [], letting assertions read calls[0][0].
+    mockWhere: vi.fn((_condition: unknown) => ({ orderBy })),
+  }
 })
 
 vi.mock('../db/client', () => ({
