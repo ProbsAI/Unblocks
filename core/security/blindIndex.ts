@@ -43,6 +43,38 @@ function getHmacKey(): Buffer {
  * The index is deterministic (same input = same output) so it can be
  * used for equality lookups, but it cannot be reversed to recover
  * the original value.
+ *
+ * ## Why HMAC-SHA256 and not bcrypt/scrypt/argon2
+ *
+ * CodeQL flags this as `js/insufficient-password-hash`, reading the tokens that
+ * reach it as passwords. That query targets *user-chosen* secrets, and the
+ * reasoning does not transfer here. Three reasons, in order of importance:
+ *
+ * 1. **A blind index must be deterministic.** bcrypt, scrypt and argon2 salt
+ *    randomly per call, so the same input yields a different digest each time.
+ *    They cannot support `WHERE hash = ?`. Substituting one would break every
+ *    session validation, magic link, invitation and API key lookup in the app.
+ *
+ * 2. **The inputs are not guessable.** Slow KDFs buy time against brute force
+ *    on low-entropy input. Everything hashed here is 256 bits of CSPRNG output
+ *    (`randomBytes(32).toString('hex')`) or a signed JWT — not brute-forceable
+ *    at any hash speed. `blindIndex.entropy.test.ts` enforces that invariant
+ *    rather than leaving it as an assumption.
+ *
+ * 3. **It is keyed.** An attacker holding the database but not BLIND_INDEX_KEY
+ *    cannot compute candidate digests at all, which is a stronger position than
+ *    an unkeyed password digest of the same data.
+ *
+ * User passwords do NOT come through here — `core/auth/password.ts` uses bcrypt,
+ * which is correct. **If you ever route a user-chosen secret into this function,
+ * the CodeQL alert becomes true and this comment becomes wrong.** That is the
+ * condition to watch for.
+ *
+ * Known residual property: `emailHash` indexes an email address, which is
+ * low-entropy and enumerable. Anyone holding both the database and
+ * BLIND_INDEX_KEY could confirm whether a given address is registered. That is
+ * inherent to blind indexing and is addressed by key management, not by a slower
+ * hash.
  */
 export function blindIndex(value: string): string {
   const key = getHmacKey()

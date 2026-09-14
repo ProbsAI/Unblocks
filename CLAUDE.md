@@ -306,6 +306,30 @@ was actually served. Add headers to the core module, not to the Next config.
 `api_keys` holds a blind index only. Do not add a reversible copy — validation
 never needs one, so it would only create a credential dump.
 
+### `blindIndex` uses HMAC-SHA256, and that is correct
+
+CodeQL raises `js/insufficient-password-hash` against
+`core/security/blindIndex.ts`. It is a **false positive**, and the reasoning
+matters because the obvious "fix" would break the application:
+
+1. A blind index must be **deterministic** — it backs `WHERE hash = ?`. bcrypt,
+   scrypt and argon2 salt randomly per call, so they cannot support equality
+   lookup. Swapping one in breaks every session validation, magic link,
+   invitation and API key lookup.
+2. Slow KDFs defeat brute force on *guessable* input. Everything hashed here is
+   256 bits of CSPRNG output or a signed JWT — not brute-forceable at any speed.
+3. It is **keyed**. Without `BLIND_INDEX_KEY`, an attacker holding the database
+   cannot compute candidate digests at all.
+
+User passwords use bcrypt in `core/auth/password.ts` and never reach
+`blindIndex`. **That separation is the whole argument.** If you ever route a
+user-chosen secret through `blindIndex`, the alert becomes true.
+
+`core/security/blindIndex.entropy.test.ts` enforces the premise rather than
+leaving it to a comment: it asserts every token generator feeding `blindIndex`
+produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
+that suite fails, re-examine the construction — do not re-dismiss the alert.**
+
 ## Path Aliases
 
 | Alias | Maps to |
