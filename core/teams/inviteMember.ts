@@ -2,6 +2,7 @@ import { eq, and, gt, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
+import { users } from '../db/schema/users'
 import { loadConfig } from '../runtime/configLoader'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
@@ -110,6 +111,27 @@ export async function acceptInvitation(
   }
 
   const db = getDb()
+
+  // Check the accepting user BEFORE claiming the token.
+  //
+  // teams.requireEmailVerification defaults to true and was enforced nowhere —
+  // requireAuth() establishes identity, not that the address was ever proven.
+  // The order matters as much as the check: claiming first would consume a
+  // one-time invitation on behalf of someone who is then refused, leaving the
+  // real invitee with a dead link.
+  if (loadConfig('teams').requireEmailVerification) {
+    const [accepting] = await db
+      .select({ emailVerified: users.emailVerified })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    if (!accepting?.emailVerified) {
+      throw new ForbiddenError(
+        'Verify your email address before joining a team'
+      )
+    }
+  }
 
   // Matched on the digest only.
   //

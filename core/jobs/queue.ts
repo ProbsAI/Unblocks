@@ -57,8 +57,22 @@ export async function enqueueJob<T = unknown>(
  * Fetch the next batch of jobs ready for processing.
  * Uses an atomic UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED)
  * to prevent concurrent workers from claiming the same jobs.
+ *
+ * `staleAfterMs` is a lease, and without it a job could be lost permanently.
+ * Claiming set status to 'processing', and only 'pending' rows were ever
+ * claimed — so anything that stopped a worker between claim and terminal state
+ * stranded the row forever: a crash, a deploy mid-job, or `completeJob` failing
+ * on a transient database error after the work had already succeeded. Nothing
+ * ever looked at those rows again.
+ *
+ * Reclaiming means a job whose worker is merely slow can run twice, so the
+ * lease must exceed the job timeout by a wide margin — the caller passes a
+ * multiple of it. Handlers must be idempotent regardless; see JobHandler.
  */
-export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
+export async function fetchNextJobs(
+  limit: number,
+  staleAfterMs: number
+): Promise<JobRecord[]> {
   const db = getDb()
 
   // Atomic claim: SELECT + UPDATE in one query via CTE.
@@ -89,8 +103,19 @@ export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
           updated_at = NOW()
       WHERE id IN (
         SELECT id FROM ${jobs}
-        WHERE status = 'pending'
-          AND scheduled_at <= NOW()
+        WHERE (
+                (status = 'pending' AND scheduled_at <= NOW())
+                OR (
+                  status = 'processing'
+                  AND (
+                    -- A claim always stamps started_at, so NULL here means the
+                    -- row is in a state nothing produces: reclaim it rather
+                    -- than leave it stuck forever.
+                    started_at IS NULL
+                    OR started_at < NOW() - ${sql.raw(`INTERVAL '1 millisecond'`)} * ${staleAfterMs}
+                  )
+                )
+              )
         ORDER BY ${priorityRank} ASC, scheduled_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED

@@ -57,7 +57,13 @@ async function poll(): Promise<void> {
   const config = loadConfig('jobs')
 
   try {
-    const batch = await fetchNextJobs(config.concurrency)
+    // Lease at 3x the job timeout: long enough that a still-running handler is
+    // never reclaimed under it, short enough that a crashed worker's jobs come
+    // back in minutes rather than never.
+    const batch = await fetchNextJobs(
+      config.concurrency,
+      config.defaultTimeout * 3
+    )
 
     if (batch.length > 0) {
       await Promise.allSettled(
@@ -103,7 +109,21 @@ async function poll(): Promise<void> {
 
           if (!failed) {
             timeout.cancel()
-            await completeJob(job.id)
+
+            // A failure here means the work succeeded but the record of it did
+            // not. Rethrowing would land in Promise.allSettled and leave the row
+            // in 'processing'; calling failJob would retry work that already
+            // ran. Log and leave it — the lease in fetchNextJobs is what
+            // eventually reclaims it, which is why that lease exists.
+            try {
+              await completeJob(job.id)
+            } catch (completionError) {
+              console.error(
+                `[jobs] ${job.type} ${job.id} succeeded but could not be marked complete; it will be reclaimed when its lease expires`,
+                completionError
+              )
+              return
+            }
 
             const hookArgs: OnJobCompletedArgs = {
               jobId: job.id,

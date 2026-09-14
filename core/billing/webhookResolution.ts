@@ -186,9 +186,9 @@ export async function requireInvoiceUser(
 /**
  * The plan an invoice is for, or throw.
  *
- * The price mapping first; then the local subscription row, which is the
- * authoritative record of what this customer is actually on and covers a price
- * that has been rotated or was never mapped.
+ * The local subscription row first — it is the authoritative record of what
+ * this customer is on — then the invoice's price mapping, which covers the
+ * first invoice arriving before provisioning has landed.
  *
  * Throwing if neither resolves is deliberate, and matches resolvePlan: the
  * previous behaviour returned '' and fired onPaymentSucceeded with a blank
@@ -198,11 +198,15 @@ export async function requireInvoiceUser(
 export async function requireInvoicePlan(
   invoice: Stripe.Invoice
 ): Promise<string> {
-  const fromPrice = planForInvoice(invoice)
-  if (fromPrice) return fromPrice
-
   const subscriptionId = invoiceSubscriptionId(invoice)
 
+  // The local row first, not the invoice line.
+  //
+  // An invoice carries several lines on a plan change or a multi-item
+  // subscription, and the first is often a proration for the plan being left.
+  // Mapping that line reports the OLD plan as the one just paid for — a
+  // plausible-looking answer, which is worse than none. The subscription row is
+  // what the provisioning path already agreed on.
   if (subscriptionId) {
     const db = getDb()
     const [row] = await db
@@ -214,8 +218,12 @@ export async function requireInvoicePlan(
     if (row?.plan) return row.plan
   }
 
+  // No local row yet — a first invoice can arrive before provisioning lands.
+  const fromPrice = planForInvoice(invoice)
+  if (fromPrice) return fromPrice
+
   throw new Error(
-    `Cannot resolve a plan for invoice ${invoice.id}; its price is not configured and no local subscription row matches`
+    `Cannot resolve a plan for invoice ${invoice.id}; no local subscription row matches and its price is not configured`
   )
 }
 

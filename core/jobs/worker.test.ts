@@ -97,7 +97,8 @@ describe('worker', () => {
       // Let the initial poll complete
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(fetchNextJobs).toHaveBeenCalledWith(5)
+      // Second argument is the reclaim lease — 3x the 300000ms defaultTimeout.
+      expect(fetchNextJobs).toHaveBeenCalledWith(5, 900000)
     })
 
     it('does not start twice if already running', async () => {

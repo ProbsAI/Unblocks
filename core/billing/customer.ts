@@ -49,11 +49,26 @@ export async function getOrCreateCustomer(userId: string): Promise<string> {
 
   // Create Stripe customer
   const stripe = getStripe()
-  const customer = await stripe.customers.create({
-    email: user.email,
-    name: user.name ?? undefined,
-    metadata: { userId },
-  })
+  // Idempotency key, because the lookup above is not a lock: two concurrent
+  // checkout or portal requests can both see no customer and both get here.
+  // Without this they mint two Stripe customers for one person, and their
+  // checkout sessions attach to different ones — split billing, and later
+  // webhooks land on whichever the database happened to keep.
+  //
+  // Stripe returns the original customer for a repeated key, so the race
+  // resolves to one object regardless of which write wins locally.
+  //
+  // Residual: Stripe expires idempotency keys after 24 hours, so a race that
+  // straddles that window could still duplicate. Closing that needs a unique
+  // constraint on the mapping, which the schema does not have yet.
+  const customer = await stripe.customers.create(
+    {
+      email: user.email,
+      name: user.name ?? undefined,
+      metadata: { userId },
+    },
+    { idempotencyKey: `unblocks:customer:${userId}` }
+  )
 
   // Upsert subscription record with customer ID
   const [existing] = await db

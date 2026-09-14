@@ -153,6 +153,31 @@ describe('acceptInvitation', () => {
     expect(await memberCount()).toBe(1)
   })
 
+  it('refuses an accepting user whose email is unverified', async () => {
+    // teams.requireEmailVerification defaults to true. requireAuth establishes
+    // identity, not that the address was ever proven.
+    const db = getTestDb()
+    await db.execute(sql`
+      UPDATE users SET email_verified = false WHERE id = ${inviteeId}
+    `)
+
+    const { acceptInvitation } = await import('./inviteMember')
+    const token = await invite()
+
+    await expect(acceptInvitation(token, inviteeId)).rejects.toThrow(
+      /verify your email/i
+    )
+
+    // And the refusal must not have burned the invitation: the real invitee
+    // still needs it once they verify.
+    expect(await memberCount()).toBe(1)
+    await db.execute(sql`
+      UPDATE users SET email_verified = true WHERE id = ${inviteeId}
+    `)
+    await acceptInvitation(token, inviteeId)
+    expect(await memberCount()).toBe(2)
+  })
+
   it('refuses when the user is already in the team', async () => {
     const { acceptInvitation } = await import('./inviteMember')
 

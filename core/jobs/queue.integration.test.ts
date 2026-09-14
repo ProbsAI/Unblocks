@@ -35,6 +35,13 @@ async function seedJob(
   `)
 }
 
+/**
+ * A lease long enough that nothing is ever reclaimed mid-test. These cases are
+ * about which rows get claimed and in what order; reclamation has its own case
+ * below and sets its own lease.
+ */
+const LEASE_MS = 60 * 60 * 1000
+
 describe('fetchNextJobs — priority ordering', () => {
   it('claims high before normal before low', async () => {
     // Insert in an order that would pass if sorting were alphabetical, so a
@@ -44,7 +51,7 @@ describe('fetchNextJobs — priority ordering', () => {
     await seedJob('normal-job', 'normal')
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(3)
+    const claimed = await fetchNextJobs(3, LEASE_MS)
 
     expect(claimed.map((j) => j.type)).toEqual([
       'high-job',
@@ -59,7 +66,7 @@ describe('fetchNextJobs — priority ordering', () => {
     await seedJob('low-job', 'low')
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(1)
+    const claimed = await fetchNextJobs(1, LEASE_MS)
 
     expect(claimed).toHaveLength(1)
     expect(claimed[0].type).toBe('normal-job')
@@ -72,7 +79,7 @@ describe('fetchNextJobs — priority ordering', () => {
     await seedJob('critical-job', 'critical')
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(2)
+    const claimed = await fetchNextJobs(2, LEASE_MS)
 
     expect(claimed.map((j) => j.type)).toEqual(['critical-job', 'high-job'])
   })
@@ -84,7 +91,7 @@ describe('fetchNextJobs — priority ordering', () => {
     await seedJob('older', 'normal', older)
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(2)
+    const claimed = await fetchNextJobs(2, LEASE_MS)
 
     expect(claimed.map((j) => j.type)).toEqual(['older', 'newer'])
   })
@@ -95,8 +102,8 @@ describe('fetchNextJobs — claiming semantics', () => {
     await seedJob('only-job', 'normal')
 
     const { fetchNextJobs } = await import('./queue')
-    const first = await fetchNextJobs(10)
-    const second = await fetchNextJobs(10)
+    const first = await fetchNextJobs(10, LEASE_MS)
+    const second = await fetchNextJobs(10, LEASE_MS)
 
     expect(first).toHaveLength(1)
     expect(first[0].status).toBe('processing')
@@ -108,7 +115,7 @@ describe('fetchNextJobs — claiming semantics', () => {
     await seedJob('ready', 'low')
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(10)
+    const claimed = await fetchNextJobs(10, LEASE_MS)
 
     expect(claimed.map((j) => j.type)).toEqual(['ready'])
   })
@@ -119,8 +126,42 @@ describe('fetchNextJobs — claiming semantics', () => {
     await seedJob('c', 'normal')
 
     const { fetchNextJobs } = await import('./queue')
-    const claimed = await fetchNextJobs(2)
+    const claimed = await fetchNextJobs(2, LEASE_MS)
 
     expect(claimed).toHaveLength(2)
+  })
+})
+
+describe('reclaiming abandoned jobs', () => {
+  it('re-claims a processing row whose lease has expired', async () => {
+    // A worker that dies mid-job leaves its row in 'processing'. Claiming only
+    // looked at 'pending', so that row was never touched again — the job was
+    // simply lost, with no error anywhere.
+    const { fetchNextJobs } = await import('./queue')
+    const db = getTestDb()
+    await db.execute(sql`
+      INSERT INTO jobs (type, payload, status, priority, started_at)
+      VALUES ('abandoned', '{}'::jsonb, 'processing', 'normal',
+              NOW() - INTERVAL '10 minutes')
+    `)
+
+    const claimed = await fetchNextJobs(10, 60_000)
+
+    expect(claimed).toHaveLength(1)
+    expect(claimed[0].type).toBe('abandoned')
+  })
+
+  it('leaves a processing row alone while its lease holds', async () => {
+    // The other direction matters just as much: reclaiming a job whose worker
+    // is merely slow runs it twice. The lease has to be longer than the job
+    // timeout, which is why the worker passes a multiple of it.
+    const { fetchNextJobs } = await import('./queue')
+    const db = getTestDb()
+    await db.execute(sql`
+      INSERT INTO jobs (type, payload, status, priority, started_at)
+      VALUES ('still-running', '{}'::jsonb, 'processing', 'normal', NOW())
+    `)
+
+    expect(await fetchNextJobs(10, 60_000)).toHaveLength(0)
   })
 })
