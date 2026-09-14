@@ -4,7 +4,12 @@ import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { getStripe } from './customer'
 import { getAllPlans } from './plans'
-import { invoiceSubscriptionId, customerIdOf, planIdForPrice } from './stripeShapes'
+import {
+  invoiceSubscriptionId,
+  customerIdOf,
+  planIdForPrice,
+  planForInvoice,
+} from './stripeShapes'
 
 /**
  * Lookup and resolution helpers for the Stripe webhook handler.
@@ -169,6 +174,42 @@ export async function requireInvoiceUser(
   }
 
   return userId
+}
+
+/**
+ * The plan an invoice is for, or throw.
+ *
+ * The price mapping first; then the local subscription row, which is the
+ * authoritative record of what this customer is actually on and covers a price
+ * that has been rotated or was never mapped.
+ *
+ * Throwing if neither resolves is deliberate, and matches resolvePlan: the
+ * previous behaviour returned '' and fired onPaymentSucceeded with a blank
+ * plan, which is worse than failing because it looks like an answer. A non-2xx
+ * makes Stripe retry and surfaces the gap.
+ */
+export async function requireInvoicePlan(
+  invoice: Stripe.Invoice
+): Promise<string> {
+  const fromPrice = planForInvoice(invoice)
+  if (fromPrice) return fromPrice
+
+  const subscriptionId = invoiceSubscriptionId(invoice)
+
+  if (subscriptionId) {
+    const db = getDb()
+    const [row] = await db
+      .select({ plan: subscriptions.plan })
+      .from(subscriptions)
+      .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
+      .limit(1)
+
+    if (row?.plan) return row.plan
+  }
+
+  throw new Error(
+    `Cannot resolve a plan for invoice ${invoice.id}; its price is not configured and no local subscription row matches`
+  )
 }
 
 /**

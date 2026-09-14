@@ -14,9 +14,23 @@ import { createHmac, pbkdf2Sync } from 'crypto'
  * BLIND_INDEX_KEY, all *_hash columns become stale and equality
  * lookups will fail.
  */
+/** 32 bytes as hex — what both BLIND_INDEX_KEY and ENCRYPTION_KEY are documented as. */
+const KEY_HEX = /^[0-9a-fA-F]{64}$/
+
 function getHmacKey(): Buffer {
   const blindKey = process.env.BLIND_INDEX_KEY
   if (blindKey) {
+    // Validate, do not just decode. Buffer.from(value, 'hex') stops at the
+    // first non-hex character and returns whatever it managed to read — so a
+    // typo silently yields a short or EMPTY key, and every index becomes
+    // computable by anyone holding the database. That matters most for the
+    // email indexes, which are enumerable and rely on the key for their
+    // protection. Fail closed instead.
+    if (!KEY_HEX.test(blindKey)) {
+      throw new Error(
+        'BLIND_INDEX_KEY must be exactly 64 hex characters (32 bytes)'
+      )
+    }
     return Buffer.from(blindKey, 'hex')
   }
 

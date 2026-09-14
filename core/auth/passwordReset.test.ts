@@ -10,6 +10,10 @@ const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
 
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,
@@ -93,7 +97,18 @@ function setupInsertChain() {
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -171,7 +186,7 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
     await resetPassword('valid-token', 'newPassword123')
@@ -182,7 +197,9 @@ describe('resetPassword', () => {
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupMultiSelectChains([[]])
+    // The atomic claim returns nothing: unknown, expired, or already used.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
     await expect(
       resetPassword('bad-token', 'newPassword123')
@@ -199,7 +216,7 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
     await resetPassword('valid-token', 'newPassword123')
@@ -216,7 +233,7 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
     await resetPassword('valid-token', 'newPassword123')

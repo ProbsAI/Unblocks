@@ -7,6 +7,7 @@ import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex, slowBlindIndex } from '../security/blindIndex'
+import { claimVerificationToken } from './verificationTokens'
 import type { User } from './types'
 
 export async function createMagicLink(email: string): Promise<string> {
@@ -104,28 +105,14 @@ export async function peekMagicLink(
 export async function verifyMagicLink(token: string): Promise<User> {
   const db = getDb()
 
-  const [dbToken] = await db
-    .select()
-    .from(verificationTokens)
-    .where(
-      and(
-        eq(verificationTokens.tokenHash, blindIndex(token)),
-        eq(verificationTokens.type, 'magic_link'),
-        gt(verificationTokens.expiresAt, new Date()),
-        isNull(verificationTokens.usedAt)
-      )
-    )
-    .limit(1)
+  // Claim atomically. Reading the row and then marking it used let two
+  // concurrent POSTs from the confirmation page both pass the unused check and
+  // both create a session from one emailed link.
+  const dbToken = await claimVerificationToken(token, 'magic_link')
 
   if (!dbToken) {
     throw new AuthError('INVALID_TOKEN', 'Invalid or expired magic link')
   }
-
-  // Mark token as used
-  await db
-    .update(verificationTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(verificationTokens.id, dbToken.id))
 
   // Get user and mark email as verified
   const [dbUser] = await db

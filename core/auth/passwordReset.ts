@@ -1,4 +1,4 @@
-import { eq, and, gt, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
@@ -7,6 +7,7 @@ import { hashPassword } from './password'
 import { AuthError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import { claimVerificationToken } from './verificationTokens'
 
 export async function requestPasswordReset(
   email: string
@@ -43,28 +44,13 @@ export async function resetPassword(
 ): Promise<void> {
   const db = getDb()
 
-  const [dbToken] = await db
-    .select()
-    .from(verificationTokens)
-    .where(
-      and(
-        eq(verificationTokens.tokenHash, blindIndex(token)),
-        eq(verificationTokens.type, 'password_reset'),
-        gt(verificationTokens.expiresAt, new Date()),
-        isNull(verificationTokens.usedAt)
-      )
-    )
-    .limit(1)
+  // Claimed atomically: two concurrent requests reading the row both saw an
+  // unused token and both reset the password, from one emailed link.
+  const dbToken = await claimVerificationToken(token, 'password_reset')
 
   if (!dbToken) {
     throw new AuthError('INVALID_TOKEN', 'Invalid or expired reset link')
   }
-
-  // Mark token as used
-  await db
-    .update(verificationTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(verificationTokens.id, dbToken.id))
 
   // Update password
   const passwordHash = await hashPassword(newPassword)

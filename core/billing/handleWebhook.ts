@@ -2,8 +2,11 @@ import Stripe from 'stripe'
 import { claimEvent, releaseEvent } from './webhookEventLog'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
-import { planForInvoice } from './stripeShapes'
-import { isSubscriptionInvoice, requireInvoiceUser } from './webhookResolution'
+import {
+  isSubscriptionInvoice,
+  requireInvoiceUser,
+  requireInvoicePlan,
+} from './webhookResolution'
 import {
   handleSubscriptionUpdate,
   handleSubscriptionDeleted,
@@ -82,7 +85,7 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       await runHook('onPaymentSucceeded', {
         userId: await requireInvoiceUser(invoice),
         amount: (invoice.amount_paid ?? 0) / 100,
-        plan: planForInvoice(invoice),
+        plan: await requireInvoicePlan(invoice),
         invoiceUrl: invoice.hosted_invoice_url,
       })
       break

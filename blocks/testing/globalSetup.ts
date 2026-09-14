@@ -12,10 +12,10 @@ export default async function setup(): Promise<void> {
   // would truncate via the 5433 harness while exercising a different database.
   process.env.DATABASE_URL = testDatabaseUrl()
 
-  if (!(await testDbAvailable())) {
+  if (!(await waitForTestDb())) {
     throw new Error(
       [
-        `No test database reachable at ${testDatabaseUrl()}`,
+        `No test database reachable at ${testDatabaseUrl()} after ${READY_TIMEOUT_MS / 1000}s`,
         '',
         'Start one with:  docker compose up -d postgres_test',
         'Or point DATABASE_URL_TEST at your own throwaway database.',
@@ -24,4 +24,28 @@ export default async function setup(): Promise<void> {
   }
 
   pushSchema()
+}
+
+const READY_TIMEOUT_MS = 30_000
+const RETRY_INTERVAL_MS = 500
+
+/**
+ * Wait for Postgres to accept connections, up to a bounded deadline.
+ *
+ * A single probe made the documented workflow — `docker compose up -d
+ * postgres_test` followed immediately by the test run — fail whenever the
+ * container was still starting, which on a first image pull it always is. CI
+ * hides that behind a service health check; locally it just looked broken.
+ *
+ * Bounded rather than open-ended so a genuinely absent database still fails,
+ * and reasonably fast, instead of hanging the run.
+ */
+async function waitForTestDb(): Promise<boolean> {
+  const deadline = Date.now() + READY_TIMEOUT_MS
+
+  for (;;) {
+    if (await testDbAvailable()) return true
+    if (Date.now() >= deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL_MS))
+  }
 }

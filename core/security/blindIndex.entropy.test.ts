@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest'
 /**
  * Enforces the premise that lets blindIndex run a deliberately low work factor.
  *
- * blindIndex is PBKDF2 at 4096 iterations, which is nowhere near enough for a
+ * blindIndex is PBKDF2 at 1000 iterations, which is nowhere near enough for a
  * password. That is fine only because every secret reaching it is high-entropy
  * CSPRNG output or a signed JWT, so guessing is infeasible regardless of speed
  * — the work factor is not what protects those values, their size is.

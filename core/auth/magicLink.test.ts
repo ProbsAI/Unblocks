@@ -11,6 +11,10 @@ const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
 
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,
@@ -111,7 +115,18 @@ function setupInsertChain(returnValue?: unknown[]) {
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -190,7 +205,8 @@ describe('verifyMagicLink', () => {
       expiresAt: new Date('2025-01-01'),
       usedAt: null,
     }
-    setupMultiSelectChains([[mockToken], [mockDbUser]])
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[mockDbUser]])
     setupUpdateChain()
 
     const result = await verifyMagicLink('valid-token')
@@ -202,7 +218,9 @@ describe('verifyMagicLink', () => {
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupMultiSelectChains([[]])
+    // The claim returns nothing: unknown, expired, or already consumed.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
     await expect(verifyMagicLink('invalid-token')).rejects.toThrow(AuthError)
     await expect(verifyMagicLink('invalid-token')).rejects.toThrow(
@@ -219,7 +237,8 @@ describe('verifyMagicLink', () => {
       expiresAt: new Date('2025-01-01'),
       usedAt: null,
     }
-    setupMultiSelectChains([[mockToken], []])
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[]])
     setupUpdateChain()
 
     await expect(verifyMagicLink('valid-token')).rejects.toThrow(NotFoundError)
@@ -232,9 +251,8 @@ describe('verifyMagicLink', () => {
       email: 'test@example.com',
       type: 'magic_link',
     }
-    setupMultiSelectChains(
-      [[mockToken], [{ ...mockDbUser, emailVerified: false }]]
-    )
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[{ ...mockDbUser, emailVerified: false }]])
     setupUpdateChain()
 
     await verifyMagicLink('valid-token')
@@ -250,9 +268,8 @@ describe('verifyMagicLink', () => {
       email: 'test@example.com',
       type: 'magic_link',
     }
-    setupMultiSelectChains(
-      [[mockToken], [{ ...mockDbUser, emailVerified: true }]]
-    )
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[{ ...mockDbUser, emailVerified: true }]])
     setupUpdateChain()
 
     await verifyMagicLink('valid-token')

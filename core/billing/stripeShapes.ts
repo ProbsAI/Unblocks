@@ -51,8 +51,17 @@ export function planIdForPrice(priceId: string | null): string | null {
   return match?.id ?? null
 }
 
-export function planForInvoice(invoice: Stripe.Invoice): string {
-  return planIdForPrice(invoice.lines?.data[0]?.price?.id ?? null) ?? ''
+/**
+ * The plan an invoice is for, or null when it cannot be resolved.
+ *
+ * Returns null rather than '' so callers have to decide what to do about it.
+ * The empty string read as a plan name and flowed straight into the
+ * onPaymentSucceeded hook, so a subscription whose price is not configured
+ * reported a payment against a blank plan — worse than no answer, because it
+ * looks like one.
+ */
+export function planForInvoice(invoice: Stripe.Invoice): string | null {
+  return planIdForPrice(invoice.lines?.data[0]?.price?.id ?? null)
 }
 
 /**

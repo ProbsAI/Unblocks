@@ -12,6 +12,8 @@ export {
   OAuthLinkRequiredError,
 } from './oauth'
 export { createMagicLink, peekMagicLink, verifyMagicLink } from './magicLink'
+export { claimVerificationToken } from './verificationTokens'
+export type { VerificationTokenType } from './verificationTokens'
 export { requestPasswordReset, resetPassword } from './passwordReset'
 export { createEmailVerificationToken, verifyEmail } from './emailVerification'
 export { getUserById, getUserByEmail } from './permissions'

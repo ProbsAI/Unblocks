@@ -234,7 +234,7 @@ describe('handleStripeWebhook — idempotency', () => {
         subscription: 'sub_test_1',
         amount_paid: 2900,
         hosted_invoice_url: 'https://stripe.test/i/1',
-        lines: { data: [{ price: { id: 'price_test_1' } }] },
+        lines: { data: [{ price: { id: 'price_xxx' } }] },
       },
       'evt_invoice_1'
     )
@@ -287,7 +287,7 @@ describe('handleStripeWebhook — payment hooks resolve the user', () => {
           subscription: 'sub_test_1',
           amount_paid: 2900,
           hosted_invoice_url: null,
-          lines: { data: [{ price: { id: 'price_test_1' } }] },
+          lines: { data: [{ price: { id: 'price_xxx' } }] },
         },
         'evt_invoice_userid'
       ),
@@ -391,7 +391,7 @@ describe('handleStripeWebhook — invoices that cannot be attributed', () => {
             subscription: 'sub_test_1',
             amount_paid: 2900,
             hosted_invoice_url: null,
-            lines: { data: [{ price: { id: 'price_test_1' } }] },
+            lines: { data: [{ price: { id: 'price_xxx' } }] },
           },
           'evt_unlinkable'
         ),

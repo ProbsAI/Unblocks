@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// verifyEmail no longer selects the token — it is claimed atomically — so the
+// only select left in this module belongs to the getDb stub below.
 const mockSelect = vi.fn()
-const mockFrom = vi.fn()
-const mockWhere = vi.fn()
-const mockLimit = vi.fn()
 const mockInsert = vi.fn()
 const mockValues = vi.fn()
 const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
+
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
@@ -68,20 +71,24 @@ import {
 } from './emailVerification'
 import { AuthError } from '../errors/types'
 
-function setupSelectChain(result: unknown[]) {
-  mockLimit.mockResolvedValue(result)
-  mockWhere.mockReturnValue({ limit: mockLimit })
-  mockFrom.mockReturnValue({ where: mockWhere })
-  mockSelect.mockReturnValue({ from: mockFrom })
-}
-
 function setupInsertChain() {
   mockValues.mockResolvedValue(undefined)
   mockInsert.mockReturnValue({ values: mockValues })
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -139,7 +146,8 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
     await verifyEmail('valid-token')
 
@@ -148,7 +156,9 @@ describe('verifyEmail', () => {
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupSelectChain([])
+    // The atomic claim returns nothing: unknown, expired, or already used.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
     await expect(verifyEmail('bad-token')).rejects.toThrow(AuthError)
     await expect(verifyEmail('bad-token')).rejects.toThrow(
@@ -163,7 +173,8 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
     await verifyEmail('valid-token')
 
@@ -179,7 +190,8 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
     await verifyEmail('valid-token')
 
