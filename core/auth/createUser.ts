@@ -5,7 +5,7 @@ import { hashPassword } from './password'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ValidationError } from '../errors/types'
 import { encrypt, encryptNullable } from '../security/encryption'
-import { blindIndex } from '../security/blindIndex'
+import { slowBlindIndex } from '../security/blindIndex'
 import type { CreateUserInput, User } from './types'
 
 export async function createUser(input: CreateUserInput): Promise<User> {
@@ -37,7 +37,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     .values({
       email: emailLower,
       emailEncrypted: encrypt(emailLower),
-      emailHash: blindIndex(emailLower),
+      emailHash: slowBlindIndex(emailLower),
       passwordHash,
       name: input.name ?? null,
       nameEncrypted: encryptNullable(input.name ?? null),

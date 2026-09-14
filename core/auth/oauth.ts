@@ -4,7 +4,7 @@ import { users } from '../db/schema/users'
 import { accounts } from '../db/schema/accounts'
 import { runHook } from '../runtime/hookRunner'
 import { encrypt, encryptNullable } from '../security/encryption'
-import { blindIndex } from '../security/blindIndex'
+import { slowBlindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 interface GoogleUserInfo {
@@ -210,7 +210,7 @@ export async function handleOAuthCallback(
       .values({
         email: emailLower,
         emailEncrypted: encrypt(emailLower),
-        emailHash: blindIndex(emailLower),
+        emailHash: slowBlindIndex(emailLower),
         name: userInfo.name,
         nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,

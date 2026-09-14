@@ -6,7 +6,7 @@ import { generateRandomToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
-import { blindIndex } from '../security/blindIndex'
+import { blindIndex, slowBlindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 export async function createMagicLink(email: string): Promise<string> {
@@ -27,7 +27,7 @@ export async function createMagicLink(email: string): Promise<string> {
       .values({
         email: emailLower,
         emailEncrypted: encrypt(emailLower),
-        emailHash: blindIndex(emailLower),
+        emailHash: slowBlindIndex(emailLower),
         emailVerified: false,
       })
       .returning()

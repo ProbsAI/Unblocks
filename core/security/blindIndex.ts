@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto'
+import { createHmac, pbkdf2Sync } from 'crypto'
 
 /**
  * Returns the HMAC key used for blind index generation.
@@ -70,15 +70,75 @@ function getHmacKey(): Buffer {
  * the CodeQL alert becomes true and this comment becomes wrong.** That is the
  * condition to watch for.
  *
- * Known residual property: `emailHash` indexes an email address, which is
- * low-entropy and enumerable. Anyone holding both the database and
- * BLIND_INDEX_KEY could confirm whether a given address is registered. That is
- * inherent to blind indexing and is addressed by key management, not by a slower
- * hash.
+ * Low-entropy inputs do NOT belong here. `emailHash` used to use this function
+ * and now uses {@link slowBlindIndex}, because an email address is enumerable
+ * and therefore the one place where iteration count actually buys something.
  */
 export function blindIndex(value: string): string {
   const key = getHmacKey()
   return createHmac('sha256', key).update(value.toLowerCase()).digest('hex')
+}
+
+/**
+ * Iteration count for {@link slowBlindIndex}. OWASP's current guidance for
+ * PBKDF2-HMAC-SHA256 is 600,000. Tunable via BLIND_INDEX_ITERATIONS for
+ * deployments that need to trade cost against latency — but see the warning on
+ * slowBlindIndex before lowering it.
+ */
+function getIterations(): number {
+  const raw = Number(process.env.BLIND_INDEX_ITERATIONS)
+  return Number.isFinite(raw) && raw >= 10_000 ? raw : 600_000
+}
+
+/** Distinguishes slow digests from fast ones in the same column. */
+const SLOW_INDEX_PREFIX = 'pbkdf2$'
+
+/**
+ * Deterministic blind index with deliberate computational cost (PBKDF2-SHA256).
+ *
+ * Use this for **low-entropy, enumerable** inputs — email addresses, phone
+ * numbers, postcodes. Use {@link blindIndex} for high-entropy secrets.
+ *
+ * The distinction is the whole point. Iteration count multiplies an attacker's
+ * cost per *guess*, so it only helps when guessing is feasible:
+ *
+ *   - Email address: ~2^30 realistic candidates. HMAC-SHA256 lets an attacker
+ *     holding the database AND the key confirm registrations at GPU speed.
+ *     600k PBKDF2 iterations makes that roughly five orders of magnitude more
+ *     expensive. Worth paying.
+ *   - 256-bit random token: 2^256 candidates. No iteration count makes that
+ *     feasible, so the cost buys exactly nothing — while landing on the hot
+ *     path, since validateSession hashes a token on every authenticated
+ *     request and validateApiKey on every API call.
+ *
+ * That is why this is NOT a drop-in replacement for blindIndex, and why the
+ * CodeQL `js/insufficient-password-hash` alert should not be "fixed" by
+ * switching the token paths over. Doing so would add hundreds of milliseconds
+ * to every request in exchange for no security.
+ *
+ * Still deterministic, so it remains usable for `WHERE hash = ?`. The salt is
+ * derived from the index key with a domain separator rather than generated per
+ * call — a random salt would break equality lookup, which is exactly why
+ * bcrypt and argon2 cannot be used here at all.
+ */
+export function slowBlindIndex(value: string): string {
+  const key = getHmacKey()
+
+  // Deterministic, deployment-specific salt. Domain-separated from the HMAC use
+  // so the two constructions cannot produce related outputs.
+  const salt = createHmac('sha256', key)
+    .update('unblocks-slow-blind-index-salt')
+    .digest()
+
+  const digest = pbkdf2Sync(
+    value.toLowerCase(),
+    salt,
+    getIterations(),
+    32,
+    'sha256'
+  )
+
+  return `${SLOW_INDEX_PREFIX}${digest.toString('hex')}`
 }
 
 /**

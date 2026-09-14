@@ -116,3 +116,93 @@ describe('user passwords do not use blindIndex', () => {
     expect(a).not.toBe(b)
   })
 })
+
+describe('slowBlindIndex — deliberate cost for enumerable inputs', () => {
+  // Iterations are lowered here so the suite stays fast; the construction is
+  // what is under test, not the specific work factor.
+  const LOW_COST = { BLIND_INDEX_ITERATIONS: '10000' }
+
+  it('is deterministic, so it can still back a WHERE clause', async () => {
+    process.env.BLIND_INDEX_ITERATIONS = LOW_COST.BLIND_INDEX_ITERATIONS
+    const { slowBlindIndex } = await import('./blindIndex')
+
+    // This is the property bcrypt and argon2 cannot provide, and the reason
+    // CodeQL's literal recommendation is not applicable to a lookup index.
+    expect(slowBlindIndex('user@example.com')).toBe(
+      slowBlindIndex('user@example.com')
+    )
+  })
+
+  it('normalises case, matching blindIndex', async () => {
+    const { slowBlindIndex } = await import('./blindIndex')
+
+    expect(slowBlindIndex('User@Example.COM')).toBe(
+      slowBlindIndex('user@example.com')
+    )
+  })
+
+  it('tags its output so PBKDF2 and HMAC values stay distinguishable', async () => {
+    const { slowBlindIndex, blindIndex } = await import('./blindIndex')
+
+    // emailHash may hold both during a rollout; the prefix is what lets a
+    // future reader tell which derivation produced a given row.
+    expect(slowBlindIndex('a@b.com')).toMatch(/^pbkdf2\$[0-9a-f]{64}$/)
+    expect(blindIndex('a@b.com')).toMatch(/^[0-9a-f]{64}$/)
+    expect(slowBlindIndex('a@b.com')).not.toBe(blindIndex('a@b.com'))
+  })
+
+  it('fits the email_hash column', async () => {
+    const { slowBlindIndex } = await import('./blindIndex')
+
+    // varchar(128); the prefix plus digest is 71.
+    expect(slowBlindIndex('someone@example.com').length).toBeLessThanOrEqual(128)
+  })
+
+  it('is keyed, like the fast variant', async () => {
+    const { slowBlindIndex } = await import('./blindIndex')
+
+    const first = slowBlindIndex('user@example.com')
+    process.env.BLIND_INDEX_KEY = 'd'.repeat(64)
+    const second = slowBlindIndex('user@example.com')
+    process.env.BLIND_INDEX_KEY = 'b'.repeat(64)
+
+    expect(second).not.toBe(first)
+  })
+
+  it('refuses a work factor below the floor', async () => {
+    const { slowBlindIndex } = await import('./blindIndex')
+
+    // A misconfigured low value must not silently weaken the derivation.
+    process.env.BLIND_INDEX_ITERATIONS = '5'
+    const weakAttempt = slowBlindIndex('user@example.com')
+
+    process.env.BLIND_INDEX_ITERATIONS = '10000'
+    const atFloor = slowBlindIndex('user@example.com')
+
+    // '5' is below the 10k floor, so it falls back to the 600k default and
+    // therefore differs from a genuine 10k derivation.
+    expect(weakAttempt).not.toBe(atFloor)
+  })
+})
+
+describe('the hot path stays fast', () => {
+  it('session and API key lookups use the fast index, not PBKDF2', async () => {
+    // validateSession runs on every authenticated request and validateApiKey on
+    // every API call. Routing either through slowBlindIndex would add hundreds
+    // of milliseconds per request for no security, since both inputs are
+    // 256-bit. This asserts the separation rather than trusting a comment.
+    const [sessionSrc, apiKeySrc] = await Promise.all([
+      import('node:fs/promises').then((fs) =>
+        fs.readFile('core/auth/validateSession.ts', 'utf8')
+      ),
+      import('node:fs/promises').then((fs) =>
+        fs.readFile('core/api-keys/validate.ts', 'utf8')
+      ),
+    ])
+
+    expect(sessionSrc).not.toContain('slowBlindIndex')
+    expect(apiKeySrc).not.toContain('slowBlindIndex')
+    expect(sessionSrc).toContain('blindIndex(')
+    expect(apiKeySrc).toContain('blindIndex(')
+  })
+})

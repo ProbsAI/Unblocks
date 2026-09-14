@@ -330,6 +330,21 @@ leaving it to a comment: it asserts every token generator feeding `blindIndex`
 produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
 that suite fails, re-examine the construction — do not re-dismiss the alert.**
 
+**Two functions, chosen by input entropy:**
+
+| Input | Function | Why |
+|---|---|---|
+| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (HMAC-SHA256) | 256-bit CSPRNG. Iteration count buys nothing against 2^256, and these run on the per-request hot path. |
+| Email address | `slowBlindIndex` (PBKDF2-SHA256, 600k) | Enumerable (~2^30 candidates), so work factor genuinely raises an attacker's cost. Only runs at signup / OAuth / magic-link request. |
+
+`slowBlindIndex` is deterministic (salt derived from the index key, not random),
+so it still backs `WHERE hash = ?`. Its output carries a `pbkdf2$` prefix so
+older HMAC values remain distinguishable in the same column.
+
+**Never route `validateSession` or `validateApiKey` through `slowBlindIndex`** —
+that would add hundreds of milliseconds to every request in exchange for nothing.
+The entropy suite asserts this separation directly.
+
 ## Path Aliases
 
 | Alias | Maps to |
