@@ -50,6 +50,9 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('random-token-abc123'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('../runtime/hookRunner', () => ({
@@ -137,6 +140,12 @@ beforeEach(() => {
   setupUpdateChain()
 })
 
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
+
 describe('createMagicLink', () => {
   it('returns token for existing user', async () => {
     setupMultiSelectChains([[mockDbUser]])
@@ -209,7 +218,7 @@ describe('verifyMagicLink', () => {
     setupMultiSelectChains([[mockDbUser]])
     setupUpdateChain()
 
-    const result = await verifyMagicLink('valid-token')
+    const result = await verifyMagicLink(VALID_TOKEN)
 
     expect(result.id).toBe('user-1')
     expect(result.emailVerified).toBe(true)
@@ -222,8 +231,8 @@ describe('verifyMagicLink', () => {
     claimedTokenRow.current = []
     setupUpdateChain()
 
-    await expect(verifyMagicLink('invalid-token')).rejects.toThrow(AuthError)
-    await expect(verifyMagicLink('invalid-token')).rejects.toThrow(
+    await expect(verifyMagicLink(UNKNOWN_TOKEN)).rejects.toThrow(AuthError)
+    await expect(verifyMagicLink(UNKNOWN_TOKEN)).rejects.toThrow(
       'Invalid or expired magic link'
     )
   })
@@ -241,7 +250,7 @@ describe('verifyMagicLink', () => {
     setupMultiSelectChains([[]])
     setupUpdateChain()
 
-    await expect(verifyMagicLink('valid-token')).rejects.toThrow(NotFoundError)
+    await expect(verifyMagicLink(VALID_TOKEN)).rejects.toThrow(NotFoundError)
   })
 
   it('updates email verification if not already verified', async () => {
@@ -255,7 +264,7 @@ describe('verifyMagicLink', () => {
     setupMultiSelectChains([[{ ...mockDbUser, emailVerified: false }]])
     setupUpdateChain()
 
-    await verifyMagicLink('valid-token')
+    await verifyMagicLink(VALID_TOKEN)
 
     // update called twice: mark token used + mark email verified
     expect(mockUpdate).toHaveBeenCalledTimes(2)
@@ -272,7 +281,7 @@ describe('verifyMagicLink', () => {
     setupMultiSelectChains([[{ ...mockDbUser, emailVerified: true }]])
     setupUpdateChain()
 
-    await verifyMagicLink('valid-token')
+    await verifyMagicLink(VALID_TOKEN)
 
     // update called once: mark token used only
     expect(mockUpdate).toHaveBeenCalledTimes(1)

@@ -48,6 +48,9 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('reset-token-abc'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('./password', () => ({
@@ -119,6 +122,12 @@ beforeEach(() => {
   setupUpdateChain()
 })
 
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
+
 describe('requestPasswordReset', () => {
   it('returns token and userId for existing user', async () => {
     setupMultiSelectChains([[{ id: 'user-1', email: 'test@example.com' }]])
@@ -189,7 +198,7 @@ describe('resetPassword', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     expect(mockHashPassword).toHaveBeenCalledWith('newPassword123')
     // Two updates: mark token used + update password
@@ -202,10 +211,10 @@ describe('resetPassword', () => {
     setupUpdateChain()
 
     await expect(
-      resetPassword('bad-token', 'newPassword123')
+      resetPassword(UNKNOWN_TOKEN, 'newPassword123')
     ).rejects.toThrow(AuthError)
     await expect(
-      resetPassword('bad-token', 'newPassword123')
+      resetPassword(UNKNOWN_TOKEN, 'newPassword123')
     ).rejects.toThrow('Invalid or expired reset link')
   })
 
@@ -219,7 +228,7 @@ describe('resetPassword', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ usedAt: expect.any(Date) })
@@ -236,7 +245,7 @@ describe('resetPassword', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     // Second update should set password hash
     const secondSetCall = mockSet.mock.calls[1][0]

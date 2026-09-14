@@ -46,6 +46,9 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('verification-token-123'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('../security/blindIndex', () => ({
@@ -98,6 +101,12 @@ beforeEach(() => {
   setupUpdateChain()
 })
 
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
+
 describe('createEmailVerificationToken', () => {
   it('creates and returns a token', async () => {
     setupInsertChain()
@@ -149,7 +158,7 @@ describe('verifyEmail', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     // Should update token as used and update user email verification
     expect(mockUpdate).toHaveBeenCalledTimes(2)
@@ -160,8 +169,8 @@ describe('verifyEmail', () => {
     claimedTokenRow.current = []
     setupUpdateChain()
 
-    await expect(verifyEmail('bad-token')).rejects.toThrow(AuthError)
-    await expect(verifyEmail('bad-token')).rejects.toThrow(
+    await expect(verifyEmail(UNKNOWN_TOKEN)).rejects.toThrow(AuthError)
+    await expect(verifyEmail(UNKNOWN_TOKEN)).rejects.toThrow(
       'Invalid or expired verification link'
     )
   })
@@ -176,7 +185,7 @@ describe('verifyEmail', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ usedAt: expect.any(Date) })
@@ -193,7 +202,7 @@ describe('verifyEmail', () => {
     claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     // Second update call should set emailVerified
     const secondSetCall = mockSet.mock.calls[1][0]
