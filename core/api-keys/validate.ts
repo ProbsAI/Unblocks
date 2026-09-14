@@ -2,7 +2,6 @@ import { eq, and, isNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { apiKeys } from '../db/schema/apiKeys'
 import { blindIndex } from '../security/blindIndex'
-import type { ApiKey } from './types'
 import { API_KEY_PREFIX } from './types'
 
 export interface ApiKeyValidation {

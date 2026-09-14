@@ -29,9 +29,14 @@ const mockRows = [
   },
 ]
 
-const mockLimit = vi.fn()
-const mockOrderBy = vi.fn().mockReturnValue(mockRows)
-const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy })
+// vi.mock factories are hoisted above every other statement in the file, so a
+// factory that closes over a plain `const` hits the temporal dead zone and
+// vitest reports "error when mocking a module". vi.hoisted lifts the mocks with
+// it.
+const { mockOrderBy, mockWhere } = vi.hoisted(() => {
+  const orderBy = vi.fn()
+  return { mockOrderBy: orderBy, mockWhere: vi.fn(() => ({ orderBy })) }
+})
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn().mockReturnValue({

@@ -119,13 +119,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // This runs ahead of the public-path check because public routes reach
   // getCurrentUser() too.
   const sanitized = new Headers(request.headers)
-  const forged = sanitized.has(INTERNAL_API_KEY_HEADER)
   sanitized.delete(INTERNAL_API_KEY_HEADER)
 
+  // Always forward the sanitized headers rather than only when a forged value
+  // was seen. A conditional here would mean the strip's effect depends on a
+  // branch, and every return path below would have to remember to take it.
   const passThrough = (): NextResponse =>
-    forged
-      ? NextResponse.next({ request: { headers: sanitized } })
-      : NextResponse.next()
+    NextResponse.next({ request: { headers: sanitized } })
 
   // --- CSRF: same-origin enforcement on state-changing requests ---
   // Runs before the public-path check because unauthenticated POST endpoints
@@ -184,7 +184,6 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Verify JWT signature/expiry (full session validation happens in requireAuth)
   try {
     await jwtVerify(sessionToken, getSecret())
-    return passThrough()
   } catch {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -198,7 +197,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next()
+  return passThrough()
 }
 
 export const config = {

@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { apiKeys } from '../db/schema/apiKeys'
 import { NotFoundError, ForbiddenError } from '../errors/types'

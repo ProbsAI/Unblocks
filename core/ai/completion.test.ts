@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { renderTemplate } from './completion'
 
 // Mock dependencies for complete()
@@ -53,24 +53,15 @@ describe('renderTemplate', () => {
   })
 })
 
-vi.mock('./ai.config', () => ({
-  default: {
-    enabled: true,
-    defaultProvider: 'openai',
-    defaultModel: 'gpt-4o',
-    defaultTemperature: 0.7,
-    maxTokensPerRequest: 4096,
-    trackUsage: true,
-    providers: {
-      openai: { apiKey: 'sk-test-key', baseUrl: 'https://api.openai.com/v1' },
-      anthropic: { apiKey: 'sk-ant-test', baseUrl: 'https://api.anthropic.com' },
-      google: { apiKey: 'google-test' },
-    },
-    modelCosts: {
-      'gpt-4o': { input: 0.25, output: 1.0 },
-    },
-  },
-}))
+// loadAIConfig() pulls the config with require() at call time, which vitest's
+// ESM module registry does not intercept — vi.mock('./ai.config') has no
+// effect here. ai.config reads its provider keys from the environment, so set
+// those instead. This also exercises the real config path rather than a stub.
+beforeAll(() => {
+  process.env.OPENAI_API_KEY = 'sk-test-key'
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-test'
+  process.env.GOOGLE_AI_API_KEY = 'google-test'
+})
 
 import { complete } from './completion'
 import { getProviderFn } from './providers'

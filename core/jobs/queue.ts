@@ -63,29 +63,38 @@ export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
 
   // Atomic claim: SELECT + UPDATE in one query via CTE.
   // FOR UPDATE SKIP LOCKED ensures each row is claimed by exactly one worker.
+  // priority is a varchar, so a plain ASC sort is alphabetical and yields
+  // high, low, normal — running low-priority jobs ahead of normal ones.
+  // Rank explicitly instead.
+  const priorityRank = sql`CASE priority
+                             WHEN 'high' THEN 1
+                             WHEN 'normal' THEN 2
+                             WHEN 'low' THEN 3
+                             ELSE 2
+                           END`
+
+  // The inner ORDER BY decides WHICH rows are claimed, but UPDATE ... RETURNING
+  // emits them in arbitrary heap order. Without the outer ORDER BY the caller
+  // receives correctly-selected jobs in the wrong sequence and the worker runs a
+  // low-priority job before a high-priority one.
   const rows = await db.execute(sql`
-    UPDATE ${jobs}
-    SET status = 'processing',
-        started_at = NOW(),
-        updated_at = NOW()
-    WHERE id IN (
-      SELECT id FROM ${jobs}
-      WHERE status = 'pending'
-        AND scheduled_at <= NOW()
-      -- priority is a varchar, so a plain ASC sort is alphabetical and orders
-      -- high, low, normal — running low-priority jobs ahead of normal ones.
-      -- Rank explicitly instead.
-      ORDER BY CASE priority
-                 WHEN 'high' THEN 1
-                 WHEN 'normal' THEN 2
-                 WHEN 'low' THEN 3
-                 ELSE 2
-               END ASC,
-               scheduled_at ASC
-      LIMIT ${limit}
-      FOR UPDATE SKIP LOCKED
+    WITH claimed AS (
+      UPDATE ${jobs}
+      SET status = 'processing',
+          started_at = NOW(),
+          updated_at = NOW()
+      WHERE id IN (
+        SELECT id FROM ${jobs}
+        WHERE status = 'pending'
+          AND scheduled_at <= NOW()
+        ORDER BY ${priorityRank} ASC, scheduled_at ASC
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
     )
-    RETURNING *
+    SELECT * FROM claimed
+    ORDER BY ${priorityRank} ASC, scheduled_at ASC
   `)
 
   return (rows.rows as Array<Record<string, unknown>>).map((row) => ({

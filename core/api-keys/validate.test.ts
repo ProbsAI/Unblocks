@@ -5,13 +5,17 @@ beforeAll(() => {
   process.env.BLIND_INDEX_KEY = 'b'.repeat(64)
 })
 
-const mockUpdate = vi.fn().mockReturnValue({
-  set: vi.fn().mockReturnValue({
-    where: vi.fn().mockReturnValue({
-      then: vi.fn(),
-    }),
-  }),
-})
+// Hoisted so the vi.mock factory below (lifted to the top of the file by
+// vitest) does not touch this binding inside its temporal dead zone.
+// validateApiKey updates lastUsedAt fire-and-forget, so `where` must return a
+// thenable rather than a promise.
+const { mockUpdate } = vi.hoisted(() => ({
+  mockUpdate: vi.fn(() => ({
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({ then: vi.fn() })),
+    })),
+  })),
+}))
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn().mockReturnValue({
