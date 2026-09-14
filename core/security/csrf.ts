@@ -26,6 +26,15 @@ export function validateCsrfToken(
   headerToken: string | undefined
 ): boolean {
   if (!cookieToken || !headerToken) return false
-  if (cookieToken.length !== headerToken.length) return false
-  return timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))
+
+  // Compare BYTE lengths, not JavaScript string lengths. timingSafeEqual works
+  // on buffers and throws when they differ in size, so two strings of equal
+  // .length but different UTF-8 widths (any non-ASCII character) got past the
+  // guard and threw — turning a malformed OAuth callback into a 500 rather than
+  // the documented false.
+  const cookieBytes = Buffer.from(cookieToken, 'utf8')
+  const headerBytes = Buffer.from(headerToken, 'utf8')
+  if (cookieBytes.length !== headerBytes.length) return false
+
+  return timingSafeEqual(cookieBytes, headerBytes)
 }

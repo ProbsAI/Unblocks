@@ -362,3 +362,57 @@ describe('handleStripeWebhook — non-subscription invoices', () => {
     expect(hookCalls.filter((c) => c.name === 'onPaymentSucceeded')).toHaveLength(0)
   })
 })
+
+
+describe('handleStripeWebhook — invoices that cannot be attributed', () => {
+  it('throws rather than acknowledging when the invoice customer is unlinkable', async () => {
+    stripeMock.customers.retrieve.mockResolvedValueOnce({
+      id: 'cus_unknown',
+      deleted: false,
+      metadata: {},
+    })
+
+    const { handleStripeWebhook } = await import('./handleWebhook')
+
+    // The event was already claimed by the idempotency gate, so returning
+    // normally would acknowledge it with 2xx and suppress the hook forever.
+    // Throwing releases the claim and lets Stripe retry.
+    await expect(
+      handleStripeWebhook(
+        event(
+          'invoice.payment_succeeded',
+          {
+            customer: 'cus_unknown',
+            subscription: 'sub_test_1',
+            amount_paid: 2900,
+            hosted_invoice_url: null,
+            lines: { data: [{ price: { id: 'price_test_1' } }] },
+          },
+          'evt_unlinkable'
+        ),
+        'sig'
+      )
+    ).rejects.toThrow(/cannot link/i)
+
+    expect(hookCalls.filter((c) => c.name === 'onPaymentSucceeded')).toHaveLength(0)
+  })
+
+  it('does not fire the dunning hook for a one-off failed invoice', async () => {
+    const { handleStripeWebhook } = await import('./handleWebhook')
+
+    await handleStripeWebhook(
+      event(
+        'invoice.payment_failed',
+        {
+          customer: 'cus_test_1',
+          amount_due: 500,
+          lines: { data: [] },
+        },
+        'evt_oneoff_failed'
+      ),
+      'sig'
+    )
+
+    expect(hookCalls.filter((c) => c.name === 'onPaymentFailed')).toHaveLength(0)
+  })
+})

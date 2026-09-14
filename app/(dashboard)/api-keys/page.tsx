@@ -38,12 +38,25 @@ export default function ApiKeysPage() {
   async function handleCreate() {
     if (!newKeyName.trim()) return
     setLoading(true)
-    const res = await fetch('/api/api-keys', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newKeyName }),
-    })
-    setLoading(false)
+
+    // A rejected fetch (offline, DNS, aborted) skipped setLoading(false) and
+    // left the button spinning with no way back.
+    let res: Response
+    try {
+      res = await fetch('/api/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName }),
+      })
+    } catch {
+      setToast({
+        message: 'Could not reach the server. Check your connection and try again.',
+        type: 'error',
+      })
+      return
+    } finally {
+      setLoading(false)
+    }
 
     if (res.ok) {
       const json = await res.json()

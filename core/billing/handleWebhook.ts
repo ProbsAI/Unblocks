@@ -69,17 +69,10 @@ async function dispatch(event: Stripe.Event): Promise<void> {
 
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice
-      // Only subscription invoices. A one-off or manually issued invoice would
-      // otherwise fire the payment hook with an empty plan.
-      if (!invoiceSubscriptionId(invoice)) break
-
-      const userId = await resolveUserId(customerIdOf(invoice.customer))
-      // Never invoke a user-scoped hook with an empty id: integrations treat
-      // the argument as a real user and would act on one that does not exist.
-      if (!userId) break
+      if (!isSubscriptionInvoice(invoice)) break
 
       await runHook('onPaymentSucceeded', {
-        userId,
+        userId: await requireInvoiceUser(invoice),
         amount: (invoice.amount_paid ?? 0) / 100,
         plan: planForInvoice(invoice),
         invoiceUrl: invoice.hosted_invoice_url,
@@ -89,13 +82,12 @@ async function dispatch(event: Stripe.Event): Promise<void> {
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
-      const userId = await resolveUserId(customerIdOf(invoice.customer))
-      // Same contract as the success path — an unlinkable invoice must not
-      // reach a dunning hook with an empty user id.
-      if (!userId) break
+      // The success path filtered one-off invoices; this one did not, so a
+      // manually issued charge triggered dunning for a non-subscription.
+      if (!isSubscriptionInvoice(invoice)) break
 
       await runHook('onPaymentFailed', {
-        userId,
+        userId: await requireInvoiceUser(invoice),
         amount: (invoice.amount_due ?? 0) / 100,
         error: 'Payment failed',
       })
@@ -225,6 +217,33 @@ async function handleSubscriptionDeleted(
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.stripeCustomerId, customerId))
+}
+
+/** A one-off or manually issued invoice has no subscription to act on. */
+function isSubscriptionInvoice(invoice: Stripe.Invoice): boolean {
+  return invoiceSubscriptionId(invoice) !== null
+}
+
+/**
+ * Resolve the user behind a subscription invoice, or throw.
+ *
+ * Throwing matters because the event was already claimed by the idempotency
+ * gate. Returning normally acknowledges the delivery with a 2xx, so a transient
+ * lookup failure would suppress the payment hook permanently. Throwing releases
+ * the claim and lets Stripe retry — the same contract handleSubscriptionUpdate
+ * uses for an unlinkable subscription.
+ */
+async function requireInvoiceUser(invoice: Stripe.Invoice): Promise<string> {
+  const customerId = customerIdOf(invoice.customer)
+  const userId = await resolveUserId(customerId)
+
+  if (!userId) {
+    throw new Error(
+      `Cannot link Stripe customer ${customerId} to a user; invoice ${invoice.id} not applied`
+    )
+  }
+
+  return userId
 }
 
 /**
