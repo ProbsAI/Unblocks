@@ -11,8 +11,20 @@ import {
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  /**
+   * The address in the clear — populated only when privacy.encryptPii is false.
+   *
+   * Nullable because encrypted mode leaves it empty and puts the address in
+   * email_encrypted instead. Still UNIQUE: Postgres treats NULLs as distinct,
+   * so the unused column holds many NULLs without colliding, and whichever
+   * column is in use is the one enforcing uniqueness. See core/security/
+   * piiStorage.ts — reads and writes must go through it, never straight at a
+   * column, or one mode silently stops working.
+   */
+  email: varchar('email', { length: 255 }).unique(),
   emailEncrypted: text('email_encrypted'),
+  /** Keyed blind index over the address. Populated only in encrypted mode. */
+  emailHash: varchar('email_hash', { length: 64 }).unique(),
   passwordHash: varchar('password_hash', { length: 255 }),
   name: varchar('name', { length: 255 }),
   nameEncrypted: text('name_encrypted'),

@@ -5,6 +5,8 @@ import { accounts } from '../db/schema/accounts'
 import { runHook } from '../runtime/hookRunner'
 import { encrypt, encryptNullable } from '../security/encryption'
 import type { User } from './types'
+import { toUser } from './toUser'
+import { emailColumns, emailMatches } from '../security/piiStorage'
 
 interface GoogleUserInfo {
   sub: string
@@ -138,23 +140,14 @@ export async function handleOAuthCallback(
       .where(eq(users.id, existingAccount.userId))
       .limit(1)
 
-    return {
-      id: dbUser.id,
-      email: dbUser.email,
-      name: dbUser.name,
-      avatarUrl: dbUser.avatarUrl,
-      emailVerified: dbUser.emailVerified,
-      status: dbUser.status,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-    }
+    return toUser(dbUser)
   }
 
   // Check if user with this email exists
   const [existingUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, userInfo.email.toLowerCase()))
+    .where(emailMatches(userInfo.email))
     .limit(1)
 
   let userId: string
@@ -226,8 +219,7 @@ export async function handleOAuthCallback(
     const [newUser] = await db
       .insert(users)
       .values({
-        email: emailLower,
-        emailEncrypted: encrypt(emailLower),
+        ...emailColumns(emailLower),
         name: userInfo.name,
         nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,
@@ -239,16 +231,7 @@ export async function handleOAuthCallback(
     userId = newUser.id
 
     void runHook('onUserCreated', {
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        avatarUrl: newUser.avatarUrl,
-        emailVerified: newUser.emailVerified,
-        status: newUser.status,
-        createdAt: newUser.createdAt,
-        updatedAt: newUser.updatedAt,
-      },
+      user: toUser(newUser),
       method: 'oauth',
     })
   }
@@ -270,14 +253,5 @@ export async function handleOAuthCallback(
     .where(eq(users.id, userId))
     .limit(1)
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: dbUser.emailVerified,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  return toUser(dbUser)
 }

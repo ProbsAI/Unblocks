@@ -7,6 +7,7 @@ import { AuthError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
+import { emailMatches } from '../security/piiStorage'
 
 export async function createEmailVerificationToken(
   email: string
@@ -48,5 +49,5 @@ export async function verifyEmail(token: string): Promise<void> {
       emailVerifiedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(users.email, dbToken.email))
+    .where(emailMatches(dbToken.email))
 }

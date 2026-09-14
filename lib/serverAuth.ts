@@ -7,6 +7,7 @@ import type { User } from '@unblocks/core/auth/types'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@unblocks/core/db/client'
 import { users } from '@unblocks/core/db/schema/users'
+import { toUser } from '@unblocks/core/auth/toUser'
 
 /**
  * Get the current user from either session cookie or API key.
@@ -55,6 +56,7 @@ export async function getCurrentUser(): Promise<User | null> {
       .select({
         id: users.id,
         email: users.email,
+        emailEncrypted: users.emailEncrypted,
         name: users.name,
         avatarUrl: users.avatarUrl,
         emailVerified: users.emailVerified,
@@ -71,7 +73,7 @@ export async function getCurrentUser(): Promise<User | null> {
     // authorising every protected endpoint.
     if (!user || user.status !== 'active') return null
 
-    return user
+    return toUser(user)
   }
 
   return null

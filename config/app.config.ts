@@ -1,6 +1,15 @@
 import type { AppConfig } from '@unblocks/core/types'
 
 const appConfig: AppConfig = {
+  privacy: {
+    // INSTALL-TIME CHOICE — do not change this once users exist. Encrypted mode
+    // stores addresses as ciphertext plus a keyed lookup index, so a database
+    // dump on its own reveals nothing; plaintext mode is simpler and keeps
+    // substring search in the admin panel, which an index cannot support.
+    // The app refuses to start if this disagrees with the stored rows.
+    encryptUserEmail: true,
+  },
+
   name: 'MyApp',
   tagline: 'The best way to do X',
   description: 'Build your SaaS in minutes, not months.',

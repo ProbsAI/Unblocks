@@ -438,6 +438,53 @@ produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
 that suite fails, do not raise the iteration count to paper over it** — find
 what low-entropy value started flowing in.
 
+### Email storage is an install-time choice
+
+`privacy.encryptUserEmail` in `app.config.ts` decides which column a user's
+address lives in:
+
+| | `users.email` | `email_encrypted` | `email_hash` |
+|---|---|---|---|
+| **true** (default) | NULL | ciphertext | keyed blind index — every lookup |
+| **false** | the address — every lookup | NULL | NULL |
+
+Both columns are nullable and both are `UNIQUE`. Postgres treats NULLs as
+distinct, so the unused column holds many NULLs without colliding and
+uniqueness always lands on the column actually in use.
+
+**Never touch `users.email` directly.** Reads and writes go through
+`core/security/piiStorage.ts` — `emailColumns()`, `emailMatches()`,
+`readEmail()` — and user rows are mapped by `toUser()`. A query that reaches
+straight at a column works in one mode and silently returns nothing in the
+other.
+
+> **It is not a runtime toggle, and it must not be presented as one.** Flipping
+> it after any user exists makes every lookup miss: a plaintext row has no hash
+> to match, an encrypted row has no plaintext. Sign-in fails for everyone and it
+> reads as data loss rather than a config error.
+> `assertPiiStorageMatchesData()` refuses that state instead, and
+> `/api/health` reports it as `piiStorage: unhealthy`.
+
+**What each mode buys and costs.** Encrypted: a database dump alone — leaked
+backup, dumped table, compromised read replica — reveals no addresses, and the
+index is keyed so candidates cannot be computed either. It does **not** protect
+against an attacker who has the application, since they have the keys. The
+costs are real: admin search over email becomes exact-match, because a digest
+has no substrings, and `BLIND_INDEX_KEY` becomes as critical as your backups —
+lose it and no user can ever be looked up again.
+
+**Scope, stated precisely because the name is a promise:** this covers
+`users.email` only. `verification_tokens.email` and `team_invitations.email`
+still hold addresses in the clear for the lifetime of a pending link or
+invitation. Those rows expire; the users table holds every address forever. So
+this is the large reduction, not the complete one. Extending it needs an index
+column on `team_invitations`, which is looked up *by* email.
+
+`core/security/piiStorage.integration.test.ts` runs every case in both modes
+against a real Postgres, asserting the stored shape in SQL rather than through
+the code that wrote it. A fork like this rots exactly when only one side is
+exercised.
+
 ### Unverified accounts cannot sign in
 
 `security.requireEmailVerification` (default true) is enforced in

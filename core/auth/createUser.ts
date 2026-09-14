@@ -1,11 +1,12 @@
-import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { hashPassword } from './password'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ValidationError } from '../errors/types'
-import { encrypt, encryptNullable } from '../security/encryption'
+import { encryptNullable } from '../security/encryption'
 import type { CreateUserInput, User } from './types'
+import { toUser } from './toUser'
+import { emailColumns, emailMatches } from '../security/piiStorage'
 
 export async function createUser(input: CreateUserInput): Promise<User> {
   const db = getDb()
@@ -15,7 +16,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   const existing = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, emailLower))
+    .where(emailMatches(emailLower))
     .limit(1)
 
   if (existing.length > 0) {
@@ -34,8 +35,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   const [dbUser] = await db
     .insert(users)
     .values({
-      email: emailLower,
-      emailEncrypted: encrypt(emailLower),
+      ...emailColumns(emailLower),
       passwordHash,
       name: input.name ?? null,
       nameEncrypted: encryptNullable(input.name ?? null),
@@ -44,16 +44,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
     })
     .returning()
 
-  const user: User = {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: dbUser.emailVerified,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  const user: User = toUser(dbUser)
 
   // Fire hook before returning
   const method = input.password ? 'email' : 'oauth'

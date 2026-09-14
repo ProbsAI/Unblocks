@@ -5,6 +5,7 @@ import { subscriptions } from '../db/schema/subscriptions'
 import { users } from '../db/schema/users'
 import { loadConfig } from '../runtime/configLoader'
 import { encrypt } from '../security/encryption'
+import { readEmail } from '../security/piiStorage'
 
 function getStripe(): Stripe {
   const config = loadConfig('billing')
@@ -40,7 +41,11 @@ export async function getOrCreateCustomer(userId: string): Promise<string> {
 
   // Get user email for Stripe customer creation
   const [user] = await db
-    .select({ email: users.email, name: users.name })
+    .select({
+      email: users.email,
+      emailEncrypted: users.emailEncrypted,
+      name: users.name,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
@@ -63,7 +68,7 @@ export async function getOrCreateCustomer(userId: string): Promise<string> {
   // constraint on the mapping, which the schema does not have yet.
   const customer = await stripe.customers.create(
     {
-      email: user.email,
+      email: readEmail(user),
       name: user.name ?? undefined,
       metadata: { userId },
     },

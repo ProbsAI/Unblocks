@@ -5,6 +5,20 @@ import { validateApiKey } from '@unblocks/core/api-keys'
 import { getCurrentUser, requireAuth } from './serverAuth'
 import { AuthError } from '@unblocks/core/errors/types'
 
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('@unblocks/core/security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
+
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
   headers: vi.fn(),

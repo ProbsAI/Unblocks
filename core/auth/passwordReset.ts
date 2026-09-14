@@ -8,6 +8,7 @@ import { AuthError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
+import { emailMatches, readEmail } from '../security/piiStorage'
 
 export async function requestPasswordReset(
   email: string
@@ -15,9 +16,13 @@ export async function requestPasswordReset(
   const db = getDb()
 
   const [dbUser] = await db
-    .select({ id: users.id, email: users.email })
+    .select({
+      id: users.id,
+      email: users.email,
+      emailEncrypted: users.emailEncrypted,
+    })
     .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .where(emailMatches(email))
     .limit(1)
 
   // Always return success to prevent email enumeration
@@ -29,8 +34,10 @@ export async function requestPasswordReset(
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    email: dbUser.email,
-    emailEncrypted: encrypt(dbUser.email),
+    // The token row keeps its own copy. users.email is nullable now, so the
+    // address has to come from readEmail rather than the column directly.
+    email: readEmail(dbUser),
+    emailEncrypted: encrypt(readEmail(dbUser)),
     type: 'password_reset',
     expiresAt,
   })
@@ -57,5 +64,5 @@ export async function resetPassword(
   await db
     .update(users)
     .set({ passwordHash, updatedAt: new Date() })
-    .where(eq(users.email, dbToken.email))
+    .where(emailMatches(dbToken.email))
 }

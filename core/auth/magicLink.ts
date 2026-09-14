@@ -9,6 +9,8 @@ import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
 import type { User } from './types'
+import { toUser } from './toUser'
+import { emailColumns, emailMatches } from '../security/piiStorage'
 
 export async function createMagicLink(email: string): Promise<string> {
   const db = getDb()
@@ -18,7 +20,7 @@ export async function createMagicLink(email: string): Promise<string> {
   let [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, emailLower))
+    .where(emailMatches(emailLower))
     .limit(1)
 
   if (!dbUser) {
@@ -26,24 +28,14 @@ export async function createMagicLink(email: string): Promise<string> {
     const [newUser] = await db
       .insert(users)
       .values({
-        email: emailLower,
-        emailEncrypted: encrypt(emailLower),
+        ...emailColumns(emailLower),
         emailVerified: false,
       })
       .returning()
     dbUser = newUser
 
     void runHook('onUserCreated', {
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        avatarUrl: newUser.avatarUrl,
-        emailVerified: newUser.emailVerified,
-        status: newUser.status,
-        createdAt: newUser.createdAt,
-        updatedAt: newUser.updatedAt,
-      },
+      user: toUser(newUser),
       method: 'magic_link',
     })
   }
@@ -121,7 +113,7 @@ export async function verifyMagicLink(token: string): Promise<User> {
   const [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, dbToken.email))
+    .where(emailMatches(dbToken.email))
     .limit(1)
 
   if (!dbUser) {
@@ -139,14 +131,5 @@ export async function verifyMagicLink(token: string): Promise<User> {
       .where(eq(users.id, dbUser.id))
   }
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: true,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  return toUser(dbUser)
 }

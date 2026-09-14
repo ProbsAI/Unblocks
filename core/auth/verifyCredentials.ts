@@ -5,6 +5,8 @@ import { verifyPassword } from './password'
 import { AuthError } from '../errors/types'
 import { loadConfig } from '../runtime/configLoader'
 import type { User } from './types'
+import { toUser } from './toUser'
+import { emailMatches } from '../security/piiStorage'
 
 const GENERIC_ERROR = 'Invalid email or password'
 
@@ -17,7 +19,7 @@ export async function verifyCredentials(
   const [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .where(emailMatches(email))
     .limit(1)
 
   if (!dbUser) {
@@ -70,14 +72,5 @@ export async function verifyCredentials(
     })
     .where(eq(users.id, dbUser.id))
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: dbUser.emailVerified,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  return toUser(dbUser)
 }

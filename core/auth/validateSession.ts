@@ -5,6 +5,7 @@ import { users } from '../db/schema/users'
 import { verifyToken } from './token'
 import { blindIndex } from '../security/blindIndex'
 import type { User } from './types'
+import { toUser } from './toUser'
 
 export interface ValidatedSession {
   user: User
@@ -44,16 +45,7 @@ export async function validateSession(
   if (!dbUser || dbUser.status !== 'active') return null
 
   return {
-    user: {
-      id: dbUser.id,
-      email: dbUser.email,
-      name: dbUser.name,
-      avatarUrl: dbUser.avatarUrl,
-      emailVerified: dbUser.emailVerified,
-      status: dbUser.status,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-    },
+    user: toUser(dbUser),
     sessionId: session.id,
   }
 }
