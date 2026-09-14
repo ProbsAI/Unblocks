@@ -39,7 +39,9 @@ export const POST = withErrorHandler(async (request: Request) => {
   const body = await validateBody(request, completionSchema)
 
   const response = await complete({
-    model: body.model ?? 'gpt-4o',
+    // Omit rather than hardcoding a default here: complete() applies the
+    // configured defaultModel, which a literal 'gpt-4o' silently overrode.
+    model: body.model,
     messages: body.messages,
     temperature: body.temperature,
     maxTokens: body.maxTokens,

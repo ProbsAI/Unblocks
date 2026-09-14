@@ -39,8 +39,22 @@ export async function getCurrentUser(): Promise<User | null> {
     if (!validation.scopes.includes('*')) return null
 
     const db = getDb()
+
+    // Project explicitly rather than selecting the row and casting it. The full
+    // row carries passwordHash, encrypted PII and login metadata that the User
+    // interface deliberately omits — a cast hides them from the type but not
+    // from anything that serialises the value. This mirrors validateSession.
     const [user] = await db
-      .select()
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        avatarUrl: users.avatarUrl,
+        emailVerified: users.emailVerified,
+        status: users.status,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
       .from(users)
       .where(eq(users.id, validation.userId))
       .limit(1)
@@ -50,7 +64,7 @@ export async function getCurrentUser(): Promise<User | null> {
     // authorising every protected endpoint.
     if (!user || user.status !== 'active') return null
 
-    return user as User
+    return user
   }
 
   return null

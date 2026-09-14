@@ -1,4 +1,4 @@
-import { eq, and, gte, sql } from 'drizzle-orm'
+import { eq, and, gte, desc, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { aiUsage } from './schema'
 import aiConfig from './ai.config'
@@ -69,10 +69,13 @@ export async function getUserUsage(
       )
     )
 
+  // sql<number> is only a TypeScript annotation. node-postgres returns SUM and
+  // count(*) (int8/numeric) as strings, so coerce before returning or callers
+  // receive strings from a numeric contract.
   return {
-    totalTokens: result.totalTokens,
-    totalCostCents: result.totalCostCents,
-    requestCount: result.requestCount,
+    totalTokens: Number(result.totalTokens ?? 0),
+    totalCostCents: Number(result.totalCostCents ?? 0),
+    requestCount: Number(result.requestCount ?? 0),
   }
 }
 
@@ -89,7 +92,9 @@ export async function getUsageHistory(
     .select()
     .from(aiUsage)
     .where(eq(aiUsage.userId, userId))
-    .orderBy(aiUsage.createdAt)
+    // Newest first. Ascending order combined with LIMIT returned the OLDEST n
+    // records, so a caller asking for recent history got the first ever rows.
+    .orderBy(desc(aiUsage.createdAt))
     .limit(limit)
 
   return rows.map((row) => ({

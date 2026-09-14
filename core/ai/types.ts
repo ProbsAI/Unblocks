@@ -28,7 +28,8 @@ export interface Message {
 // --- Completion Request ---
 
 export interface CompletionRequest {
-  model: string
+  /** Omit to use the configured defaultModel. */
+  model?: string
   messages: Message[]
   temperature?: number
   maxTokens?: number

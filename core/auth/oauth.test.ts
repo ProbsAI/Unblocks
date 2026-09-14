@@ -360,3 +360,28 @@ describe('handleOAuthCallback — unverified email linking', () => {
     expect(mockInsert).toHaveBeenCalled()
   })
 })
+
+describe('handleOAuthCallback — unverified LOCAL account', () => {
+  it('refuses to link a verified provider identity to an unverified local account', async () => {
+    setupMultiSelectChains([
+      [],
+      [{ ...mockDbUser, email: 'victim@example.com', emailVerified: false }],
+      [mockDbUser],
+    ])
+    setupInsertChain()
+
+    // verifyCredentials permits an unverified local account to sign in, so
+    // linking here would hand the victim's provider identity to whoever
+    // registered the address first.
+    await expect(
+      handleOAuthCallback('google', 'victim-sub', 'access-token', null, {
+        email: 'victim@example.com',
+        name: 'Victim',
+        avatarUrl: '',
+        emailVerified: true,
+      })
+    ).rejects.toThrow(/unverified account already exists/i)
+
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+})

@@ -21,7 +21,7 @@ export async function revokeApiKey(
     .limit(1)
 
   if (!row) {
-    throw new NotFoundError('API key not found')
+    throw new NotFoundError('API key')
   }
 
   if (row.userId !== userId) {

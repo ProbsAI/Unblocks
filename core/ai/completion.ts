@@ -27,8 +27,20 @@ export async function complete(
 ): Promise<CompletionResponse> {
   const config = loadAIConfig()
 
+  // Honour the kill switch. The flag was parsed but never consulted, so setting
+  // enabled: false still sent every request to the provider — and the endpoint
+  // became publicly reachable in this change.
+  if (!config.enabled) {
+    throw new Error('AI completion is disabled (set enabled: true in ai.config)')
+  }
+
+  // Resolve the model here rather than at each call site. Callers that omit it
+  // previously had to supply their own literal, which meant config.defaultModel
+  // was never consulted by anything.
+  const model = request.model || config.defaultModel
+
   // Determine provider from model or config
-  const provider = detectProvider(request.model, config.defaultProvider as AIProvider)
+  const provider = detectProvider(model, config.defaultProvider as AIProvider)
 
   // Get provider credentials
   const { apiKey, baseUrl } = getProviderCredentials(provider, config as unknown as Record<string, unknown>)
@@ -40,6 +52,7 @@ export async function complete(
   // Apply defaults
   const fullRequest: CompletionRequest = {
     ...request,
+    model,
     temperature: request.temperature ?? config.defaultTemperature,
     maxTokens: Math.min(
       request.maxTokens ?? config.maxTokensPerRequest,

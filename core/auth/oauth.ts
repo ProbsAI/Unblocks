@@ -161,13 +161,30 @@ export async function handleOAuthCallback(
   let userId: string
 
   if (existingUser) {
-    // Auto-linking by email address is an account-takeover vector unless the
-    // provider asserts the address is verified: an attacker can register a
-    // local password account for someone else's address and silently inherit
-    // the session the moment the real owner signs in with this provider.
+    // Linking by email address requires BOTH sides to have proven control of
+    // that address. Checking only one side leaves a takeover path open:
+    //
+    //  - Provider unverified: an attacker registers an identity at a provider
+    //    that does not verify addresses and claims a victim's account.
+    //  - Local account unverified: an attacker registers victim@example.com
+    //    locally and never verifies it. verifyCredentials permits an unverified
+    //    account to sign in (it checks status, not emailVerified), so when the
+    //    real owner later signs in with a verified provider identity, that
+    //    identity is linked to the ATTACKER's account and the attacker's
+    //    password keeps working.
+    //
+    // The second case is why checking userInfo.emailVerified alone was not
+    // enough. Refusing to auto-link is the safe default; an authenticated
+    // explicit-link flow is the correct way to join the two.
     if (!userInfo.emailVerified) {
       throw new OAuthLinkRequiredError(
         `${provider} did not verify this email address; sign in and link ${provider} from account settings instead`
+      )
+    }
+
+    if (!existingUser.emailVerified) {
+      throw new OAuthLinkRequiredError(
+        `An unverified account already exists for this email address; verify it and link ${provider} from account settings instead`
       )
     }
 

@@ -13,17 +13,18 @@ import { accounts } from '@unblocks/core/db/schema/accounts'
  * Regression tests for OAuth account linking, against a real Postgres.
  *
  * The vulnerability: handleOAuthCallback linked an OAuth identity to any local
- * account sharing its email address, without checking whether the provider had
- * verified that address. Attack shape —
+ * account sharing its email address without either side proving control of it.
+ * There are two halves, and fixing only the first leaves the door open:
  *
- *   1. Attacker registers a password account for victim@example.com at a
- *      provider that does not verify addresses.
- *   2. Victim later signs in with that provider.
- *   3. The identity links to the existing account and the attacker's password
- *      still works: full takeover.
+ *   1. Provider side. An attacker registers an identity at a provider that does
+ *      not verify addresses and claims the victim's account.
+ *   2. Local side. An attacker registers victim@example.com locally and never
+ *      verifies it. verifyCredentials checks status, not emailVerified, so the
+ *      attacker can still sign in — and when the real owner later arrives with a
+ *      genuinely verified provider identity, it is linked to the ATTACKER's
+ *      account and the attacker's password keeps working.
  *
- * getGoogleUserInfo already returned email_verified; handleOAuthCallback was
- * simply never given it.
+ * Linking now requires both sides to be verified.
  */
 
 vi.mock('../runtime/hookRunner', () => ({
@@ -45,12 +46,15 @@ beforeEach(async () => {
   vi.clearAllMocks()
 })
 
-async function seedLocalUser(email: string): Promise<string> {
+async function seedLocalUser(
+  email: string,
+  emailVerified = false
+): Promise<string> {
   const db = getTestDb()
   const [row] = (
     await db.execute(sql`
       INSERT INTO users (email, name, email_verified)
-      VALUES (${email}, 'Existing User', false)
+      VALUES (${email}, 'Existing User', ${emailVerified})
       RETURNING id
     `)
   ).rows as Array<{ id: string }>
@@ -81,8 +85,37 @@ describe('handleOAuthCallback — linking to an existing account', () => {
     expect(linked).toHaveLength(0)
   })
 
-  it('links when the provider has verified the email', async () => {
-    const userId = await seedLocalUser('owner@example.com')
+  it('refuses to link when the LOCAL account is unverified', async () => {
+    // seedLocalUser creates the account with email_verified = false.
+    //
+    // This is the second half of the takeover path, and checking only the
+    // provider's flag left it open: verifyCredentials permits an unverified
+    // local account to sign in, so an attacker registers the victim's address,
+    // never verifies it, and the victim's genuinely-verified provider identity
+    // gets linked to the attacker's account.
+    const victimId = await seedLocalUser('unverified-victim@example.com')
+    const { handleOAuthCallback, OAuthLinkRequiredError } = await import('./oauth')
+
+    await expect(
+      handleOAuthCallback('google', 'google-victim-sub', 'tok', null, {
+        email: 'unverified-victim@example.com',
+        name: 'Victim',
+        avatarUrl: '',
+        emailVerified: true,
+      })
+    ).rejects.toBeInstanceOf(OAuthLinkRequiredError)
+
+    const db = getTestDb()
+    const linked = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.userId, victimId))
+
+    expect(linked).toHaveLength(0)
+  })
+
+  it('links when both the provider and the local account are verified', async () => {
+    const userId = await seedLocalUser('owner@example.com', true)
     const { handleOAuthCallback } = await import('./oauth')
 
     const result = await handleOAuthCallback(
@@ -110,12 +143,15 @@ describe('handleOAuthCallback — linking to an existing account', () => {
     expect(linked[0].provider).toBe('google')
   })
 
-  it('does not silently mark an existing account as email-verified', async () => {
-    const userId = await seedLocalUser('unverified@example.com')
+  it('leaves an existing account\u2019s verification state untouched', async () => {
+    // The stronger rule above means an unverified local account is never linked
+    // at all, so the remaining case is that linking a verified one does not
+    // rewrite state that belongs to this app's own verification flow.
+    const userId = await seedLocalUser('settled@example.com', true)
     const { handleOAuthCallback } = await import('./oauth')
 
-    await handleOAuthCallback('google', 'sub-1', 'tok', null, {
-      email: 'unverified@example.com',
+    await handleOAuthCallback('google', 'sub-settled', 'tok', null, {
+      email: 'settled@example.com',
       name: 'Someone',
       avatarUrl: '',
       emailVerified: true,
@@ -124,9 +160,7 @@ describe('handleOAuthCallback — linking to an existing account', () => {
     const db = getTestDb()
     const [row] = await db.select().from(users).where(eq(users.id, userId))
 
-    // Verification state belongs to this app's own flow; an OAuth sign-in must
-    // not retroactively assert it for a pre-existing local account.
-    expect(row.emailVerified).toBe(false)
+    expect(row.emailVerified).toBe(true)
   })
 })
 
