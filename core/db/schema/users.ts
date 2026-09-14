@@ -13,13 +13,6 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   emailEncrypted: text('email_encrypted'),
-  /**
-   * Blind index over the email address. Widened from 64 because slowBlindIndex
-   * emits a `pbkdf2$` prefix ahead of the 64-hex digest; the prefix keeps the
-   * high-work-factor values used here distinguishable from the cheap
-   * derivation blindIndex emits, since both can land in this column.
-   */
-  emailHash: varchar('email_hash', { length: 128 }),
   passwordHash: varchar('password_hash', { length: 255 }),
   name: varchar('name', { length: 255 }),
   nameEncrypted: text('name_encrypted'),

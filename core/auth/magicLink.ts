@@ -6,23 +6,13 @@ import { generateRandomToken, isWellFormedToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
-import { blindIndex, slowBlindIndex } from '../security/blindIndex'
+import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
 import type { User } from './types'
 
 export async function createMagicLink(email: string): Promise<string> {
   const db = getDb()
   const emailLower = email.toLowerCase()
-
-  // Derived before the branch, deliberately, even though only the create path
-  // stores it.
-  //
-  // slowBlindIndex is ~260ms of PBKDF2. Running it only when the address is new
-  // made "does this account exist?" directly observable as a response-time
-  // difference — defeating the enumeration defence the route's deferred email
-  // send exists to provide. Paying it on both paths costs a known, constant
-  // amount and reveals nothing.
-  const emailHash = slowBlindIndex(emailLower)
 
   // Find or create user
   let [dbUser] = await db
@@ -38,7 +28,6 @@ export async function createMagicLink(email: string): Promise<string> {
       .values({
         email: emailLower,
         emailEncrypted: encrypt(emailLower),
-        emailHash,
         emailVerified: false,
       })
       .returning()

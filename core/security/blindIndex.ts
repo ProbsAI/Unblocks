@@ -1,9 +1,12 @@
 import { createHmac, pbkdf2Sync } from 'crypto'
 
+/** 32 bytes as hex — what both BLIND_INDEX_KEY and ENCRYPTION_KEY are documented as. */
+const KEY_HEX = /^[0-9a-fA-F]{64}$/
+
 /**
- * Returns the index key. Both derivations use it to build their salt, so it is
- * what makes them keyed: without it an attacker holding the database cannot
- * compute candidate digests at all.
+ * Returns the index key. The derivation uses it to build its salt, so it is
+ * what makes the index keyed: without it an attacker holding the database
+ * cannot compute candidate digests at all.
  *
  * Uses BLIND_INDEX_KEY if set (recommended for key rotation scenarios).
  * Falls back to deriving from the primary ENCRYPTION_KEY with a domain
@@ -14,9 +17,6 @@ import { createHmac, pbkdf2Sync } from 'crypto'
  * BLIND_INDEX_KEY, all *_hash columns become stale and equality
  * lookups will fail.
  */
-/** 32 bytes as hex — what both BLIND_INDEX_KEY and ENCRYPTION_KEY are documented as. */
-const KEY_HEX = /^[0-9a-fA-F]{64}$/
-
 function getHmacKey(): Buffer {
   const blindKey = process.env.BLIND_INDEX_KEY
   if (blindKey) {
@@ -71,8 +71,8 @@ function getHmacKey(): Buffer {
  * the benchmark rather than estimating.
  *
  * Do NOT reuse this constant for a user-chosen secret. Passwords go to bcrypt
- * in core/auth/password.ts, and enumerable values go to {@link slowBlindIndex},
- * which is ~580x slower on purpose.
+ * in core/auth/password.ts. If a genuinely enumerable value ever needs an
+ * index, it needs its own derivation with a real work factor — not this one.
  */
 const FAST_ITERATIONS = 1000
 
@@ -126,9 +126,9 @@ const FAST_ITERATIONS = 1000
  *
  * User passwords must never come through here — `core/auth/password.ts` uses
  * bcrypt, which is correct, and `blindIndex.entropy.test.ts` asserts that
- * separation. Low-entropy-but-enumerable inputs belong in
- * {@link slowBlindIndex}: `emailHash` uses it, because an email address is the
- * one input where the work factor genuinely buys something.
+ * separation. Nor may any other guessable value: a low-entropy input hashed at
+ * this work factor is exactly the weakness the CodeQL query looks for, and the
+ * argument above stops holding the moment one arrives.
  */
 export function blindIndex(value: string): string {
   const digest = pbkdf2Sync(
@@ -148,69 +148,12 @@ export function blindIndex(value: string): string {
  * Deterministic, deployment-specific salt derived from the index key.
  *
  * A random salt would break equality lookup, which is the whole reason bcrypt
- * and argon2 cannot be used here. The domain separator keeps the fast and slow
- * derivations from producing related outputs for the same input.
+ * and argon2 cannot be used here. The domain separator scopes the salt to this
+ * use, so adding another derivation later cannot produce related outputs for
+ * the same input.
  */
 function deriveSalt(domain: string): Buffer {
   return createHmac('sha256', getHmacKey()).update(domain).digest()
-}
-
-/**
- * Iteration count for {@link slowBlindIndex}. OWASP's current guidance for
- * PBKDF2-HMAC-SHA256 is 600,000. Tunable via BLIND_INDEX_ITERATIONS for
- * deployments that need to trade cost against latency — but see the warning on
- * slowBlindIndex before lowering it.
- */
-function getIterations(): number {
-  const raw = Number(process.env.BLIND_INDEX_ITERATIONS)
-
-  // Integer, not merely finite: pbkdf2Sync throws on a fractional iteration
-  // count, so `BLIND_INDEX_ITERATIONS=10000.5` passed a `Number.isFinite`
-  // check and then broke every slow derivation at runtime. Malformed config
-  // falls back to the default instead.
-  return Number.isInteger(raw) && raw >= 10_000 ? raw : 600_000
-}
-
-/** Distinguishes slow digests from fast ones in the same column. */
-const SLOW_INDEX_PREFIX = 'pbkdf2$'
-
-/**
- * Deterministic blind index with deliberate computational cost (PBKDF2-SHA256).
- *
- * Use this for **low-entropy, enumerable** inputs — email addresses, phone
- * numbers, postcodes. Use {@link blindIndex} for high-entropy secrets.
- *
- * Both are PBKDF2 now; the difference is the work factor, and the distinction
- * is the whole point. Iteration count multiplies an attacker's cost per
- * *guess*, so it only helps where guessing is feasible:
- *
- *   - Email address: ~2^30 realistic candidates. A cheap derivation lets an
- *     attacker holding the database AND the key confirm registrations at GPU
- *     speed. 600k iterations makes that roughly five orders of magnitude more
- *     expensive. Worth paying, and it only runs at signup, OAuth and
- *     magic-link request.
- *   - 256-bit random token: 2^256 candidates. No iteration count makes that
- *     feasible, so the cost buys exactly nothing — while landing on the hot
- *     path, since validateSession derives an index on every authenticated
- *     request and validateApiKey on every API call.
- *
- * So this is NOT a drop-in replacement for blindIndex. Routing the token paths
- * through it would add hundreds of milliseconds to every request in exchange
- * for no security. `blindIndex.entropy.test.ts` asserts the separation.
- *
- * Deterministic, like the fast variant, so it remains usable for
- * `WHERE hash = ?`.
- */
-export function slowBlindIndex(value: string): string {
-  const digest = pbkdf2Sync(
-    value.toLowerCase(),
-    deriveSalt('unblocks-slow-blind-index-salt'),
-    getIterations(),
-    32,
-    'sha256'
-  )
-
-  return `${SLOW_INDEX_PREFIX}${digest.toString('hex')}`
 }
 
 /**

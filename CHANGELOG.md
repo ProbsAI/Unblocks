@@ -6,7 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+- **`users.email_hash` and the `slowBlindIndex` derivation.** Nothing ever
+  queried that column: it was written at signup, OAuth and magic-link request
+  and read by no code path. Populating it cost ~260ms of synchronous PBKDF2 on
+  three public endpoints — a denial-of-service vector and an account-existence
+  timing oracle — in exchange for nothing. Drop the column when upgrading.
+
 ### Changed
+- **BREAKING (auth):** `security.requireEmailVerification` (default true) is now
+  enforced in `verifyCredentials`. It was declared and enforced nowhere, so
+  existing unverified accounts could sign in with a password and can no longer
+  do so. Set it to `false` to keep the old behaviour, but read the takeover
+  note in `CLAUDE.md` first.
+- API keys presented as `Authorization: Bearer` now work on public API routes.
+  Middleware returned early for those paths before forwarding the key, so
+  `/api/auth/session` rejected every valid key with a 401.
 - **BREAKING (credentials):** `blindIndex` now derives with PBKDF2-SHA256
   instead of HMAC-SHA256. Every stored blind index changes, so upgrading
   invalidates all existing sessions, outstanding magic links, password resets,

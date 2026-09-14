@@ -104,6 +104,22 @@ describe('x-api-key trust boundary', () => {
     expect(forwarded?.get('x-api-key')).toBe('ub_live_genuine')
   })
 
+  it('forwards a Bearer API key on a PUBLIC api path too', async () => {
+    // The public-path check used to return before the forwarding branch, so the
+    // key was stripped and never re-set. /api/auth/session is public and calls
+    // getCurrentUser(), which meant Bearer auth returned 401 there for every
+    // valid key.
+    const response = await middleware(
+      req('/api/auth/session', {
+        headers: { authorization: 'Bearer ub_live_public_path' },
+      })
+    )
+
+    expect(forwardedHeaders(response)?.get('x-api-key')).toBe(
+      'ub_live_public_path'
+    )
+  })
+
   it('forwards a validated Bearer API key to the route handler', async () => {
     const response = await middleware(
       req('/api/teams', {

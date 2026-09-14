@@ -19,10 +19,10 @@ const registerSchema = z.object({
 export const POST = withErrorHandler(async (request) => {
   const input = await validateBody(request, registerSchema)
 
-  // Same reasoning as the magic-link route, and missed there first: createUser
-  // derives slowBlindIndex for the address — ~260ms of *synchronous* PBKDF2 —
-  // on top of bcrypt for the password. Both block the event loop, and this
-  // endpoint is public, so unique-address signups can monopolise it.
+  // Same reasoning as the magic-link route. Registration is public, creates a
+  // row, and runs bcrypt — which blocks the event loop — so unbounded signups
+  // can monopolise it. (It also ran ~260ms of PBKDF2 for a column nothing read;
+  // that is gone, bcrypt is not.)
   //
   // Process-local counters, so per instance and reset on deploy: a speed bump,
   // not a control. A real one needs the shared store.

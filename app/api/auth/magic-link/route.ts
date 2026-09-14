@@ -13,13 +13,15 @@ export const POST = withErrorHandler(async (request) => {
   const { email } = await validateBody(request, magicLinkSchema)
   const ip = getClientIp(request) ?? 'unknown'
 
-  // Unauthenticated, and expensive on both axes: an unseen address makes
-  // createMagicLink insert a user and derive slowBlindIndex, which is ~260ms of
-  // *synchronous* PBKDF2 — enough that a handful of requests a second pegs the
-  // event loop. It also sends mail. Without a limiter, anyone can do both, with
-  // a fresh random address each time to guarantee the expensive branch.
+  // Unauthenticated, and it both creates a user row and sends mail for any
+  // address it has not seen. Without a limiter, anyone can do both at will with
+  // a fresh address each time.
   //
-  // Limited by IP first, since varying the address is what makes the attack
+  // (This used to also burn ~260ms of synchronous PBKDF2 per new address, for
+  // an email_hash column nothing ever queried. That derivation is gone; the
+  // limit stays for the row and the mail.)
+  //
+  // Limited by IP first, since varying the address is what makes the abuse
   // work, then by address so one mailbox cannot be flooded from many IPs.
   //
   // Scope, stated plainly: checkRateLimit keeps counters in a process-local

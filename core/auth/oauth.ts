@@ -4,7 +4,6 @@ import { users } from '../db/schema/users'
 import { accounts } from '../db/schema/accounts'
 import { runHook } from '../runtime/hookRunner'
 import { encrypt, encryptNullable } from '../security/encryption'
-import { slowBlindIndex } from '../security/blindIndex'
 import type { User } from './types'
 
 interface GoogleUserInfo {
@@ -167,11 +166,11 @@ export async function handleOAuthCallback(
     //  - Provider unverified: an attacker registers an identity at a provider
     //    that does not verify addresses and claims a victim's account.
     //  - Local account unverified: an attacker registers victim@example.com
-    //    locally and never verifies it. verifyCredentials permits an unverified
-    //    account to sign in (it checks status, not emailVerified), so when the
-    //    real owner later signs in with a verified provider identity, that
-    //    identity is linked to the ATTACKER's account and the attacker's
-    //    password keeps working.
+    //    locally and never verifies it. If the real owner later arrives with a
+    //    verified provider identity, auto-linking would attach it to the
+    //    ATTACKER's row. verifyCredentials now also refuses unverified
+    //    password sign-in, which closes the other half of that chain, but this
+    //    guard stands on its own: an unverified row is not proof of anything.
     //
     // The second case is why checking userInfo.emailVerified alone was not
     // enough. Refusing to auto-link is the safe default; an authenticated
@@ -229,7 +228,6 @@ export async function handleOAuthCallback(
       .values({
         email: emailLower,
         emailEncrypted: encrypt(emailLower),
-        emailHash: slowBlindIndex(emailLower),
         name: userInfo.name,
         nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,

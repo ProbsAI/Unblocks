@@ -380,36 +380,29 @@ the app must be able to replay, so they cannot be one-way. They are still
 unread today (no feature calls a Google API), which makes them exposure in
 practice — drop them, or give them a consumer.
 
-### Blind indexes are PBKDF2, with the work factor set by input entropy
+### Blind indexes are PBKDF2, at the spec's floor
 
 A blind index must be **deterministic** — it backs `WHERE hash = ?`. bcrypt,
 scrypt and argon2 generate a random salt per call, so the same input never
 yields the same digest twice and they cannot support equality lookup at all.
-That rules them out here permanently, API keys included: creation and validation
-must derive the identical value or no key would ever match. PBKDF2 takes the
-salt as an argument, so it can be derived deterministically from the index key.
+That rules them out permanently, API keys included: creation and validation must
+derive the identical value or no key would ever match. PBKDF2 takes the salt as
+an argument, so it can be derived deterministically from the index key.
 
-**Two functions, chosen by input entropy:**
-
-| Input | Function | Why |
-|---|---|---|
-| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (PBKDF2-SHA256, 1000) | 256-bit CSPRNG. Work factor buys nothing against 2^256, and these run on the per-request hot path. |
-| Email address | `slowBlindIndex` (PBKDF2-SHA256, 600k) | Enumerable (~2^30 candidates), so work factor genuinely raises an attacker's cost. Only runs at signup / OAuth / magic-link request. |
+`blindIndex` (PBKDF2-SHA256, 1000 iterations) is the only derivation. It hashes
+session tokens, API keys, magic links, password resets, email verifications and
+team invitations — all 256 bits of CSPRNG output.
 
 **Be honest about what 1000 is doing: nothing.** Iteration count multiplies an
-attacker's cost per *guess*, and every secret reaching `blindIndex` is 256 bits
-of CSPRNG output or a signed JWT. It is no stronger than 1 against the real
-threat. It is there because a bare `createHmac` over a credential is
-indistinguishable, to a static analyser, from hashing a password with a fast
-digest — CodeQL raised `js/insufficient-password-hash` against exactly that —
-and because a recognised KDF settles the question instead of requiring a
-dismissal that every future contributor has to be talked through. What actually
-protects these values is their size, plus the keying: without
-`BLIND_INDEX_KEY`, an attacker holding the database cannot compute candidate
-digests at all.
+attacker's cost per *guess*, and nothing hashed here is guessable. It is no
+stronger than 1 against the real threat. It is there because a bare
+`createHmac` over a credential is indistinguishable, to a static analyser, from
+hashing a password with a fast digest — CodeQL raised
+`js/insufficient-password-hash` against exactly that. What actually protects
+these values is their size, plus the keying: without `BLIND_INDEX_KEY`, an
+attacker holding the database cannot compute candidate digests at all.
 
-**The cost is real, so measure it rather than estimating.**
-`npm run bench:blind-index`:
+Measure rather than estimate — `npm run bench:blind-index`:
 
 | | per call | sync ceiling, 1 core |
 |---|---|---|
@@ -417,44 +410,46 @@ digests at all.
 | PBKDF2 1000 (current) | 0.45 ms | ~2200 req/s |
 | PBKDF2 4096 (briefly shipped) | 1.82 ms | ~550 req/s |
 
-`pbkdf2Sync` blocks the event loop, so this is a throughput ceiling and not
-only added latency. 1000 is RFC 2898's stated floor and the right end of the
-range to sit at, since the work factor is presentational here. **Do not raise
-it thinking you are hardening something** — the security comes from the 256-bit
-input and the keying, not the iterations. That benchmark exists because this
-file previously claimed 4096 cost "about a quarter of a millisecond"; it cost
-1.82 ms.
+`pbkdf2Sync` blocks the event loop, so this is a throughput ceiling, not only
+latency. 1000 is RFC 2898's stated floor. **Do not raise it thinking you are
+hardening something.** That benchmark exists because this file once claimed
+4096 cost "about a quarter of a millisecond"; it cost 1.82 ms.
 
-If the cost is unwanted, the honest alternative is a bare `createHmac` plus
-dismissing the alert as a false positive. That was the prior state and remains
-defensible; it was traded for a green check needing no per-contributor
-explanation.
+> **There was a second derivation, `slowBlindIndex` (600k iterations), for
+> `users.email_hash`. Both are gone.** Nothing ever queried that column — it was
+> written at signup, OAuth and magic-link request and read by no code path. So
+> 260 ms of synchronous PBKDF2 ran on three public endpoints to populate a value
+> no one looked up: a denial-of-service vector and an account-existence timing
+> oracle, in exchange for nothing.
+>
+> This is the same defect as the `*_encrypted` columns above, and it was
+> introduced *while* fixing those. Apply the rule to new index columns too:
+> **what reads this?** If a genuinely enumerable value ever needs an index, it
+> needs its own derivation with a real work factor — and a consumer.
 
-User passwords must never reach either function — `core/auth/password.ts` uses
-bcrypt, which is correct, because a password is exactly the guessable input
-these work factors are wrong for.
+**Never route a guessable value through `blindIndex`.** Passwords go to bcrypt
+in `core/auth/password.ts`. A low-entropy input at this work factor is exactly
+the weakness the CodeQL query looks for, and the argument above stops holding
+the moment one arrives.
 
 `core/security/blindIndex.entropy.test.ts` enforces that premise rather than
 leaving it to a comment: it asserts every generator feeding `blindIndex`
 produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
 that suite fails, do not raise the iteration count to paper over it** — find
-what low-entropy value started flowing in and route it to `slowBlindIndex` or
-bcrypt.
+what low-entropy value started flowing in.
 
-`slowBlindIndex` output carries a `pbkdf2$` prefix so the two work factors stay
-distinguishable in the same column, and the two salts are domain-separated so
-the same input cannot produce related digests across them.
+### Unverified accounts cannot sign in
 
-**Never route `validateSession` or `validateApiKey` through `slowBlindIndex`** —
-that would add hundreds of milliseconds to every request in exchange for nothing.
-The entropy suite asserts this separation directly.
+`security.requireEmailVerification` (default true) is enforced in
+`verifyCredentials`. It was declared and enforced nowhere, which is worse than
+absent: an operator reads the setting and believes it does something.
 
-> **Changing either derivation invalidates every stored value.** All `*_hash`
-> columns, plus `sessions.token` and `verification_tokens.token`. There is no
-> migration path for API keys in particular: the key is returned once and
-> deliberately unrecoverable, so old rows cannot be re-derived and every key has
-> to be reissued. Existing sessions and outstanding magic links, resets,
-> verifications and invitations are invalidated too.
+It is also load-bearing for account takeover. An attacker registers
+victim@example.com, never verifies it, and signs in with their own password.
+When the real owner arrives via a magic link, that link marks the **same row**
+verified and signs them into it — with the attacker's password still attached,
+and the account now passing every verified-account check, including OAuth
+linking. Refusing the unverified password sign-in is what breaks the chain.
 
 ## Path Aliases
 

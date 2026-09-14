@@ -176,16 +176,16 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     )
   }
 
-  // Allow public paths
-  if (isPublicPath(pathname)) {
-    return passThrough()
-  }
-
   // --- API Key auth for API routes ---
   // If the request has a Bearer token that looks like an API key,
   // pass it through to the route handler for full validation.
   // Middleware cannot do DB lookups (edge runtime), so we forward
   // the key via a header and let serverAuth.ts validate it.
+  //
+  // This runs BEFORE the public-path check, and must. Public routes call
+  // getCurrentUser() too — /api/auth/session is the obvious one — so returning
+  // early for them meant the key was stripped and never re-set, and Bearer auth
+  // returned 401 there no matter how valid the key was.
   if (pathname.startsWith('/api/')) {
     const bearerToken = getBearerToken(request)
     if (bearerToken?.startsWith(API_KEY_PREFIX)) {
@@ -193,6 +193,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       sanitized.set(INTERNAL_API_KEY_HEADER, bearerToken)
       return NextResponse.next({ request: { headers: sanitized } })
     }
+  }
+
+  // Allow public paths
+  if (isPublicPath(pathname)) {
+    return passThrough()
   }
 
   // --- Session cookie auth ---

@@ -26,6 +26,14 @@ vi.mock('drizzle-orm', () => ({
   eq: vi.fn((a, b) => ({ a, b })),
 }))
 
+const { authConfig } = vi.hoisted(() => ({
+  authConfig: { current: { security: { requireEmailVerification: true } } },
+}))
+
+vi.mock('../runtime/configLoader', () => ({
+  loadConfig: vi.fn(() => authConfig.current),
+}))
+
 vi.mock('./password', () => ({
   verifyPassword: vi.fn(),
 }))
@@ -65,6 +73,45 @@ function setupUpdateChain() {
 beforeEach(() => {
   vi.clearAllMocks()
   setupUpdateChain()
+  authConfig.current = { security: { requireEmailVerification: true } }
+})
+
+describe('verifyCredentials — email verification', () => {
+  it('refuses an unverified account while the setting requires verification', async () => {
+    // This is what breaks the takeover chain. An attacker who registers
+    // victim@example.com and never verifies it must not be able to sign in:
+    // otherwise the row sits there as a usable account until the real owner
+    // arrives via a magic link, which marks that same row verified and hands
+    // it to them with the attacker's password still attached.
+    setupSelectChain([{ ...mockDbUser, emailVerified: false }])
+    mockVerifyPassword.mockResolvedValue(true)
+
+    await expect(
+      verifyCredentials('test@example.com', 'correctpassword')
+    ).rejects.toThrow(/verify your email/i)
+  })
+
+  it('allows an unverified account when the setting is off', async () => {
+    // The setting is the operator's call. What it must not be is declared and
+    // ignored, which is what it was.
+    authConfig.current = { security: { requireEmailVerification: false } }
+    setupSelectChain([{ ...mockDbUser, emailVerified: false }])
+    mockVerifyPassword.mockResolvedValue(true)
+
+    const result = await verifyCredentials('test@example.com', 'correctpassword')
+    expect(result.id).toBe('user-1')
+  })
+
+  it('still refuses a suspended account before looking at verification', async () => {
+    setupSelectChain([
+      { ...mockDbUser, status: 'suspended', emailVerified: false },
+    ])
+    mockVerifyPassword.mockResolvedValue(true)
+
+    await expect(
+      verifyCredentials('test@example.com', 'correctpassword')
+    ).rejects.toThrow(/suspended/i)
+  })
 })
 
 describe('verifyCredentials', () => {

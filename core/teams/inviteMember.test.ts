@@ -22,8 +22,7 @@ vi.mock('../security/blindIndex', () => ({
   // happens to reach today. blindIndex.ts exports three functions and a
   // partial mock fails only once the module under test starts using the
   // other one — which is how magicLink broke when emailHash moved to
-  // slowBlindIndex.
-  slowBlindIndex: vi.fn((v: string) => `slow-blind:${v}`),
+  // a different derivation.
   blindIndexNullable: vi.fn((v: string | null | undefined) =>
     v == null ? null : `blind:${v}`
   ),
