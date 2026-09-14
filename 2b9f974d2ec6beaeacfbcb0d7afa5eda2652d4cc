@@ -1,0 +1,115 @@
+=== AI PR Comments for PR #19 ===
+Synced: 2026-09-14T14:19:35Z
+
+## Conversation
+
+--- comment by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:23Z ---
+<!-- codex-pull-request-review-summary -->
+
+## Codex Review Summary
+
+This comment shows the latest Codex review activity on this pull request.
+
+| Review | Status | Commit | Review trigger |
+| --- | --- | --- | --- |
+| 📝 **Code Review** | ✅ **Completed** <relative-time datetime="2026-09-14T14:14:23.047176Z">2026-09-14T14:14:23.047176Z</relative-time> | `8c47789` | PR opened |
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review" or "@codex security review".
+
+Codex reacts with 👀 while any review is running, comments if it has suggestions, and reacts with 👍 once all reviews finish with no findings.
+
+</details>
+
+## Reviews
+
+--- review by @github-code-quality[bot] [COMMENTED] at 2026-09-14T14:08:07Z ---
+
+--- review by @chatgpt-codex-connector[bot] [COMMENTED] at 2026-09-14T14:14:19Z ---
+
+### 💡 Codex Review
+
+Here are some automated review suggestions for this pull request.
+
+**Reviewed commit:** `8c47789fda`
+
+<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>
+
+## Inline Comments
+
+--- inline by @github-code-quality[bot] at 2026-09-14T14:08:07Z on core/api-keys/list.test.ts:32 ---
+## Unused variable, import, function or class
+
+Unused variable mockLimit.
+
+---
+
+<p>The best fix is to remove the unused <code>mockLimit</code> declaration from <code>core/api-keys/list.test.ts</code> without changing any test logic.</p>
+<ul>
+<li>**General approach:** delete unused variables that are not referenced by code paths or assertions.</li>
+<li>**Best specific fix here:** remove line 32 (<code>const mockLimit = vi.fn()</code>).</li>
+<li>**Scope:** only edit <code>core/api-keys/list.test.ts</code>; no imports, methods, or additional definitions are needed.</li>
+<li>**Behavior impact:** none; this variable is not read or invoked.</li>
+</ul>
+
+--- inline by @github-code-quality[bot] at 2026-09-14T14:08:07Z on core/api-keys/revoke.ts:1 ---
+## Unused variable, import, function or class
+
+Unused import and.
+
+---
+
+The general fix is to remove unused symbols from import statements when they are not referenced in the file.</p>
+<p>Best fix here (without changing behavior): in <code>core/api-keys/revoke.ts</code>, update the import on line 1 to remove <code>and</code> and keep only <code>eq</code>. No logic changes are required, no additional imports/methods/definitions are needed, and runtime behavior remains identical.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on core/billing/handleWebhook.ts:26 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Record webhook events only after successful handling**
+
+When any handler after this line throws—for example, an unlinkable paid subscription—the event row has already been committed. Stripe retries with the same event ID, `alreadyProcessed` returns true, and the retry receives a 2xx without ever applying the subscription change or firing the hook. Record completion only after the switch succeeds, or remove/mark the ledger entry as failed when processing throws.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on lib/serverAuth.ts:38 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reject API keys belonging to suspended users**
+
+When an administrator suspends or bans a user who already has an API key, this path still returns that user without checking `user.status`; the session-authentication path explicitly rejects non-active users. The old bearer key therefore continues to authorize every protected API endpoint after the account is disabled. Return null for non-active users or revoke their keys as part of the status change.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on lib/serverAuth.ts:31 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Enforce the scopes returned by API-key validation**
+
+For a key created with restrictive scopes such as `['teams:read']`, `validateApiKey` returns those scopes here, but this branch discards them and reduces authentication to a plain `User`. Repository-wide, protected handlers call `requireAuth()` without any subsequent scope check, so the restricted key can invoke all user endpoints, including writes and issuing additional keys. Preserve the API-key authorization context and require an appropriate scope at each route.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on core/api-keys/create.ts:36 ---
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Enforce configured API-key limits before insertion**
+
+The new billing configuration advertises limits of 3, 25, and 100 API keys by plan, but key creation inserts unconditionally and no API-key code calls `checkPlanLimit`. Consequently, any authenticated user can create an unlimited number of active keys regardless of their plan. Count the user's active keys and enforce the configured limit atomically before inserting.
+
+Useful? React with 👍 / 👎.
+
+--- inline by @chatgpt-codex-connector[bot] at 2026-09-14T14:14:19Z on app/(dashboard)/ai/page.tsx:22 ---
+**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Keep the AI usage page gated until it uses real data**
+
+Removing the unavailable-block redirect makes this page reachable for every dashboard user, but it still derives request counts, token totals, completion history, and estimated cost from hard-coded mock arrays. Real completions recorded through the newly enabled endpoint never affect the displayed values, so users are shown fabricated usage and billing information. Load the actual usage records now exposed by `/api/ai/usage`, or keep the page gated until that wiring exists.
+
+Useful? React with 👍 / 👎.
