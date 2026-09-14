@@ -318,6 +318,7 @@ never needs one, so it would only create a credential dump.
 
 Required: `DATABASE_URL`, `APP_URL`, `SESSION_SECRET`
 Optional: `REDIS_URL`, `STRIPE_*`, `RESEND_API_KEY`, `GOOGLE_CLIENT_*`, `UNBLOCKS_LICENSE_KEY`
+AI (at least one required for `/api/ai/completion`): `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY`
 
 See `.env.example` for full list.
 

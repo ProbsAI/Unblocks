@@ -99,14 +99,27 @@ const CSRF_EXEMPT_PATHS = ['/api/billing/webhook']
  *    whenever there is actually a cookie to hijack.
  */
 function isCrossSiteRequest(request: NextRequest): boolean {
+  const hasSessionCookie = Boolean(
+    request.cookies.get(SESSION_COOKIE_NAME)?.value
+  )
+
+  // Exempt Bearer API key requests ONLY when no session cookie rides along.
+  //
+  // getCurrentUser gives the session cookie priority over the API key, so a
+  // request carrying both would be exempted here on the strength of the token
+  // and then authenticated as the ambient session — the CSRF decision and the
+  // authentication decision disagreeing about which credential matters. The
+  // header is not attacker-settable cross-origin without permissive CORS (none
+  // is configured), so this is hardening rather than a live hole, but the two
+  // decisions must key off the same credential.
   const bearer = getBearerToken(request)
-  if (bearer?.startsWith(API_KEY_PREFIX)) return false
+  if (!hasSessionCookie && bearer?.startsWith(API_KEY_PREFIX)) return false
 
   const source =
     request.headers.get('origin') ?? request.headers.get('referer')
 
   if (!source) {
-    return Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value)
+    return hasSessionCookie
   }
 
   // Prefer the configured public origin: behind a proxy or load balancer,

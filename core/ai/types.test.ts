@@ -88,7 +88,10 @@ describe('AIWrapperConfigSchema', () => {
     })
 
     expect(config.modelCosts['my-custom-model']).toEqual({ input: 0.5, output: 2.0 })
-    // Custom costs completely replace defaults
+    // Zod object defaults replace rather than merge. That is the schema's
+    // behaviour and is asserted here; estimateCost in usage.ts layers the
+    // configured map over these defaults so an app that lists only some models
+    // does not lose per-model pricing for the rest.
     expect(config.modelCosts['gpt-4o']).toBeUndefined()
   })
 })

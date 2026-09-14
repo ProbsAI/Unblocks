@@ -193,3 +193,34 @@ describe('CSRF same-origin enforcement', () => {
     expect(response.status).not.toBe(403)
   })
 })
+
+describe('CSRF — credential precedence', () => {
+  it('does not exempt a cross-origin POST that carries both a Bearer key and a session cookie', async () => {
+    // getCurrentUser prefers the session cookie, so exempting on the strength
+    // of the token would let the request through CSRF and then authenticate it
+    // as the ambient session. Both decisions must key off the same credential.
+    const response = await middleware(
+      req('/api/teams', {
+        method: 'POST',
+        headers: {
+          origin: 'https://evil.example.com',
+          authorization: 'Bearer ub_live_anything',
+        },
+        cookie: '__unblocks_session=valid.jwt.token',
+      })
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it('still exempts a Bearer key request with no session cookie', async () => {
+    const response = await middleware(
+      req('/api/teams', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ub_live_abc123' },
+      })
+    )
+
+    expect(response.status).not.toBe(403)
+  })
+})

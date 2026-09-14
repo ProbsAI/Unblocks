@@ -49,3 +49,36 @@ describe('configLoader', () => {
     expect(billing).toHaveProperty('behavior')
   })
 })
+
+describe('loadConfig — user config is actually read', () => {
+  it('returns the plans defined in config/billing.config.ts, not schema defaults', async () => {
+    // The regression this guards: loadConfig used require() inside a try/catch.
+    // In an ESM runtime require is undefined, so it threw for every key and the
+    // catch silently substituted {} — every user config file was ignored and the
+    // app ran on schema defaults. Nothing surfaced it, because the fallback is
+    // silent by design.
+    //
+    // The schema default ships a single 'free' plan. The user config defines
+    // free, pro and business, so asserting on 'business' distinguishes "config
+    // was read" from "defaults were used".
+    const { loadConfig } = await import('./configLoader')
+    const billing = loadConfig('billing')
+
+    expect(billing.plans.map((p) => p.id)).toContain('business')
+  })
+
+  it('reads a value from every registered config file', async () => {
+    // A new config file must be added to the static import map; without this
+    // check, forgetting it reintroduces the silent-defaults failure for that key.
+    const { loadConfig } = await import('./configLoader')
+
+    expect(loadConfig('app').name).toBeTruthy()
+    expect(loadConfig('auth').session).toBeDefined()
+    expect(loadConfig('billing').plans.length).toBeGreaterThan(0)
+    expect(loadConfig('email').from).toBeDefined()
+    expect(loadConfig('jobs')).toBeDefined()
+    expect(loadConfig('uploads')).toBeDefined()
+    expect(loadConfig('teams')).toBeDefined()
+    expect(loadConfig('notifications')).toBeDefined()
+  })
+})

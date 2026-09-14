@@ -124,7 +124,13 @@ function estimateCost(
   // Was require() inside a try/catch, which always threw in an ESM module and
   // silently fell back to schema defaults — so configured model costs never
   // applied and every estimate used the built-in table.
-  const configCosts = AIWrapperConfigSchema.parse(aiConfig).modelCosts
+  // Zod object defaults replace rather than deep-merge, so a config that lists
+  // only some models would send every other model to the generic fallback below
+  // instead of its known per-model price. Layer the configured map over the
+  // schema defaults so an override is additive.
+  const defaults = AIWrapperConfigSchema.parse({}).modelCosts
+  const configured = AIWrapperConfigSchema.parse(aiConfig).modelCosts
+  const configCosts = { ...defaults, ...configured }
 
   const modelCosts = configCosts[model] ?? { input: 0.1, output: 0.3 }
 

@@ -9,6 +9,25 @@ import { AppConfigSchema } from '../types'
 import type { ConfigRegistry, ConfigKey } from './types'
 import type { ZodSchema } from 'zod'
 
+// Static imports, not require(). This module previously resolved user config
+// with require() inside a try/catch; in an ESM runtime require is not defined,
+// so the call threw on EVERY key and the catch silently substituted {} —
+// meaning every config/*.config.ts file was ignored and the app ran entirely on
+// schema defaults. Because the fallback is silent by construction, nothing
+// surfaced it: the same failure shape that made core/ai read no config at all.
+//
+// A static map keeps the loader's by-key API while letting the bundler resolve
+// the modules properly. A new config file must be registered here as well as in
+// `schemas` below.
+import authConfig from '../../config/auth.config'
+import billingConfig from '../../config/billing.config'
+import emailConfig from '../../config/email.config'
+import jobsConfig from '../../config/jobs.config'
+import uploadsConfig from '../../config/uploads.config'
+import teamsConfig from '../../config/teams.config'
+import notificationsConfig from '../../config/notifications.config'
+import appConfig from '../../config/app.config'
+
 const schemas: Record<ConfigKey, ZodSchema> = {
   auth: AuthConfigSchema,
   billing: BillingConfigSchema,
@@ -20,6 +39,17 @@ const schemas: Record<ConfigKey, ZodSchema> = {
   app: AppConfigSchema,
 }
 
+const userConfigs: Record<ConfigKey, unknown> = {
+  auth: authConfig,
+  billing: billingConfig,
+  email: emailConfig,
+  jobs: jobsConfig,
+  uploads: uploadsConfig,
+  teams: teamsConfig,
+  notifications: notificationsConfig,
+  app: appConfig,
+}
+
 const configCache = new Map<string, unknown>()
 
 export function loadConfig<K extends ConfigKey>(key: K): ConfigRegistry[K] {
@@ -28,17 +58,7 @@ export function loadConfig<K extends ConfigKey>(key: K): ConfigRegistry[K] {
   }
 
   const schema = schemas[key]
-  let userConfig: unknown = {}
-
-  try {
-    // Dynamic import of user config files
-    // In production, these are resolved at build time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const configModule = require(`../../config/${key}.config`)
-    userConfig = configModule.default ?? configModule
-  } catch {
-    // No user config file — use all defaults
-  }
+  const userConfig = userConfigs[key] ?? {}
 
   const result = schema.safeParse(userConfig)
 

@@ -9,6 +9,12 @@ import { z } from 'zod'
 /** Bound the request so a single call cannot run up an unbounded provider bill. */
 const MAX_MESSAGES = 50
 const MAX_CONTENT_CHARS = 24_000
+/**
+ * Per-message caps alone allowed 50 x 24k = 1.2M characters (~300k tokens) in a
+ * single request, which exceeds most context windows and is a real cost spike.
+ * Bound the total as well.
+ */
+const MAX_TOTAL_CHARS = 100_000
 
 const completionSchema = z.object({
   model: z.string().optional(),
@@ -20,7 +26,13 @@ const completionSchema = z.object({
       })
     )
     .min(1)
-    .max(MAX_MESSAGES),
+    .max(MAX_MESSAGES)
+    .refine(
+      (messages) =>
+        messages.reduce((total, m) => total + m.content.length, 0) <=
+        MAX_TOTAL_CHARS,
+      { message: `Combined message content exceeds ${MAX_TOTAL_CHARS} characters` }
+    ),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(1).optional(),
 })
