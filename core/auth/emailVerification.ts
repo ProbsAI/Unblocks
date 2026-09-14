@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
