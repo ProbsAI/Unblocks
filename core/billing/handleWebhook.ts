@@ -62,6 +62,10 @@ async function dispatch(event: Stripe.Event): Promise<void> {
 
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice
+      // Only subscription invoices. A one-off or manually issued invoice would
+      // otherwise fire the payment hook with an empty plan.
+      if (!invoiceSubscriptionId(invoice)) break
+
       const userId = await resolveUserId(customerIdOf(invoice.customer))
       await runHook('onPaymentSucceeded', {
         userId: userId ?? '',
@@ -99,9 +103,15 @@ async function handleCheckoutCompleted(
   const stripe = getStripe()
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
 
-  // client_reference_id is the most reliable user link at checkout time: the
-  // subscription row may not exist yet for a first-time subscriber.
-  await handleSubscriptionUpdate(subscription, session.client_reference_id)
+  // Link the user from the session itself: the subscription row may not exist
+  // yet for a first-time subscriber. createCheckoutSession stores the id in
+  // metadata and does not set client_reference_id, so metadata is the path that
+  // actually fires; client_reference_id is accepted for sessions created
+  // elsewhere.
+  const userIdHint =
+    session.client_reference_id ?? session.metadata?.userId ?? null
+
+  await handleSubscriptionUpdate(subscription, userIdHint)
 }
 
 async function handleSubscriptionUpdate(
@@ -187,6 +197,28 @@ async function handleSubscriptionDeleted(
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.stripeCustomerId, customerId))
+}
+
+/**
+ * The subscription an invoice belongs to, or null for a one-off invoice.
+ *
+ * Stripe moved this from `invoice.subscription` onto
+ * `invoice.parent.subscription_details.subscription` in the 2025 API versions,
+ * so check both rather than pinning to one shape.
+ */
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const legacy = (invoice as unknown as { subscription?: string | { id: string } })
+    .subscription
+  if (legacy) return typeof legacy === 'string' ? legacy : legacy.id
+
+  const nested = (
+    invoice as unknown as {
+      parent?: { subscription_details?: { subscription?: string | { id: string } } }
+    }
+  ).parent?.subscription_details?.subscription
+  if (nested) return typeof nested === 'string' ? nested : nested.id
+
+  return null
 }
 
 function customerIdOf(

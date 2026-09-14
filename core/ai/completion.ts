@@ -1,17 +1,21 @@
+import aiConfig from './ai.config'
 import { runHook } from '../runtime/hookRunner'
 import { getProviderFn } from './providers'
 import { trackUsage } from './usage'
 import { AIWrapperConfigSchema } from './types'
 import type { CompletionRequest, CompletionResponse, AIProvider, AIWrapperConfig } from './types'
 
+/**
+ * Load and validate the AI config.
+ *
+ * This previously used require() inside a try/catch. In an ESM module require is
+ * not defined, so the call threw on every invocation and the catch silently
+ * returned schema defaults — meaning ai.config.ts was never actually read and
+ * the configured provider keys, model costs and enabled flag were all ignored.
+ * A static import both fixes that and lets tests mock the module.
+ */
 function loadAIConfig(): AIWrapperConfig {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('./ai.config')
-    return AIWrapperConfigSchema.parse(mod.default ?? mod)
-  } catch {
-    return AIWrapperConfigSchema.parse({})
-  }
+  return AIWrapperConfigSchema.parse(aiConfig)
 }
 
 /**

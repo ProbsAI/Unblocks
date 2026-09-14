@@ -1,6 +1,7 @@
 import { eq, and, gte, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { aiUsage } from './schema'
+import aiConfig from './ai.config'
 import { AIWrapperConfigSchema } from './types'
 import type { UsageRecord, AIProvider } from './types'
 
@@ -115,15 +116,10 @@ function estimateCost(
   promptTokens: number,
   completionTokens: number
 ): number {
-  let configCosts: Record<string, { input: number; output: number }>
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('./ai.config')
-    const config = AIWrapperConfigSchema.parse(mod.default ?? mod)
-    configCosts = config.modelCosts
-  } catch {
-    configCosts = AIWrapperConfigSchema.parse({}).modelCosts
-  }
+  // Was require() inside a try/catch, which always threw in an ESM module and
+  // silently fell back to schema defaults — so configured model costs never
+  // applied and every estimate used the built-in table.
+  const configCosts = AIWrapperConfigSchema.parse(aiConfig).modelCosts
 
   const modelCosts = configCosts[model] ?? { input: 0.1, output: 0.3 }
 

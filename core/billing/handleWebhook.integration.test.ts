@@ -226,6 +226,7 @@ describe('handleStripeWebhook — idempotency', () => {
       'invoice.payment_succeeded',
       {
         customer: 'cus_test_1',
+        subscription: 'sub_test_1',
         amount_paid: 2900,
         hosted_invoice_url: 'https://stripe.test/i/1',
         lines: { data: [{ price: { id: 'price_test_1' } }] },
@@ -278,6 +279,7 @@ describe('handleStripeWebhook — payment hooks resolve the user', () => {
         'invoice.payment_succeeded',
         {
           customer: 'cus_test_1',
+          subscription: 'sub_test_1',
           amount_paid: 2900,
           hosted_invoice_url: null,
           lines: { data: [{ price: { id: 'price_test_1' } }] },
@@ -333,5 +335,30 @@ describe('handleStripeWebhook — failed handling is retryable', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0].userId).toBe(knownUserId)
+  })
+})
+
+
+describe('handleStripeWebhook — non-subscription invoices', () => {
+  it('does not fire the payment hook for a one-off invoice', async () => {
+    const { handleStripeWebhook } = await import('./handleWebhook')
+
+    // No subscription on the invoice. Firing here would report a payment with
+    // an empty plan for a manually issued or one-off charge.
+    await handleStripeWebhook(
+      event(
+        'invoice.payment_succeeded',
+        {
+          customer: 'cus_test_1',
+          amount_paid: 500,
+          hosted_invoice_url: null,
+          lines: { data: [] },
+        },
+        'evt_oneoff'
+      ),
+      'sig'
+    )
+
+    expect(hookCalls.filter((c) => c.name === 'onPaymentSucceeded')).toHaveLength(0)
   })
 })
