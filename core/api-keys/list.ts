@@ -1,4 +1,4 @@
-import { eq, isNull, desc } from 'drizzle-orm'
+import { eq, and, isNull, desc } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { apiKeys } from '../db/schema/apiKeys'
 import type { ApiKey } from './types'
@@ -15,9 +15,12 @@ export async function listApiKeys(
 ): Promise<ApiKey[]> {
   const db = getDb()
 
-  const conditions = includeRevoked
+  // Filter in SQL. This previously built an array of conditions, applied only
+  // the first, then dropped revoked rows in JavaScript — transferring rows only
+  // to discard them, and leaving the real predicate unexpressed in the query.
+  const where = includeRevoked
     ? eq(apiKeys.userId, userId)
-    : [eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)]
+    : and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt))
 
   const rows = await db
     .select({
@@ -33,15 +36,10 @@ export async function listApiKeys(
       createdAt: apiKeys.createdAt,
     })
     .from(apiKeys)
-    .where(Array.isArray(conditions) ? conditions[0] : conditions)
+    .where(where)
     .orderBy(desc(apiKeys.createdAt))
 
-  // Apply second condition if filtering revoked
-  const filtered = !includeRevoked
-    ? rows.filter((r) => r.revokedAt === null)
-    : rows
-
-  return filtered.map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
     userId: row.userId,
     teamId: row.teamId,

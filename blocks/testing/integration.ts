@@ -73,13 +73,22 @@ export async function truncateAll(): Promise<void> {
   `)
 
   const names = (result.rows as Array<{ tablename: string }>).map(
-    (r) => `"${r.tablename}"`
+    (r) => r.tablename
   )
 
   if (names.length === 0) return
 
+  // Build the identifier list with sql.identifier rather than string
+  // concatenation. The names come from pg_tables rather than user input, but
+  // assembling SQL by interpolation is the pattern static analysis flags and
+  // the one that becomes an injection the moment the source changes.
+  const identifiers = sql.join(
+    names.map((name) => sql.identifier(name)),
+    sql`, `
+  )
+
   await db.execute(
-    sql.raw(`TRUNCATE TABLE ${names.join(', ')} RESTART IDENTITY CASCADE`)
+    sql`TRUNCATE TABLE ${identifiers} RESTART IDENTITY CASCADE`
   )
 }
 

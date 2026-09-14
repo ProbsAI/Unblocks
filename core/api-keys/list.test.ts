@@ -57,21 +57,27 @@ describe('listApiKeys', () => {
     mockOrderBy.mockReturnValue(mockRows)
   })
 
-  it('returns keys excluding revoked by default', async () => {
-    const keys = await listApiKeys('user-123')
+  // Revoked-key filtering is now a SQL predicate rather than a JavaScript
+  // filter over the result set, so a mocked database cannot exercise it: the
+  // mock returns whatever rows it is given regardless of the WHERE clause.
+  // Asserting on it here would only re-test the mock. It belongs in an
+  // integration test against a real Postgres.
+  it('builds a narrower predicate when revoked keys are excluded', async () => {
+    await listApiKeys('user-123')
+    const defaultPredicate = mockWhere.mock.calls[0][0]
 
-    // Should filter out the revoked key (key-2)
-    expect(keys).toHaveLength(1)
-    expect(keys[0].id).toBe('key-1')
-    expect(keys[0].name).toBe('Production')
-    expect(keys[0].revokedAt).toBeNull()
+    vi.clearAllMocks()
+    mockOrderBy.mockReturnValue(mockRows)
+
+    await listApiKeys('user-123', true)
+    const includeRevokedPredicate = mockWhere.mock.calls[0][0]
+
+    expect(defaultPredicate).not.toEqual(includeRevokedPredicate)
   })
 
-  it('includes revoked keys when requested', async () => {
+  it('returns every row the query yields', async () => {
     const keys = await listApiKeys('user-123', true)
-
-    expect(keys).toHaveLength(2)
-    expect(keys[1].revokedAt).not.toBeNull()
+    expect(keys).toHaveLength(mockRows.length)
   })
 
   it('maps fields correctly without exposing encrypted key', async () => {

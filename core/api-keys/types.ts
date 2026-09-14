@@ -26,6 +26,12 @@ export const CreateApiKeySchema = z.object({
   expiresInDays: z.number().positive().optional(),
 })
 
-export type CreateApiKeyInput = z.infer<typeof CreateApiKeySchema>
+/**
+ * Caller-facing shape. Uses z.input rather than z.infer so `scopes` stays
+ * optional: the schema supplies the default, and createApiKey falls back to
+ * ['*'] itself. z.infer describes the parsed OUTPUT, where the default has
+ * already been applied and the field is therefore required.
+ */
+export type CreateApiKeyInput = z.input<typeof CreateApiKeySchema>
 
 export const API_KEY_PREFIX = 'ub_live_'

@@ -22,20 +22,26 @@ vi.mock('@unblocks/core/security/cookies', () => ({
   SESSION_COOKIE_NAME: 'session',
 }))
 
+// Hoisted and mutable so a test can vary the row the lookup returns (e.g. a
+// suspended account) without rebuilding the whole chain.
+const { dbUserRow } = vi.hoisted(() => ({
+  dbUserRow: {
+    current: [
+      { id: 'user-from-api-key', email: 'apikey@example.com', status: 'active' },
+    ] as Array<Record<string, unknown>>,
+  },
+}))
+
 vi.mock('@unblocks/core/db/client', () => ({
-  getDb: vi.fn().mockReturnValue({
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{
-            id: 'user-from-api-key',
-            email: 'apikey@example.com',
-            status: 'active',
-          }]),
-        }),
-      }),
-    }),
-  }),
+  getDb: vi.fn(() => ({
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => dbUserRow.current),
+        })),
+      })),
+    })),
+  })),
 }))
 
 vi.mock('@unblocks/core/db/schema/users', () => ({
@@ -197,5 +203,67 @@ describe('serverAuth', () => {
     it('throws AuthError when not authenticated by any method', async () => {
       await expect(requireAuth()).rejects.toThrow(AuthError)
     })
+  })
+})
+
+
+describe('getCurrentUser — API key authorization guards', () => {
+  beforeEach(() => {
+    dbUserRow.current = [
+      { id: 'user-from-api-key', email: 'apikey@example.com', status: 'active' },
+    ]
+  })
+
+  it('rejects an API key belonging to a suspended user', async () => {
+    dbUserRow.current = [
+      { id: 'user-from-api-key', email: 'apikey@example.com', status: 'suspended' },
+    ]
+    mockHeaders.mockResolvedValue({
+      get: vi.fn().mockReturnValue('ub_live_valid_key'),
+    })
+    mockValidateApiKey.mockResolvedValue({
+      valid: true,
+      userId: 'user-from-api-key',
+      teamId: null,
+      scopes: ['*'],
+      apiKeyId: 'key-123',
+    })
+
+    // The session path already rejects non-active users; without parity here,
+    // suspending an account leaves its keys authorising every endpoint.
+    expect(await getCurrentUser()).toBeNull()
+  })
+
+  it('rejects a scoped key while no route enforces scopes', async () => {
+    mockHeaders.mockResolvedValue({
+      get: vi.fn().mockReturnValue('ub_live_scoped_key'),
+    })
+    mockValidateApiKey.mockResolvedValue({
+      valid: true,
+      userId: 'user-from-api-key',
+      teamId: null,
+      scopes: ['teams:read'],
+      apiKeyId: 'key-456',
+    })
+
+    // Honouring a narrow key would silently grant it everything, since no
+    // handler checks scopes. Fail closed until they do.
+    expect(await getCurrentUser()).toBeNull()
+  })
+
+  it('still accepts a wildcard key for an active user', async () => {
+    mockHeaders.mockResolvedValue({
+      get: vi.fn().mockReturnValue('ub_live_valid_key'),
+    })
+    mockValidateApiKey.mockResolvedValue({
+      valid: true,
+      userId: 'user-from-api-key',
+      teamId: null,
+      scopes: ['*'],
+      apiKeyId: 'key-123',
+    })
+
+    const user = await getCurrentUser()
+    expect(user?.id).toBe('user-from-api-key')
   })
 })

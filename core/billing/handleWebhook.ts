@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
-import { webhookEvents } from '../db/schema/webhookEvents'
+import { claimEvent, releaseEvent } from './webhookEventLog'
 import { getStripe } from './customer'
 import { runHook } from '../runtime/hookRunner'
 import { getAllPlans } from './plans'
@@ -23,8 +23,24 @@ export async function handleStripeWebhook(
 
   // Idempotency gate. Stripe retries on any non-2xx, and a retry must not
   // re-apply a plan change or re-fire a payment hook.
-  if (await alreadyProcessed(event.id, event.type)) return
+  if (await claimEvent(event.id, 'stripe', event.type)) return
 
+  try {
+    await dispatch(event)
+  } catch (err) {
+    // Release the claim so Stripe's retry can run this event again.
+    //
+    // Without this the ledger row survives the failure, the retry short-circuits
+    // at the gate above and returns 2xx, and the event is dropped permanently —
+    // converting every transient error (and the deliberate throw in
+    // handleSubscriptionUpdate for an unlinkable customer) into the exact silent
+    // data loss this handler exists to prevent.
+    await releaseEvent(event.id)
+    throw err
+  }
+}
+
+async function dispatch(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     // The primary provisioning event. Without this, a first-time subscriber
     // completes payment and nothing grants them access.
@@ -67,28 +83,6 @@ export async function handleStripeWebhook(
       break
     }
   }
-}
-
-/**
- * Record an event as processed. Returns true when it had already been recorded,
- * meaning this delivery is a duplicate and must be skipped.
- *
- * The insert is the lock: concurrent deliveries of the same event collide on the
- * primary key and only one of them gets a row back.
- */
-async function alreadyProcessed(
-  eventId: string,
-  type: string
-): Promise<boolean> {
-  const db = getDb()
-
-  const inserted = await db
-    .insert(webhookEvents)
-    .values({ eventId, provider: 'stripe', type })
-    .onConflictDoNothing({ target: webhookEvents.eventId })
-    .returning({ eventId: webhookEvents.eventId })
-
-  return inserted.length === 0
 }
 
 async function handleCheckoutCompleted(

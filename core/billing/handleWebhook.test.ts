@@ -22,12 +22,15 @@ const mockValues = vi.fn(() => ({ onConflictDoNothing: mockOnConflict }))
 const mockInsert = vi.fn(() => ({ values: mockValues }))
 const mockSelect = vi.fn()
 const mockUpdate = vi.fn()
+// releaseEvent deletes the claim when handling throws.
+const mockDelete = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     insert: mockInsert,
     select: mockSelect,
     update: mockUpdate,
+    delete: mockDelete,
   })),
 }))
 

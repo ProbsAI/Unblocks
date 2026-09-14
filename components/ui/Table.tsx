@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react'
+
 interface Column<T> {
   key: string
   header: string
-  render?: (row: T) => React.ReactNode
+  render?: (row: T) => ReactNode
 }
 
 interface TableProps<T> {

@@ -28,15 +28,29 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (apiKey) {
     const validation = await validateApiKey(apiKey)
-    if (validation.valid && validation.userId) {
-      const db = getDb()
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, validation.userId))
-        .limit(1)
-      return (user as User) ?? null
-    }
+    if (!validation.valid || !validation.userId) return null
+
+    // Fail closed on scoped keys. validateApiKey returns the key's scopes, but
+    // no route checks them, so honouring a key issued as ['teams:read'] would
+    // silently grant it everything — writes and issuing further keys included.
+    // Until per-route scope checks exist, only a wildcard key is accepted;
+    // rejecting a narrow key is the safe direction, granting it more than its
+    // issuer asked for is not.
+    if (!validation.scopes.includes('*')) return null
+
+    const db = getDb()
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, validation.userId))
+      .limit(1)
+
+    // Parity with the session path, which rejects any non-active user. Without
+    // this, suspending or banning an account leaves its existing API keys
+    // authorising every protected endpoint.
+    if (!user || user.status !== 'active') return null
+
+    return user as User
   }
 
   return null

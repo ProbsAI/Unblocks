@@ -19,11 +19,19 @@ export function Toast({ message, type = 'info', duration = 3000, onClose }: Toas
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
+    // Both timers must be cleared: the nested one previously survived unmount
+    // and fired onClose against a component that no longer existed.
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined
+
     const timer = setTimeout(() => {
       setVisible(false)
-      setTimeout(onClose, 200)
+      fadeTimer = setTimeout(onClose, 200)
     }, duration)
-    return () => clearTimeout(timer)
+
+    return () => {
+      clearTimeout(timer)
+      if (fadeTimer !== undefined) clearTimeout(fadeTimer)
+    }
   }, [duration, onClose])
 
   return (

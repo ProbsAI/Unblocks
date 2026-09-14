@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE_NAME } from '@unblocks/core/security/cookies'
 import { jwtVerify } from 'jose'
+// Imported rather than redeclared: middleware and validateApiKey must agree on
+// what counts as an API key, and a local copy would let them drift apart on a
+// security boundary.
+import { API_KEY_PREFIX } from '@unblocks/core/api-keys/types'
 
-const API_KEY_PREFIX = 'ub_live_'
 
 /**
  * Internal header carrying a middleware-validated API key to the route handler.

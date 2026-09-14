@@ -5,6 +5,8 @@ const PlanLimitsSchema = z.object({
   teamMembers: z.number().default(1),
   storageGb: z.number().default(1),
   apiRequestsPerDay: z.number().default(100),
+  /** Maximum concurrently active (non-revoked) API keys. */
+  apiKeys: z.number().default(3),
 })
 
 const PlanPriceSchema = z.object({

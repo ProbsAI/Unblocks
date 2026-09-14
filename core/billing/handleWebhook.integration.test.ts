@@ -41,11 +41,21 @@ const stripeMock = {
     constructEvent: vi.fn((payload: string) => JSON.parse(payload)),
   },
   customers: {
-    retrieve: vi.fn(async (id: string) => ({
-      id,
-      deleted: false,
-      metadata: { userId: knownUserId },
-    })),
+    // metadata is widened to Record<string, string> so a test can override it
+    // with {} to simulate a customer that carries no user link.
+    retrieve: vi.fn(
+      async (
+        id: string
+      ): Promise<{
+        id: string
+        deleted: boolean
+        metadata: Record<string, string>
+      }> => ({
+        id,
+        deleted: false,
+        metadata: { userId: knownUserId },
+      })
+    ),
   },
   subscriptions: {
     retrieve: vi.fn(async (id: string) => buildSubscription({ id })),
@@ -282,5 +292,46 @@ describe('handleStripeWebhook — payment hooks resolve the user', () => {
     // The old code read invoice.metadata?.userId, which Stripe does not
     // populate from subscription metadata, so this was always ''.
     expect((hook?.args as { userId: string }).userId).toBe(knownUserId)
+  })
+})
+
+describe('handleStripeWebhook — failed handling is retryable', () => {
+  it('releases the idempotency claim so a retry can re-run the event', async () => {
+    const db = getTestDb()
+    const { handleStripeWebhook } = await import('./handleWebhook')
+
+    const payload = event(
+      'customer.subscription.created',
+      buildSubscription({ customer: 'cus_orphan' }),
+      'evt_retryable'
+    )
+
+    // First delivery fails: the customer carries no user link.
+    stripeMock.customers.retrieve.mockResolvedValueOnce({
+      id: 'cus_orphan',
+      deleted: false,
+      metadata: {},
+    })
+    await expect(handleStripeWebhook(payload, 'sig')).rejects.toThrow()
+
+    // The claim must not survive the failure. If it did, Stripe's retry would
+    // short-circuit at the gate, return 2xx, and drop a paid subscription
+    // permanently — the precise failure the idempotency gate was added to
+    // prevent, reintroduced by the gate itself.
+    const ledger = await db.execute(
+      sql`SELECT event_id FROM webhook_events WHERE event_id = 'evt_retryable'`
+    )
+    expect(ledger.rows).toHaveLength(0)
+
+    // The retry now succeeds and provisions the subscription.
+    await handleStripeWebhook(payload, 'sig')
+
+    const rows = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.stripeCustomerId, 'cus_orphan'))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].userId).toBe(knownUserId)
   })
 })
