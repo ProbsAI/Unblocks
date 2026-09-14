@@ -2,6 +2,7 @@ import { eq, and, gt, isNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { verificationTokens } from '../db/schema/verificationTokens'
 import { blindIndex } from '../security/blindIndex'
+import { isWellFormedToken } from './token'
 
 /** The token kinds stored in `verification_tokens`. */
 export type VerificationTokenType =
@@ -39,6 +40,9 @@ export async function claimVerificationToken(
   token: string,
   type: VerificationTokenType
 ): Promise<typeof verificationTokens.$inferSelect | null> {
+  // Bound the input before paying for a derivation — see isWellFormedToken.
+  if (!isWellFormedToken(token)) return null
+
   const db = getDb()
 
   const [claimed] = await db

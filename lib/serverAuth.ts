@@ -38,6 +38,13 @@ export async function getCurrentUser(): Promise<User | null> {
     // issuer asked for is not.
     if (!validation.scopes.includes('*')) return null
 
+    // Same reasoning for the team boundary. validateApiKey reports the key's
+    // teamId, and no route enforces one, so accepting a team-scoped key here
+    // would silently widen it into a credential for everything the user can
+    // reach. createApiKey refuses to issue these, but a row predating that
+    // guard — or written directly — must not be honoured either.
+    if (validation.teamId) return null
+
     const db = getDb()
 
     // Project explicitly rather than selecting the row and casting it. The full

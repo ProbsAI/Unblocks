@@ -104,7 +104,14 @@ export function renderTemplate(
 }
 
 function detectProvider(model: string, defaultProvider: AIProvider): AIProvider {
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3')) {
+  // `o1`/`o3` are deliberately absent. They were routed here, but the request
+  // this module builds always sends `temperature` and the legacy `max_tokens`
+  // shape, and OpenAI's reasoning models reject unsupported sampling fields and
+  // expect `max_completion_tokens`. Recognising them therefore produced a
+  // guaranteed API error rather than a completion — claiming support that does
+  // not exist. Add them back in the same change that builds their request
+  // shape conditionally.
+  if (model.startsWith('gpt-')) {
     return 'openai'
   }
   if (model.startsWith('claude-')) {

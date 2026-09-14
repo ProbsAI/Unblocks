@@ -23,7 +23,11 @@ export const CreateApiKeySchema = z.object({
   name: z.string().min(1).max(255),
   teamId: z.string().uuid().optional(),
   scopes: z.array(z.string()).default(['*']),
-  expiresInDays: z.number().positive().optional(),
+  // Bounded, not merely positive: Date.now() + days * 86_400_000 overflows to
+  // an Invalid Date for a large enough input, which surfaced as a failed insert
+  // and a 500 rather than a validation error. Ten years is well past any real
+  // key lifetime.
+  expiresInDays: z.number().positive().max(3650).optional(),
 })
 
 /**

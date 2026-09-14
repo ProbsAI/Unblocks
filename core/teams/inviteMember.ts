@@ -1,4 +1,4 @@
-import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
+import { eq, and, gt, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
@@ -7,6 +7,7 @@ import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import { isWellFormedToken } from '../auth/token'
 import { getUserTeamRole } from './getTeam'
 import type {
   TeamInvitation,
@@ -102,14 +103,22 @@ export async function acceptInvitation(
   token: string,
   userId: string
 ): Promise<void> {
+  // Bound the input before deriving a blind index: this is reached from a
+  // public endpoint and blindIndex runs PBKDF2. See isWellFormedToken.
+  if (!isWellFormedToken(token)) {
+    throw new NotFoundError('Invitation not found')
+  }
+
   const db = getDb()
 
-  // Match by tokenHash (new rows) or by plaintext token for legacy rows
-  // where tokenHash was not yet populated.
-  const matchesToken = or(
-    eq(teamInvitations.tokenHash, blindIndex(token)),
-    and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
-  )
+  // Matched on the digest only.
+  //
+  // There used to be a fallback to the plaintext `token` column for rows
+  // written before tokenHash existed. Honouring it meant those invitations
+  // stayed redeemable straight out of a database dump — the exact thing the
+  // one-way storage invariant exists to prevent — so the fallback is gone.
+  // Any such row is now unredeemable and should be re-sent.
+  const matchesToken = eq(teamInvitations.tokenHash, blindIndex(token))
 
   // Claim before doing anything, in one statement.
   //

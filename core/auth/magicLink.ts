@@ -2,7 +2,7 @@ import { eq, and, gt, isNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
-import { generateRandomToken } from './token'
+import { generateRandomToken, isWellFormedToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
@@ -94,6 +94,10 @@ export async function createMagicLink(email: string): Promise<string> {
 export async function peekMagicLink(
   token: string
 ): Promise<{ email: string } | null> {
+  // Same bound as the claim path: this is reached straight from a public query
+  // string, and blindIndex is PBKDF2.
+  if (!isWellFormedToken(token)) return null
+
   const db = getDb()
 
   const [dbToken] = await db
