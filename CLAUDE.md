@@ -380,44 +380,63 @@ the app must be able to replay, so they cannot be one-way. They are still
 unread today (no feature calls a Google API), which makes them exposure in
 practice — drop them, or give them a consumer.
 
-### `blindIndex` uses HMAC-SHA256, and that is correct
+### Blind indexes are PBKDF2, with the work factor set by input entropy
 
-CodeQL raises `js/insufficient-password-hash` against
-`core/security/blindIndex.ts`. It is a **false positive**, and the reasoning
-matters because the obvious "fix" would break the application:
-
-1. A blind index must be **deterministic** — it backs `WHERE hash = ?`. bcrypt,
-   scrypt and argon2 salt randomly per call, so they cannot support equality
-   lookup. Swapping one in breaks every session validation, magic link,
-   invitation and API key lookup.
-2. Slow KDFs defeat brute force on *guessable* input. Everything hashed here is
-   256 bits of CSPRNG output or a signed JWT — not brute-forceable at any speed.
-3. It is **keyed**. Without `BLIND_INDEX_KEY`, an attacker holding the database
-   cannot compute candidate digests at all.
-
-User passwords use bcrypt in `core/auth/password.ts` and never reach
-`blindIndex`. **That separation is the whole argument.** If you ever route a
-user-chosen secret through `blindIndex`, the alert becomes true.
-
-`core/security/blindIndex.entropy.test.ts` enforces the premise rather than
-leaving it to a comment: it asserts every token generator feeding `blindIndex`
-produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
-that suite fails, re-examine the construction — do not re-dismiss the alert.**
+A blind index must be **deterministic** — it backs `WHERE hash = ?`. bcrypt,
+scrypt and argon2 generate a random salt per call, so the same input never
+yields the same digest twice and they cannot support equality lookup at all.
+That rules them out here permanently, API keys included: creation and validation
+must derive the identical value or no key would ever match. PBKDF2 takes the
+salt as an argument, so it can be derived deterministically from the index key.
 
 **Two functions, chosen by input entropy:**
 
 | Input | Function | Why |
 |---|---|---|
-| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (HMAC-SHA256) | 256-bit CSPRNG. Iteration count buys nothing against 2^256, and these run on the per-request hot path. |
+| Session token, API key, magic link, password reset, email verification, team invitation | `blindIndex` (PBKDF2-SHA256, 4096) | 256-bit CSPRNG. Work factor buys nothing against 2^256, and these run on the per-request hot path. |
 | Email address | `slowBlindIndex` (PBKDF2-SHA256, 600k) | Enumerable (~2^30 candidates), so work factor genuinely raises an attacker's cost. Only runs at signup / OAuth / magic-link request. |
 
-`slowBlindIndex` is deterministic (salt derived from the index key, not random),
-so it still backs `WHERE hash = ?`. Its output carries a `pbkdf2$` prefix so
-older HMAC values remain distinguishable in the same column.
+**Be honest about what 4096 is doing: nothing.** Iteration count multiplies an
+attacker's cost per *guess*, and every secret reaching `blindIndex` is 256 bits
+of CSPRNG output or a signed JWT. It is no stronger than 1 against the real
+threat. It is there because a bare `createHmac` over a credential is
+indistinguishable, to a static analyser, from hashing a password with a fast
+digest — CodeQL raised `js/insufficient-password-hash` against exactly that —
+and because a recognised KDF settles the question instead of requiring a
+dismissal that every future contributor has to be talked through. What actually
+protects these values is their size, plus the keying: without
+`BLIND_INDEX_KEY`, an attacker holding the database cannot compute candidate
+digests at all.
+
+So **do not raise 4096 thinking you are hardening something.** It is sized for
+latency: one synchronous derivation runs per authenticated request and per API
+call.
+
+User passwords must never reach either function — `core/auth/password.ts` uses
+bcrypt, which is correct, because a password is exactly the guessable input
+these work factors are wrong for.
+
+`core/security/blindIndex.entropy.test.ts` enforces that premise rather than
+leaving it to a comment: it asserts every generator feeding `blindIndex`
+produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If
+that suite fails, do not raise the iteration count to paper over it** — find
+what low-entropy value started flowing in and route it to `slowBlindIndex` or
+bcrypt.
+
+`slowBlindIndex` output carries a `pbkdf2$` prefix so the two work factors stay
+distinguishable in the same column, and the two salts are domain-separated so
+the same input cannot produce related digests across them.
 
 **Never route `validateSession` or `validateApiKey` through `slowBlindIndex`** —
 that would add hundreds of milliseconds to every request in exchange for nothing.
 The entropy suite asserts this separation directly.
+
+> **Changing either derivation invalidates every stored value.** All `*_hash`
+> columns, plus `sessions.token` and `verification_tokens.token`. There is no
+> migration path for API keys in particular: the key is returned once and
+> deliberately unrecoverable, so old rows cannot be re-derived and every key has
+> to be reissued. Existing sessions and outstanding magic links, resets,
+> verifications and invitations are invalidated too.
 
 ## Path Aliases
 

@@ -67,7 +67,7 @@ const FORGED = 'ub_live_forged'
 describe('x-api-key trust boundary', () => {
   // Note on strength: this strip is defence in depth, not the primary control.
   // serverAuth passes whatever it receives to validateApiKey, which does an
-  // HMAC blind-index lookup against the database — so a forged header is inert
+  // blind-index lookup against the database — so a forged header is inert
   // unless the caller already holds a genuine key, in which case they could
   // simply send it as a Bearer token. The strip exists so the header cannot be
   // trusted as *proof* that middleware validated it.

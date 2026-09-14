@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 
 /**
- * Enforces the premise that makes HMAC-SHA256 the right construction for
- * blindIndex, rather than leaving it as a claim in a comment.
+ * Enforces the premise that lets blindIndex run a deliberately low work factor.
  *
- * CodeQL raises `js/insufficient-password-hash` against blindIndex because the
- * credentials reaching it look like passwords. The dismissal rests on one
- * factual assertion: every secret hashed there is high-entropy CSPRNG output,
- * so no amount of hashing slowness would add security. An assertion in a doc
- * comment decays silently — a future token generator using a 6-digit code, a
- * timestamp, or Math.random() would invalidate it with nothing failing.
+ * blindIndex is PBKDF2 at 4096 iterations, which is nowhere near enough for a
+ * password. That is fine only because every secret reaching it is high-entropy
+ * CSPRNG output or a signed JWT, so guessing is infeasible regardless of speed
+ * — the work factor is not what protects those values, their size is.
  *
- * These tests make that premise checkable. If one fails, the CodeQL alert has
- * become true and the construction needs revisiting, not re-dismissing.
+ * An assertion like that decays silently. A future token generator using a
+ * 6-digit code, a timestamp, or Math.random() would invalidate it with nothing
+ * failing, and the fast derivation would quietly become a real weakness of the
+ * kind `js/insufficient-password-hash` exists to catch.
+ *
+ * These tests make the premise checkable. If one fails, do not raise the
+ * iteration count to paper over it — find out what low-entropy value started
+ * flowing in, and route it to slowBlindIndex or bcrypt instead.
  */
 
 /**
@@ -181,11 +184,13 @@ describe('slowBlindIndex — deliberate cost for enumerable inputs', () => {
     )
   })
 
-  it('tags its output so PBKDF2 and HMAC values stay distinguishable', async () => {
+  it('tags its output so the two work factors stay distinguishable', async () => {
     const { slowBlindIndex, blindIndex } = await import('./blindIndex')
 
-    // emailHash may hold both during a rollout; the prefix is what lets a
-    // future reader tell which derivation produced a given row.
+    // Both derivations are PBKDF2; only the work factor and the salt's domain
+    // separator differ. The prefix is what lets a future reader tell which one
+    // produced a given row, and the domain separation is why the same input
+    // cannot yield related digests across the two.
     expect(slowBlindIndex('a@b.com')).toMatch(/^pbkdf2\$[0-9a-f]{64}$/)
     expect(blindIndex('a@b.com')).toMatch(/^[0-9a-f]{64}$/)
     expect(slowBlindIndex('a@b.com')).not.toBe(blindIndex('a@b.com'))

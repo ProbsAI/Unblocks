@@ -16,7 +16,7 @@ export const apiKeys = pgTable('api_keys', {
   /** Visible prefix for identification (e.g., "ub_live_a3f8b2c1") */
   prefix: varchar('prefix', { length: 20 }).notNull(),
   /**
-   * HMAC-SHA256 blind index of the full key, used for lookup.
+   * Blind index (PBKDF2-SHA256) of the full key, used for lookup.
    *
    * This is the ONLY stored derivation of the key and it is one-way: the key is
    * shown once at creation and is unrecoverable afterwards. Do not add a

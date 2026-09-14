@@ -15,8 +15,9 @@ export const users = pgTable('users', {
   emailEncrypted: text('email_encrypted'),
   /**
    * Blind index over the email address. Widened from 64 because slowBlindIndex
-   * emits a `pbkdf2$` prefix ahead of the 64-hex digest; the prefix keeps older
-   * HMAC values distinguishable from newer PBKDF2 ones in the same column.
+   * emits a `pbkdf2$` prefix ahead of the 64-hex digest; the prefix keeps the
+   * high-work-factor values used here distinguishable from the cheap
+   * derivation blindIndex emits, since both can land in this column.
    */
   emailHash: varchar('email_hash', { length: 128 }),
   passwordHash: varchar('password_hash', { length: 255 }),

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING (credentials):** `blindIndex` now derives with PBKDF2-SHA256
+  instead of HMAC-SHA256. Every stored blind index changes, so upgrading
+  invalidates all existing sessions, outstanding magic links, password resets,
+  email verifications and team invitations — users sign in again and unused
+  links must be re-sent. **API keys must be reissued**: the key is returned once
+  and deliberately unrecoverable, so old rows cannot be re-derived. Revoke and
+  re-create any key before upgrading a running install.
+
+  The work factor (4096) is sized for latency and is not a security control —
+  the values hashed are 256-bit CSPRNG output, where iteration count buys
+  nothing. See the blind index section in `CLAUDE.md` before changing it.
+
 ## [0.2.0-alpha] - 2026-03-28
 
 ### Added
