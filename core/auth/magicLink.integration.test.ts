@@ -6,6 +6,8 @@ import {
   closeTestDb,
   testDatabaseUrl,
 } from '@unblocks/blocks/testing/integration'
+import { users } from '@unblocks/core/db/schema/users'
+import { emailMatches } from '@unblocks/core/security/piiStorage'
 
 /**
  * Magic-link token handling, against a real Postgres.
@@ -157,10 +159,14 @@ describe('verifyMagicLink', () => {
     const token = await createMagicLink('fresh@example.com')
     await verifyMagicLink(token)
 
-    const result = await db.execute(sql`
-      SELECT email_verified FROM users WHERE email = 'fresh@example.com'
-    `)
-    expect((result.rows as Array<{ email_verified: boolean }>)[0].email_verified)
-      .toBe(true)
+    // Selected via emailMatches rather than `WHERE email = …`: the address
+    // lives in that column only in plaintext mode, so a literal comparison
+    // matches no row under the default.
+    const [row] = await db
+      .select({ emailVerified: users.emailVerified })
+      .from(users)
+      .where(emailMatches('fresh@example.com'))
+
+    expect(row.emailVerified).toBe(true)
   })
 })

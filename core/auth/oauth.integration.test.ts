@@ -9,6 +9,7 @@ import {
 } from '@unblocks/blocks/testing/integration'
 import { users } from '@unblocks/core/db/schema/users'
 import { accounts } from '@unblocks/core/db/schema/accounts'
+import { emailMatches } from '@unblocks/core/security/piiStorage'
 
 /**
  * Regression tests for OAuth account linking, against a real Postgres.
@@ -180,7 +181,10 @@ describe('handleOAuthCallback — new users', () => {
     const rows = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'fresh@example.com'))
+      // Must be emailMatches: `eq(users.email, …)` returns zero rows in
+      // encrypted mode whatever the code did, so the assertion below would
+      // pass without testing anything.
+      .where(emailMatches('fresh@example.com'))
 
     // Nothing may be left behind — a half-created account is the thing being
     // defended against.
@@ -201,7 +205,10 @@ describe('handleOAuthCallback — new users', () => {
     const [row] = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'trusted@example.com'))
+      // emailMatches, not eq(users.email, …) — the address is only in that
+      // column in plaintext mode, so a direct comparison finds nothing under
+      // the default and the assertion fails on an undefined row.
+      .where(emailMatches('trusted@example.com'))
 
     expect(row.emailVerified).toBe(true)
   })
