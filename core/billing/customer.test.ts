@@ -129,7 +129,11 @@ describe('getOrCreateCustomer', () => {
         email: 'test@example.com',
         name: 'Test User',
         metadata: { userId: 'user-1' },
-      })
+      }),
+      // The idempotency key is the whole point of the second argument: the
+      // lookup above it is not a lock, so two concurrent callers reach create()
+      // and Stripe has to be the one that returns a single customer.
+      { idempotencyKey: 'unblocks:customer:user-1' }
     )
   })
 
@@ -194,7 +198,8 @@ describe('getOrCreateCustomer', () => {
     expect(mockStripeCustomersCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         name: undefined,
-      })
+      }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) })
     )
   })
 })
