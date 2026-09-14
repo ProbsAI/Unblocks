@@ -36,6 +36,9 @@ vi.mock('../db/schema/users', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((a, b) => ({ a, b })),
+  and: vi.fn((...parts) => ({ and: parts })),
+  desc: vi.fn((column) => ({ desc: column })),
+  isNotNull: vi.fn((column) => ({ isNotNull: column })),
 }))
 
 const mockStripeCustomersCreate = vi.fn()
@@ -65,7 +68,11 @@ function setupMultiSelectChains(results: unknown[][]) {
     selectCallCount++
     return Promise.resolve(result)
   })
-  mockWhere.mockReturnValue({ limit: mockLimit })
+  // The customer lookup orders before limiting (so a row without a customer id
+  // cannot mask one that has it); the user lookup does not. Offering both keeps
+  // one stub serving both chains.
+  const orderable = { limit: mockLimit, orderBy: vi.fn(() => ({ limit: mockLimit })) }
+  mockWhere.mockReturnValue(orderable)
   mockFrom.mockReturnValue({ where: mockWhere })
   mockSelect.mockReturnValue({ from: mockFrom })
 }
