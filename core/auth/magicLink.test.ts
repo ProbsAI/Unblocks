@@ -54,6 +54,15 @@ vi.mock('../runtime/hookRunner', () => ({
 
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((val: string) => `blind:${val}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // slowBlindIndex.
+  slowBlindIndex: vi.fn((val: string) => `slow-blind:${val}`),
+  blindIndexNullable: vi.fn((val: string | null | undefined) =>
+    val == null ? null : `blind:${val}`
+  ),
 }))
 
 vi.mock('../security/encryption', () => ({

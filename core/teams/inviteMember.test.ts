@@ -18,6 +18,15 @@ vi.mock('../security/encryption', () => ({
 }))
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((v: string) => `blind-${v}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // slowBlindIndex.
+  slowBlindIndex: vi.fn((v: string) => `slow-blind:${v}`),
+  blindIndexNullable: vi.fn((v: string | null | undefined) =>
+    v == null ? null : `blind:${v}`
+  ),
 }))
 vi.mock('./getTeam', () => ({
   getUserTeamRole: vi.fn(),
