@@ -4,7 +4,7 @@ import { apiKeys } from '../db/schema/apiKeys'
 import { blindIndex } from '../security/blindIndex'
 import { ValidationError } from '../errors/types'
 import type { CreateApiKeyInput, CreateApiKeyResult, ApiKey } from './types'
-import { API_KEY_PREFIX } from './types'
+import { API_KEY_PREFIX, CreateApiKeySchema } from './types'
 
 /**
  * Create a new API key for a user.
@@ -16,6 +16,13 @@ export async function createApiKey(
   userId: string,
   input: CreateApiKeyInput
 ): Promise<CreateApiKeyResult> {
+  // Validated here, not only at the route. Core functions are callable
+  // directly by server code, and the bounds in this schema are load-bearing:
+  // without them an out-of-range expiresInDays makes the expiry an Invalid
+  // Date and the insert fails as a 500. A safety property that depends on
+  // every caller remembering to parse first is not a safety property.
+  const parsed = CreateApiKeySchema.parse(input)
+
   const db = getDb()
 
   // Reject what cannot yet be enforced, rather than handing back a key that can
@@ -26,7 +33,8 @@ export async function createApiKey(
   // a narrow or team-scoped key would therefore return a working-looking secret
   // that fails every request, and imply a restriction that does not exist.
   // Remove these guards in the same change that adds per-route enforcement.
-  const scopes = input.scopes ?? ['*']
+  // The schema supplies the ['*'] default, so no fallback is needed here.
+  const scopes = parsed.scopes
   if (!scopes.includes('*')) {
     throw new ValidationError(
       'Scoped API keys are not supported yet; omit scopes to create a full-access key',
@@ -34,7 +42,7 @@ export async function createApiKey(
     )
   }
 
-  if (input.teamId) {
+  if (parsed.teamId) {
     throw new ValidationError(
       'Team-scoped API keys are not supported yet',
       { teamId: 'Team membership is not verified and the boundary is not enforced' }
@@ -53,14 +61,14 @@ export async function createApiKey(
   const keyHash = blindIndex(fullKey)
 
   // Calculate expiration
-  const expiresAt = input.expiresInDays
-    ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000)
+  const expiresAt = parsed.expiresInDays
+    ? new Date(Date.now() + parsed.expiresInDays * 24 * 60 * 60 * 1000)
     : null
 
   const [row] = await db.insert(apiKeys).values({
     userId,
     teamId: null,
-    name: input.name,
+    name: parsed.name,
     prefix,
     keyHash,
     scopes,

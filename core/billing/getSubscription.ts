@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm'
+import { eq, and, ne, desc } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import type { Subscription } from './types'
@@ -21,13 +21,29 @@ export async function getSubscription(
 ): Promise<Subscription | null> {
   const db = getDb()
 
-  const rows = await db
+  // Two bounded queries rather than loading every row and filtering in memory.
+  // A long-lived account accumulates historical subscriptions, and this is a
+  // request path — fetching all of them to pick one is avoidable I/O. The
+  // second query only runs when the user has nothing live.
+  const [live] = await db
     .select()
     .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
+    .where(
+      and(eq(subscriptions.userId, userId), ne(subscriptions.status, 'canceled'))
+    )
     .orderBy(desc(subscriptions.createdAt))
+    .limit(1)
 
-  const sub = rows.find((row) => row.status !== 'canceled') ?? rows[0]
+  const sub =
+    live ??
+    (
+      await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, userId))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1)
+    )[0]
 
   if (!sub) return null
 

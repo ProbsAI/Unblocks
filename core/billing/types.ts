@@ -81,10 +81,17 @@ export const BillingConfigSchema = z.object({
 
       const owner = seen.get(priceId)
       if (owner) {
+        // One plan reusing an id across intervals reads as `"pro" and "pro"`
+        // otherwise, which tells an operator nothing about where to look.
+        const message =
+          owner === plan.id
+            ? `Plan "${plan.id}" uses Stripe price id "${priceId}" for both its monthly and yearly price. Each interval needs its own.`
+            : `Stripe price id "${priceId}" is used by both "${owner}" and "${plan.id}". A webhook cannot tell them apart, so give each plan its own price id.`
+
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['plans'],
-          message: `Stripe price id "${priceId}" is used by both "${owner}" and "${plan.id}". A webhook cannot tell them apart, so give each plan its own price id.`,
+          message,
         })
         continue
       }
