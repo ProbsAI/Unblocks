@@ -29,6 +29,7 @@
     "baseUrl": ".",
     "paths": {
       "@unblocks/core/*": ["./core/*"],
+      "@unblocks/blocks/*": ["./blocks/*"],
       "@/*": ["./*"]
     },
 

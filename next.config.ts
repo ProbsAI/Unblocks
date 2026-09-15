@@ -1,4 +1,15 @@
 import type { NextConfig } from 'next'
+import { SECURITY_HEADERS, contentSecurityPolicy } from './core/security/headers'
+
+// Single source of truth: these were previously duplicated here by hand, which
+// is how HSTS went missing from the headers actually served.
+const securityHeaders = [
+  ...Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value })),
+  {
+    key: 'Content-Security-Policy',
+    value: contentSecurityPolicy({ dev: process.env.NODE_ENV !== 'production' }),
+  },
+]
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -8,17 +19,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-XSS-Protection', value: '0' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-DNS-Prefetch-Control', value: 'off' },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-        ],
+        headers: securityHeaders,
       },
     ]
   },

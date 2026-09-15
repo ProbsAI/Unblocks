@@ -54,6 +54,14 @@ export {
   buildAuthenticatedRequest,
 } from './request'
 
+// Stripe webhook fixtures — shared because vi.mock factories hoist per file
+// and cannot be, which is what forces webhook suites to split by concern.
+export {
+  stripeNow,
+  buildStripeSubscription,
+  stripeEvent,
+} from './stripeFixtures'
+
 // Types
 export type {
   Factory,

@@ -1,9 +1,14 @@
-import { eq, desc, sql, like, or } from 'drizzle-orm'
+import { eq, desc, sql, like, or, type SQL } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { subscriptions } from '../db/schema/subscriptions'
 import { ForbiddenError } from '../errors/types'
 import type { AdminUser } from './types'
+import {
+  emailMatches,
+  piiEncryptionEnabled,
+  readEmail,
+} from '../security/piiStorage'
 
 /**
  * Check if a user has admin permissions.
@@ -46,13 +51,7 @@ export async function listUsers(options?: {
     .leftJoin(subscriptions, eq(users.id, subscriptions.userId))
 
   if (options?.search) {
-    const pattern = `%${options.search}%`
-    baseQuery = baseQuery.where(
-      or(
-        like(users.email, pattern),
-        like(users.name, pattern)
-      )
-    ) as typeof baseQuery
+    baseQuery = baseQuery.where(searchCondition(options.search)) as typeof baseQuery
   }
 
   const rows = await baseQuery
@@ -65,13 +64,7 @@ export async function listUsers(options?: {
     .from(users)
 
   if (options?.search) {
-    const pattern = `%${options.search}%`
-    countQuery = countQuery.where(
-      or(
-        like(users.email, pattern),
-        like(users.name, pattern)
-      )
-    ) as typeof countQuery
+    countQuery = countQuery.where(searchCondition(options.search)) as typeof countQuery
   }
 
   const [countResult] = await countQuery
@@ -79,7 +72,7 @@ export async function listUsers(options?: {
   return {
     users: rows.map((row) => ({
       id: row.user.id,
-      email: row.user.email,
+      email: readEmail(row.user),
       name: row.user.name,
       status: row.user.status,
       emailVerified: row.user.emailVerified,
@@ -130,4 +123,24 @@ export async function setUserAdmin(
     .update(users)
     .set({ metadata: newMeta, updatedAt: new Date() })
     .where(eq(users.id, userId))
+}
+
+/**
+ * Admin search, which behaves differently depending on how addresses are stored.
+ *
+ * A blind index has no substrings, so `LIKE '%term%'` cannot work against it.
+ * In encrypted mode the email half of this search is therefore exact-match —
+ * type a whole address and it is found, type a fragment and it is not. Name is
+ * still substring-searchable either way, because names are not indexed.
+ *
+ * This is the visible cost of privacy.encryptUserEmail, and it is a product
+ * behaviour difference rather than a storage detail. Silently returning nothing
+ * for a fragment would look like a broken search.
+ */
+function searchCondition(search: string): SQL | undefined {
+  const namePattern = `%${search}%`
+
+  return piiEncryptionEnabled()
+    ? or(emailMatches(search), like(users.name, namePattern))
+    : or(like(users.email, `%${search}%`), like(users.name, namePattern))
 }

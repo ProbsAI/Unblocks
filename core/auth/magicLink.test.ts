@@ -11,6 +11,24 @@ const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
 
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
+
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,
@@ -46,6 +64,9 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('random-token-abc123'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('../runtime/hookRunner', () => ({
@@ -54,6 +75,14 @@ vi.mock('../runtime/hookRunner', () => ({
 
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((val: string) => `blind:${val}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // a different derivation.
+  blindIndexNullable: vi.fn((val: string | null | undefined) =>
+    val == null ? null : `blind:${val}`
+  ),
 }))
 
 vi.mock('../security/encryption', () => ({
@@ -102,7 +131,18 @@ function setupInsertChain(returnValue?: unknown[]) {
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -112,6 +152,12 @@ beforeEach(() => {
   selectCallCount = 0
   setupUpdateChain()
 })
+
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
 
 describe('createMagicLink', () => {
   it('returns token for existing user', async () => {
@@ -127,7 +173,6 @@ describe('createMagicLink', () => {
       expect.objectContaining({
         token: 'blind:random-token-abc123',
         tokenHash: 'blind:random-token-abc123',
-        tokenEncrypted: 'enc:random-token-abc123',
         email: 'test@example.com',
         type: 'magic_link',
       })
@@ -182,10 +227,11 @@ describe('verifyMagicLink', () => {
       expiresAt: new Date('2025-01-01'),
       usedAt: null,
     }
-    setupMultiSelectChains([[mockToken], [mockDbUser]])
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[mockDbUser]])
     setupUpdateChain()
 
-    const result = await verifyMagicLink('valid-token')
+    const result = await verifyMagicLink(VALID_TOKEN)
 
     expect(result.id).toBe('user-1')
     expect(result.emailVerified).toBe(true)
@@ -194,10 +240,12 @@ describe('verifyMagicLink', () => {
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupMultiSelectChains([[]])
+    // The claim returns nothing: unknown, expired, or already consumed.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
-    await expect(verifyMagicLink('invalid-token')).rejects.toThrow(AuthError)
-    await expect(verifyMagicLink('invalid-token')).rejects.toThrow(
+    await expect(verifyMagicLink(UNKNOWN_TOKEN)).rejects.toThrow(AuthError)
+    await expect(verifyMagicLink(UNKNOWN_TOKEN)).rejects.toThrow(
       'Invalid or expired magic link'
     )
   })
@@ -211,10 +259,11 @@ describe('verifyMagicLink', () => {
       expiresAt: new Date('2025-01-01'),
       usedAt: null,
     }
-    setupMultiSelectChains([[mockToken], []])
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[]])
     setupUpdateChain()
 
-    await expect(verifyMagicLink('valid-token')).rejects.toThrow(NotFoundError)
+    await expect(verifyMagicLink(VALID_TOKEN)).rejects.toThrow(NotFoundError)
   })
 
   it('updates email verification if not already verified', async () => {
@@ -224,12 +273,11 @@ describe('verifyMagicLink', () => {
       email: 'test@example.com',
       type: 'magic_link',
     }
-    setupMultiSelectChains(
-      [[mockToken], [{ ...mockDbUser, emailVerified: false }]]
-    )
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[{ ...mockDbUser, emailVerified: false }]])
     setupUpdateChain()
 
-    await verifyMagicLink('valid-token')
+    await verifyMagicLink(VALID_TOKEN)
 
     // update called twice: mark token used + mark email verified
     expect(mockUpdate).toHaveBeenCalledTimes(2)
@@ -242,12 +290,11 @@ describe('verifyMagicLink', () => {
       email: 'test@example.com',
       type: 'magic_link',
     }
-    setupMultiSelectChains(
-      [[mockToken], [{ ...mockDbUser, emailVerified: true }]]
-    )
+    claimedTokenRow.current = [mockToken]
+    setupMultiSelectChains([[{ ...mockDbUser, emailVerified: true }]])
     setupUpdateChain()
 
-    await verifyMagicLink('valid-token')
+    await verifyMagicLink(VALID_TOKEN)
 
     // update called once: mark token used only
     expect(mockUpdate).toHaveBeenCalledTimes(1)

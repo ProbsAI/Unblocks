@@ -4,6 +4,7 @@ import { teams, teamMembers } from '../db/schema/teams'
 import { users } from '../db/schema/users'
 import { NotFoundError } from '../errors/types'
 import type { Team, TeamMember, TeamRole } from './types'
+import { readEmail } from '../security/piiStorage'
 
 /**
  * Get a team by ID.
@@ -76,6 +77,7 @@ export async function getTeamMembers(
     .select({
       member: teamMembers,
       email: users.email,
+      emailEncrypted: users.emailEncrypted,
       name: users.name,
     })
     .from(teamMembers)
@@ -88,7 +90,7 @@ export async function getTeamMembers(
     userId: row.member.userId,
     role: row.member.role as TeamRole,
     joinedAt: row.member.joinedAt,
-    email: row.email,
+    email: readEmail(row),
     name: row.name,
   }))
 }

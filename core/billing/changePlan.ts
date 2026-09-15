@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { getStripe } from './customer'
+import { getSubscription } from './getSubscription'
 import { getPlanById } from './plans'
 import { runHook } from '../runtime/hookRunner'
 import { AppError } from '../errors/types'
@@ -14,13 +15,18 @@ export async function changePlan(
   const db = getDb()
   const stripe = getStripe()
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1)
+  // Route through getSubscription rather than repeating a bare LIMIT 1. A user
+  // can now hold several rows — webhook handling keys on
+  // stripe_subscription_id so a second subscription no longer overwrites the
+  // first — and an unordered LIMIT 1 picked in heap order. That could act on a
+  // cancelled row (silently doing nothing) or on the wrong live subscription.
+  const sub = await getSubscription(userId)
 
-  if (!sub?.stripeSubscriptionId) {
+  // getSubscription falls back to the newest CANCELLED row when a user has no
+  // live one, so the id alone is not proof there is anything to act on —
+  // without this we would ask Stripe to change the plan of an already-cancelled
+  // subscription instead of reporting that there is none.
+  if (!sub?.stripeSubscriptionId || sub.status === 'canceled') {
     throw new AppError('NO_SUBSCRIPTION', 'No active subscription found', 400)
   }
 

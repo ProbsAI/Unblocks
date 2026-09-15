@@ -3,6 +3,7 @@ import { getDb } from '../db/client'
 import { subscriptions } from '../db/schema/subscriptions'
 import { users } from '../db/schema/users'
 import type { AdminSubscription } from './types'
+import { readEmail } from '../security/piiStorage'
 
 /**
  * List all subscriptions with user info.
@@ -20,6 +21,7 @@ export async function listSubscriptions(options?: {
     .select({
       subscription: subscriptions,
       userEmail: users.email,
+      userEmailEncrypted: users.emailEncrypted,
     })
     .from(subscriptions)
     .innerJoin(users, eq(subscriptions.userId, users.id))
@@ -44,7 +46,10 @@ export async function listSubscriptions(options?: {
     subscriptions: rows.map((row) => ({
       id: row.subscription.id,
       userId: row.subscription.userId,
-      userEmail: row.userEmail,
+      userEmail: readEmail({
+        email: row.userEmail,
+        emailEncrypted: row.userEmailEncrypted,
+      }),
       plan: row.subscription.plan,
       status: row.subscription.status,
       interval: row.subscription.interval,

@@ -5,6 +5,8 @@ const PlanLimitsSchema = z.object({
   teamMembers: z.number().default(1),
   storageGb: z.number().default(1),
   apiRequestsPerDay: z.number().default(100),
+  /** Maximum concurrently active (non-revoked) API keys. */
+  apiKeys: z.number().default(3),
 })
 
 const PlanPriceSchema = z.object({
@@ -60,6 +62,43 @@ export const BillingConfigSchema = z.object({
     cancelAtPeriodEnd: z.boolean().default(true),
     collectTaxId: z.boolean().default(false),
   }).default({}),
+}).superRefine((config, ctx) => {
+  // Two plans must never share a Stripe price id.
+  //
+  // planIdForPrice() returns the first match, so a webhook carrying no
+  // Checkout metadata grants whichever plan happens to be listed first — a
+  // Business subscription provisioned as Pro. This used to be reachable with
+  // the shipped config, whose Pro and Business placeholders were identical.
+  //
+  // Enforced here rather than left as a documented rule, because the failure
+  // is silent at runtime: the wrong entitlement is granted and nothing errors.
+  const seen = new Map<string, string>()
+
+  for (const plan of config.plans) {
+    for (const interval of ['monthly', 'yearly'] as const) {
+      const priceId = plan.stripePriceId[interval]
+      if (!priceId) continue
+
+      const owner = seen.get(priceId)
+      if (owner) {
+        // One plan reusing an id across intervals reads as `"pro" and "pro"`
+        // otherwise, which tells an operator nothing about where to look.
+        const message =
+          owner === plan.id
+            ? `Plan "${plan.id}" uses Stripe price id "${priceId}" for both its monthly and yearly price. Each interval needs its own.`
+            : `Stripe price id "${priceId}" is used by both "${owner}" and "${plan.id}". A webhook cannot tell them apart, so give each plan its own price id.`
+
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['plans'],
+          message,
+        })
+        continue
+      }
+
+      seen.set(priceId, plan.id)
+    }
+  }
 })
 
 export type BillingConfig = z.infer<typeof BillingConfigSchema>

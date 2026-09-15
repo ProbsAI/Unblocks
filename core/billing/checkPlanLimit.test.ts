@@ -1,26 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Plan } from './types'
 
-const mockSelect = vi.fn()
-const mockFrom = vi.fn()
-const mockWhere = vi.fn()
-const mockLimit = vi.fn()
-
-vi.mock('../db/client', () => ({
-  getDb: vi.fn(() => ({
-    select: mockSelect,
-  })),
-}))
-
-vi.mock('../db/schema/subscriptions', () => ({
-  subscriptions: {
-    userId: 'userId',
-    plan: 'plan',
-  },
-}))
-
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn((a, b) => ({ a, b })),
+// Which subscription row belongs to a user is getSubscription's problem now —
+// a user can hold several, and the rule for choosing is covered against a real
+// Postgres in getSubscription.integration.test.ts. These cases are about limit
+// arithmetic, so the choice is stubbed.
+vi.mock('./getSubscription', () => ({
+  getSubscription: vi.fn(),
 }))
 
 vi.mock('./plans', () => ({
@@ -30,6 +16,7 @@ vi.mock('./plans', () => ({
 
 import { checkPlanLimit } from './checkPlanLimit'
 import { getPlanById, getFreePlan } from './plans'
+import { getSubscription } from './getSubscription'
 
 const mockGetPlanById = vi.mocked(getPlanById)
 const mockGetFreePlan = vi.mocked(getFreePlan)
@@ -39,7 +26,7 @@ const freePlan: Plan = {
   name: 'Free',
   price: { monthly: 0, yearly: 0 },
   stripePriceId: { monthly: null, yearly: null },
-  limits: { projects: 3, teamMembers: 1, storageGb: 1, apiRequestsPerDay: 100 },
+  limits: { projects: 3, teamMembers: 1, storageGb: 1, apiRequestsPerDay: 100, apiKeys: 3 },
   features: ['basic_dashboard'],
 }
 
@@ -48,15 +35,15 @@ const proPlan: Plan = {
   name: 'Pro',
   price: { monthly: 20, yearly: 200 },
   stripePriceId: { monthly: 'price_pro_m', yearly: 'price_pro_y' },
-  limits: { projects: 50, teamMembers: 10, storageGb: 100, apiRequestsPerDay: 10000 },
+  limits: { projects: 50, teamMembers: 10, storageGb: 100, apiRequestsPerDay: 10000, apiKeys: 25 },
   features: ['basic_dashboard', 'priority_support'],
 }
 
-function setupDbChain(result: Array<{ plan: string }>) {
-  mockLimit.mockResolvedValue(result)
-  mockWhere.mockReturnValue({ limit: mockLimit })
-  mockFrom.mockReturnValue({ where: mockWhere })
-  mockSelect.mockReturnValue({ from: mockFrom })
+function setupDbChain(result: Array<{ plan: string; status?: string }>) {
+  const row = result[0]
+  vi.mocked(getSubscription).mockResolvedValue(
+    row ? ({ status: 'active', ...row } as never) : null
+  )
 }
 
 beforeEach(() => {

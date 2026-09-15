@@ -57,26 +57,73 @@ export async function enqueueJob<T = unknown>(
  * Fetch the next batch of jobs ready for processing.
  * Uses an atomic UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED)
  * to prevent concurrent workers from claiming the same jobs.
+ *
+ * `staleAfterMs` is a lease, and without it a job could be lost permanently.
+ * Claiming set status to 'processing', and only 'pending' rows were ever
+ * claimed — so anything that stopped a worker between claim and terminal state
+ * stranded the row forever: a crash, a deploy mid-job, or `completeJob` failing
+ * on a transient database error after the work had already succeeded. Nothing
+ * ever looked at those rows again.
+ *
+ * Reclaiming means a job whose worker is merely slow can run twice, so the
+ * lease must exceed the job timeout by a wide margin — the caller passes a
+ * multiple of it. Handlers must be idempotent regardless; see JobHandler.
  */
-export async function fetchNextJobs(limit: number): Promise<JobRecord[]> {
+export async function fetchNextJobs(
+  limit: number,
+  staleAfterMs: number
+): Promise<JobRecord[]> {
   const db = getDb()
 
   // Atomic claim: SELECT + UPDATE in one query via CTE.
   // FOR UPDATE SKIP LOCKED ensures each row is claimed by exactly one worker.
+  // priority is a varchar, so a plain ASC sort is alphabetical and yields
+  // high, low, normal — running low-priority jobs ahead of normal ones.
+  // Rank explicitly instead.
+  // Every member of JobPriority must appear here. 'critical' was previously
+  // absent and fell through to ELSE, tying it with 'normal' and running it
+  // behind 'high' — the opposite of its meaning.
+  const priorityRank = sql`CASE priority
+                             WHEN 'critical' THEN 1
+                             WHEN 'high' THEN 2
+                             WHEN 'normal' THEN 3
+                             WHEN 'low' THEN 4
+                             ELSE 3
+                           END`
+
+  // The inner ORDER BY decides WHICH rows are claimed, but UPDATE ... RETURNING
+  // emits them in arbitrary heap order. Without the outer ORDER BY the caller
+  // receives correctly-selected jobs in the wrong sequence and the worker runs a
+  // low-priority job before a high-priority one.
   const rows = await db.execute(sql`
-    UPDATE ${jobs}
-    SET status = 'processing',
-        started_at = NOW(),
-        updated_at = NOW()
-    WHERE id IN (
-      SELECT id FROM ${jobs}
-      WHERE status = 'pending'
-        AND scheduled_at <= NOW()
-      ORDER BY priority ASC, scheduled_at ASC
-      LIMIT ${limit}
-      FOR UPDATE SKIP LOCKED
+    WITH claimed AS (
+      UPDATE ${jobs}
+      SET status = 'processing',
+          started_at = NOW(),
+          updated_at = NOW()
+      WHERE id IN (
+        SELECT id FROM ${jobs}
+        WHERE (
+                (status = 'pending' AND scheduled_at <= NOW())
+                OR (
+                  status = 'processing'
+                  AND (
+                    -- A claim always stamps started_at, so NULL here means the
+                    -- row is in a state nothing produces: reclaim it rather
+                    -- than leave it stuck forever.
+                    started_at IS NULL
+                    OR started_at < NOW() - ${sql.raw(`INTERVAL '1 millisecond'`)} * ${staleAfterMs}
+                  )
+                )
+              )
+        ORDER BY ${priorityRank} ASC, scheduled_at ASC
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
     )
-    RETURNING *
+    SELECT * FROM claimed
+    ORDER BY ${priorityRank} ASC, scheduled_at ASC
   `)
 
   return (rows.rows as Array<Record<string, unknown>>).map((row) => ({

@@ -1,6 +1,7 @@
-import { eq, and, gte, sql } from 'drizzle-orm'
-import { getDb } from '../../core/db/client'
+import { eq, and, gte, desc, sql } from 'drizzle-orm'
+import { getDb } from '../db/client'
 import { aiUsage } from './schema'
+import aiConfig from './ai.config'
 import { AIWrapperConfigSchema } from './types'
 import type { UsageRecord, AIProvider } from './types'
 
@@ -68,10 +69,13 @@ export async function getUserUsage(
       )
     )
 
+  // sql<number> is only a TypeScript annotation. node-postgres returns SUM and
+  // count(*) (int8/numeric) as strings, so coerce before returning or callers
+  // receive strings from a numeric contract.
   return {
-    totalTokens: result.totalTokens,
-    totalCostCents: result.totalCostCents,
-    requestCount: result.requestCount,
+    totalTokens: Number(result.totalTokens ?? 0),
+    totalCostCents: Number(result.totalCostCents ?? 0),
+    requestCount: Number(result.requestCount ?? 0),
   }
 }
 
@@ -88,7 +92,9 @@ export async function getUsageHistory(
     .select()
     .from(aiUsage)
     .where(eq(aiUsage.userId, userId))
-    .orderBy(aiUsage.createdAt)
+    // Newest first. Ascending order combined with LIMIT returned the OLDEST n
+    // records, so a caller asking for recent history got the first ever rows.
+    .orderBy(desc(aiUsage.createdAt))
     .limit(limit)
 
   return rows.map((row) => ({
@@ -115,15 +121,16 @@ function estimateCost(
   promptTokens: number,
   completionTokens: number
 ): number {
-  let configCosts: Record<string, { input: number; output: number }>
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('./ai.config')
-    const config = AIWrapperConfigSchema.parse(mod.default ?? mod)
-    configCosts = config.modelCosts
-  } catch {
-    configCosts = AIWrapperConfigSchema.parse({}).modelCosts
-  }
+  // Was require() inside a try/catch, which always threw in an ESM module and
+  // silently fell back to schema defaults — so configured model costs never
+  // applied and every estimate used the built-in table.
+  // Zod object defaults replace rather than deep-merge, so a config that lists
+  // only some models would send every other model to the generic fallback below
+  // instead of its known per-model price. Layer the configured map over the
+  // schema defaults so an override is additive.
+  const defaults = AIWrapperConfigSchema.parse({}).modelCosts
+  const configured = AIWrapperConfigSchema.parse(aiConfig).modelCosts
+  const configCosts = { ...defaults, ...configured }
 
   const modelCosts = configCosts[model] ?? { input: 0.1, output: 0.3 }
 

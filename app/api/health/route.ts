@@ -1,4 +1,5 @@
 import { getPool } from '@unblocks/core/db/client'
+import { assertPiiStorageMatchesData } from '@unblocks/core/security'
 
 export async function GET(): Promise<Response> {
   const checks: Record<string, { status: string; latencyMs?: number }> = {}
@@ -11,6 +12,17 @@ export async function GET(): Promise<Response> {
     checks.database = { status: 'healthy', latencyMs: Date.now() - dbStart }
   } catch {
     checks.database = { status: 'unhealthy', latencyMs: Date.now() - dbStart }
+  }
+
+  // privacy.encryptUserEmail decides which column holds an address, so a
+  // deployment whose config disagrees with its data cannot look anyone up. That
+  // failure is otherwise completely silent — sign-in just stops matching — so
+  // surface it here, where an operator is already looking.
+  try {
+    await assertPiiStorageMatchesData()
+    checks.piiStorage = { status: 'healthy' }
+  } catch {
+    checks.piiStorage = { status: 'unhealthy' }
   }
 
   const overallStatus = Object.values(checks).every(

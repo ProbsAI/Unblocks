@@ -2,12 +2,15 @@ import { eq, and, gt, isNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
-import { generateRandomToken } from './token'
+import { generateRandomToken, isWellFormedToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
 import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import { claimVerificationToken } from './verificationTokens'
 import type { User } from './types'
+import { toUser } from './toUser'
+import { emailColumns, emailMatches } from '../security/piiStorage'
 
 export async function createMagicLink(email: string): Promise<string> {
   const db = getDb()
@@ -17,7 +20,7 @@ export async function createMagicLink(email: string): Promise<string> {
   let [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, emailLower))
+    .where(emailMatches(emailLower))
     .limit(1)
 
   if (!dbUser) {
@@ -25,25 +28,14 @@ export async function createMagicLink(email: string): Promise<string> {
     const [newUser] = await db
       .insert(users)
       .values({
-        email: emailLower,
-        emailEncrypted: encrypt(emailLower),
-        emailHash: blindIndex(emailLower),
+        ...emailColumns(emailLower),
         emailVerified: false,
       })
       .returning()
     dbUser = newUser
 
     void runHook('onUserCreated', {
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        avatarUrl: newUser.avatarUrl,
-        emailVerified: newUser.emailVerified,
-        status: newUser.status,
-        createdAt: newUser.createdAt,
-        updatedAt: newUser.updatedAt,
-      },
+      user: toUser(newUser),
       method: 'magic_link',
     })
   }
@@ -55,7 +47,6 @@ export async function createMagicLink(email: string): Promise<string> {
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    tokenEncrypted: encrypt(token),
     email: emailLower,
     emailEncrypted: encrypt(emailLower),
     type: 'magic_link',
@@ -65,11 +56,33 @@ export async function createMagicLink(email: string): Promise<string> {
   return token
 }
 
-export async function verifyMagicLink(token: string): Promise<User> {
+/**
+ * Reads the account a magic link points at WITHOUT consuming the token.
+ *
+ * The confirmation interstitial needs this: verifyMagicLink marks the token
+ * used, so a page that called it just to render "sign in as ..." would burn the
+ * link before the person clicked anything.
+ *
+ * This discloses nothing new. The only way to reach it is to already hold the
+ * token, and holding the token is enough to complete the sign-in and read the
+ * address from the account itself. Showing the address is the whole point of
+ * the interstitial: a link planted by an attacker names the ATTACKER's account,
+ * which is what gives the recipient something to refuse.
+ *
+ * Returns null for a token that is unknown, expired, or already used — the
+ * same conditions verifyMagicLink rejects, so the page and the POST agree.
+ */
+export async function peekMagicLink(
+  token: string
+): Promise<{ email: string } | null> {
+  // Same bound as the claim path: this is reached straight from a public query
+  // string, and blindIndex is PBKDF2.
+  if (!isWellFormedToken(token)) return null
+
   const db = getDb()
 
   const [dbToken] = await db
-    .select()
+    .select({ email: verificationTokens.email })
     .from(verificationTokens)
     .where(
       and(
@@ -81,21 +94,26 @@ export async function verifyMagicLink(token: string): Promise<User> {
     )
     .limit(1)
 
+  return dbToken ? { email: dbToken.email } : null
+}
+
+export async function verifyMagicLink(token: string): Promise<User> {
+  const db = getDb()
+
+  // Claim atomically. Reading the row and then marking it used let two
+  // concurrent POSTs from the confirmation page both pass the unused check and
+  // both create a session from one emailed link.
+  const dbToken = await claimVerificationToken(token, 'magic_link')
+
   if (!dbToken) {
     throw new AuthError('INVALID_TOKEN', 'Invalid or expired magic link')
   }
-
-  // Mark token as used
-  await db
-    .update(verificationTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(verificationTokens.id, dbToken.id))
 
   // Get user and mark email as verified
   const [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, dbToken.email))
+    .where(emailMatches(dbToken.email))
     .limit(1)
 
   if (!dbUser) {
@@ -113,14 +131,9 @@ export async function verifyMagicLink(token: string): Promise<User> {
       .where(eq(users.id, dbUser.id))
   }
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: true,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  // emailVerified is overridden rather than read from the row: receiving the
+  // link proves control of the address, and the UPDATE above has just recorded
+  // that. dbUser is the pre-update snapshot, so returning it unmodified would
+  // report the account as unverified immediately after verifying it.
+  return toUser({ ...dbUser, emailVerified: true })
 }

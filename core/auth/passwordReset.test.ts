@@ -10,6 +10,24 @@ const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
 
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
+
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,
@@ -44,6 +62,9 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('reset-token-abc'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('./password', () => ({
@@ -52,6 +73,14 @@ vi.mock('./password', () => ({
 
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((val: string) => `blind:${val}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // a different derivation.
+  blindIndexNullable: vi.fn((val: string | null | undefined) =>
+    val == null ? null : `blind:${val}`
+  ),
 }))
 
 vi.mock('../security/encryption', () => ({
@@ -84,7 +113,18 @@ function setupInsertChain() {
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -94,6 +134,12 @@ beforeEach(() => {
   selectCallCount = 0
   setupUpdateChain()
 })
+
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
 
 describe('requestPasswordReset', () => {
   it('returns token and userId for existing user', async () => {
@@ -149,7 +195,6 @@ describe('requestPasswordReset', () => {
         type: 'password_reset',
         token: 'blind:reset-token-abc',
         tokenHash: 'blind:reset-token-abc',
-        tokenEncrypted: 'enc:reset-token-abc',
       })
     )
   })
@@ -163,10 +208,10 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     expect(mockHashPassword).toHaveBeenCalledWith('newPassword123')
     // Two updates: mark token used + update password
@@ -174,13 +219,15 @@ describe('resetPassword', () => {
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupMultiSelectChains([[]])
+    // The atomic claim returns nothing: unknown, expired, or already used.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
     await expect(
-      resetPassword('bad-token', 'newPassword123')
+      resetPassword(UNKNOWN_TOKEN, 'newPassword123')
     ).rejects.toThrow(AuthError)
     await expect(
-      resetPassword('bad-token', 'newPassword123')
+      resetPassword(UNKNOWN_TOKEN, 'newPassword123')
     ).rejects.toThrow('Invalid or expired reset link')
   })
 
@@ -191,10 +238,10 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ usedAt: expect.any(Date) })
@@ -208,10 +255,10 @@ describe('resetPassword', () => {
       email: 'test@example.com',
       type: 'password_reset',
     }
-    setupMultiSelectChains([[mockToken]])
+    claimedTokenRow.current = [mockToken]
     setupUpdateChain()
 
-    await resetPassword('valid-token', 'newPassword123')
+    await resetPassword(VALID_TOKEN, 'newPassword123')
 
     // Second update should set password hash
     const secondSetCall = mockSet.mock.calls[1][0]

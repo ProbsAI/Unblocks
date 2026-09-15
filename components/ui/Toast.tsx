@@ -1,0 +1,55 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+interface ToastProps {
+  message: string
+  type?: 'success' | 'error' | 'info'
+  duration?: number
+  onClose: () => void
+}
+
+const typeStyles = {
+  success: 'border-green-200 bg-green-50 text-green-800',
+  error: 'border-red-200 bg-red-50 text-red-800',
+  info: 'border-blue-200 bg-blue-50 text-blue-800',
+}
+
+export function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    // Both timers must be cleared: the nested one previously survived unmount
+    // and fired onClose against a component that no longer existed.
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined
+
+    const timer = setTimeout(() => {
+      setVisible(false)
+      fadeTimer = setTimeout(onClose, 200)
+    }, duration)
+
+    return () => {
+      clearTimeout(timer)
+      if (fadeTimer !== undefined) clearTimeout(fadeTimer)
+    }
+  }, [duration, onClose])
+
+  // Errors interrupt; everything else waits for a pause. A toast that is only
+  // inserted into the DOM is never announced at all, so the failure this
+  // component exists to report is precisely the one a screen-reader user
+  // misses.
+  const isError = type === 'error'
+
+  return (
+    <div
+      role={isError ? 'alert' : 'status'}
+      aria-live={isError ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      className={`fixed bottom-4 right-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity ${
+        visible ? 'opacity-100' : 'opacity-0'
+      } ${typeStyles[type]}`}
+    >
+      {message}
+    </div>
+  )
+}

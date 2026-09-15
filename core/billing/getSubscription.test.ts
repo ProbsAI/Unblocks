@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockSelect = vi.fn()
 const mockFrom = vi.fn()
 const mockWhere = vi.fn()
+const mockOrderBy = vi.fn()
 const mockLimit = vi.fn()
 
 vi.mock('../db/client', () => ({
@@ -14,11 +15,16 @@ vi.mock('../db/client', () => ({
 vi.mock('../db/schema/subscriptions', () => ({
   subscriptions: {
     userId: 'userId',
+    status: 'status',
+    createdAt: 'createdAt',
   },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((a, b) => ({ a, b })),
+  ne: vi.fn((a, b) => ({ ne: [a, b] })),
+  and: vi.fn((...parts) => ({ and: parts })),
+  desc: vi.fn((column) => ({ desc: column })),
 }))
 
 import { getSubscription } from './getSubscription'
@@ -41,8 +47,16 @@ const mockSub = {
 }
 
 function setupSelectChain(result: unknown[]) {
+  // Ordering and the not-cancelled preference are properties of the query and
+  // the data, which a stubbed builder cannot check. getSubscription.integration
+  // .test.ts covers the selection rule against a real Postgres; these cases
+  // only cover field mapping.
+  // Both the live lookup and the cancelled-row fallback end in LIMIT 1, so one
+  // resolved value serves either path: a non-empty result satisfies the first
+  // query, an empty one falls through to the second.
   mockLimit.mockResolvedValue(result)
-  mockWhere.mockReturnValue({ limit: mockLimit })
+  mockOrderBy.mockReturnValue({ limit: mockLimit })
+  mockWhere.mockReturnValue({ orderBy: mockOrderBy })
   mockFrom.mockReturnValue({ where: mockWhere })
   mockSelect.mockReturnValue({ from: mockFrom })
 }

@@ -18,6 +18,14 @@ vi.mock('../security/encryption', () => ({
 }))
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((v: string) => `blind-${v}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // a different derivation.
+  blindIndexNullable: vi.fn((v: string | null | undefined) =>
+    v == null ? null : `blind:${v}`
+  ),
 }))
 vi.mock('./getTeam', () => ({
   getUserTeamRole: vi.fn(),
@@ -46,9 +54,10 @@ vi.mock('../errors/types', () => {
 
 import { getDb } from '../db/client'
 import { loadConfig } from '../runtime/configLoader'
-import { runHook } from '../runtime/hookRunner'
 import { getUserTeamRole } from './getTeam'
-import { inviteMember, acceptInvitation, getTeamInvitations } from './inviteMember'
+// acceptInvitation moved to inviteMember.integration.test.ts: redemption now
+// turns on an atomic claim, which a stubbed query builder cannot observe.
+import { inviteMember, getTeamInvitations } from './inviteMember'
 
 function createMockDb() {
   const mockReturning = vi.fn()
@@ -233,152 +242,6 @@ describe('inviteMember', () => {
 
     await expect(inviteMember('team-1', 'new@test.com', 'member', 'user-1'))
       .rejects.toThrow('Team has reached the maximum of 3 members')
-  })
-})
-
-describe('acceptInvitation', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('accepts invitation successfully', async () => {
-    const mockUpdateWhere = vi.fn().mockResolvedValueOnce(undefined)
-    const mockSet = vi.fn(() => ({ where: mockUpdateWhere }))
-    const mockUpdate = vi.fn(() => ({ set: mockSet }))
-    const mockValues = vi.fn().mockResolvedValueOnce(undefined)
-    const mockInsert = vi.fn(() => ({ values: mockValues }))
-    const mockLimit = vi.fn()
-    const mockWhere = vi.fn()
-    const mockFrom = vi.fn(() => ({ where: mockWhere }))
-    const mockSelect = vi.fn(() => ({ from: mockFrom }))
-
-    const invitation = {
-      id: 'inv-1',
-      teamId: 'team-1',
-      email: 'new@test.com',
-      role: 'member',
-      invitedBy: 'user-1',
-      token: 'valid-token',
-      expiresAt: new Date(Date.now() + 86400000),
-      acceptedAt: null,
-      createdAt: new Date(),
-    }
-
-    // Find invitation by token (with limit)
-    mockLimit.mockResolvedValueOnce([invitation])
-    mockWhere.mockReturnValueOnce({ limit: mockLimit })
-
-    // Check if already a member (with limit)
-    mockLimit.mockResolvedValueOnce([])
-    mockWhere.mockReturnValueOnce({ limit: mockLimit })
-
-    const db = { select: mockSelect, insert: mockInsert, update: mockUpdate }
-    vi.mocked(getDb).mockReturnValue(db as never)
-    vi.mocked(runHook).mockResolvedValue(undefined)
-
-    await acceptInvitation('valid-token', 'user-2')
-
-    expect(mockInsert).toHaveBeenCalled()
-    expect(mockUpdate).toHaveBeenCalled()
-    expect(runHook).toHaveBeenCalledWith('onTeamMemberAdded', expect.objectContaining({
-      teamId: 'team-1',
-      userId: 'user-2',
-      role: 'member',
-    }))
-  })
-
-  it('throws NotFoundError for invalid token', async () => {
-    const mockLimit = vi.fn()
-    const mockWhere = vi.fn(() => ({ limit: mockLimit }))
-    const mockFrom = vi.fn(() => ({ where: mockWhere }))
-    const mockSelect = vi.fn(() => ({ from: mockFrom }))
-
-    mockLimit.mockResolvedValueOnce([])
-
-    const db = { select: mockSelect }
-    vi.mocked(getDb).mockReturnValue(db as never)
-
-    await expect(acceptInvitation('bad-token', 'user-2'))
-      .rejects.toThrow('Invitation not found')
-  })
-
-  it('throws ConflictError when invitation already accepted', async () => {
-    const mockLimit = vi.fn()
-    const mockWhere = vi.fn(() => ({ limit: mockLimit }))
-    const mockFrom = vi.fn(() => ({ where: mockWhere }))
-    const mockSelect = vi.fn(() => ({ from: mockFrom }))
-
-    mockLimit.mockResolvedValueOnce([{
-      id: 'inv-1',
-      teamId: 'team-1',
-      email: 'new@test.com',
-      role: 'member',
-      invitedBy: 'user-1',
-      token: 'token',
-      expiresAt: new Date(Date.now() + 86400000),
-      acceptedAt: new Date(), // already accepted
-      createdAt: new Date(),
-    }])
-
-    const db = { select: mockSelect }
-    vi.mocked(getDb).mockReturnValue(db as never)
-
-    await expect(acceptInvitation('token', 'user-2'))
-      .rejects.toThrow('Invitation has already been accepted')
-  })
-
-  it('throws ForbiddenError when invitation expired', async () => {
-    const mockLimit = vi.fn()
-    const mockWhere = vi.fn(() => ({ limit: mockLimit }))
-    const mockFrom = vi.fn(() => ({ where: mockWhere }))
-    const mockSelect = vi.fn(() => ({ from: mockFrom }))
-
-    mockLimit.mockResolvedValueOnce([{
-      id: 'inv-1',
-      teamId: 'team-1',
-      email: 'new@test.com',
-      role: 'member',
-      invitedBy: 'user-1',
-      token: 'token',
-      expiresAt: new Date(Date.now() - 86400000), // expired
-      acceptedAt: null,
-      createdAt: new Date(),
-    }])
-
-    const db = { select: mockSelect }
-    vi.mocked(getDb).mockReturnValue(db as never)
-
-    await expect(acceptInvitation('token', 'user-2'))
-      .rejects.toThrow('Invitation has expired')
-  })
-
-  it('throws ConflictError when already a member', async () => {
-    const mockLimit = vi.fn()
-    const mockWhere = vi.fn()
-    const mockFrom = vi.fn(() => ({ where: mockWhere }))
-    const mockSelect = vi.fn(() => ({ from: mockFrom }))
-
-    // Find invitation
-    mockLimit.mockResolvedValueOnce([{
-      id: 'inv-1',
-      teamId: 'team-1',
-      email: 'new@test.com',
-      role: 'member',
-      invitedBy: 'user-1',
-      token: 'token',
-      expiresAt: new Date(Date.now() + 86400000),
-      acceptedAt: null,
-      createdAt: new Date(),
-    }])
-    mockWhere.mockReturnValueOnce({ limit: mockLimit })
-
-    // Check existing member - found
-    mockLimit.mockResolvedValueOnce([{ id: 'mem-1' }])
-    mockWhere.mockReturnValueOnce({ limit: mockLimit })
-
-    const db = { select: mockSelect }
-    vi.mocked(getDb).mockReturnValue(db as never)
-
-    await expect(acceptInvitation('token', 'user-2'))
-      .rejects.toThrow('Already a member of this team')
   })
 })
 

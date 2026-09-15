@@ -20,12 +20,12 @@
     "notifications": true,
     "admin": true,
     "extensions": true,
-    "ui_overrides": true
+    "ui_overrides": true,
+    "ai": true
   },
   "blocks": {
     "testing": { "tier": "community", "included": true },
     "seed": { "tier": "community", "included": true },
-    "ai-wrapper": { "tier": "pro", "included": false, "package": "@unblocks/block-ai-wrapper" },
     "data-platform": { "tier": "pro", "included": false, "package": "@unblocks/block-data-platform" },
     "marketplace": { "tier": "pro", "included": false, "package": "@unblocks/block-marketplace" }
   },
@@ -48,20 +48,24 @@
     "jobs.scheduler": { "tier": "community" },
     "jobs.worker": { "tier": "community" },
     "uploads.local": { "tier": "community" },
-    "uploads.s3": { "tier": "pro" },
+    "uploads.s3": { "tier": "community" },
     "teams.create": { "tier": "community" },
     "teams.invite": { "tier": "community" },
     "teams.roles": { "tier": "community" },
     "notifications.in_app": { "tier": "community" },
-    "notifications.sse": { "tier": "pro" },
+    "notifications.sse": { "tier": "community" },
     "notifications.preferences": { "tier": "community" },
     "admin.users": { "tier": "community" },
     "admin.subscriptions": { "tier": "community" },
     "admin.metrics": { "tier": "community" },
-    "admin.advanced": { "tier": "pro" },
-    "attribution.remove": { "tier": "builder" },
+    "admin.advanced": { "tier": "community" },
+    "attribution.remove": { "tier": "pro" },
     "templates.premium": { "tier": "pro" },
     "themes.premium": { "tier": "pro" },
-    "connectors.pro": { "tier": "pro" }
+    "connectors.pro": { "tier": "pro" },
+    "ai.completion": { "tier": "community" },
+    "ai.usage_tracking": { "tier": "community" },
+    "ai.prompt_templates": { "tier": "community" },
+    "api_keys.management": { "tier": "community" }
   }
 }

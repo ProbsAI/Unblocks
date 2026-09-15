@@ -10,6 +10,20 @@ const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
 
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,
@@ -36,6 +50,9 @@ vi.mock('../db/schema/users', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((a, b) => ({ a, b })),
+  and: vi.fn((...parts) => ({ and: parts })),
+  desc: vi.fn((column) => ({ desc: column })),
+  isNotNull: vi.fn((column) => ({ isNotNull: column })),
 }))
 
 const mockStripeCustomersCreate = vi.fn()
@@ -65,7 +82,11 @@ function setupMultiSelectChains(results: unknown[][]) {
     selectCallCount++
     return Promise.resolve(result)
   })
-  mockWhere.mockReturnValue({ limit: mockLimit })
+  // The customer lookup orders before limiting (so a row without a customer id
+  // cannot mask one that has it); the user lookup does not. Offering both keeps
+  // one stub serving both chains.
+  const orderable = { limit: mockLimit, orderBy: vi.fn(() => ({ limit: mockLimit })) }
+  mockWhere.mockReturnValue(orderable)
   mockFrom.mockReturnValue({ where: mockWhere })
   mockSelect.mockReturnValue({ from: mockFrom })
 }
@@ -122,7 +143,11 @@ describe('getOrCreateCustomer', () => {
         email: 'test@example.com',
         name: 'Test User',
         metadata: { userId: 'user-1' },
-      })
+      }),
+      // The idempotency key is the whole point of the second argument: the
+      // lookup above it is not a lock, so two concurrent callers reach create()
+      // and Stripe has to be the one that returns a single customer.
+      { idempotencyKey: 'unblocks:customer:user-1' }
     )
   })
 
@@ -187,7 +212,8 @@ describe('getOrCreateCustomer', () => {
     expect(mockStripeCustomersCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         name: undefined,
-      })
+      }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) })
     )
   })
 })
