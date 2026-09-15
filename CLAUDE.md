@@ -462,8 +462,10 @@ other.
 > it after any user exists makes every lookup miss: a plaintext row has no hash
 > to match, an encrypted row has no plaintext. Sign-in fails for everyone and it
 > reads as data loss rather than a config error.
-> `assertPiiStorageMatchesData()` refuses that state instead, and
-> `/api/health` reports it as `piiStorage: unhealthy`.
+> `assertPiiStorageMatchesData()` detects exactly that state, and
+> `/api/health` reports it as `piiStorage: unhealthy`. That is a report, not a
+> gate — nothing calls it at boot, so such a deployment still starts and still
+> fails every sign-in. Wire it into a startup hook to make it fatal.
 
 **What each mode buys and costs.** Encrypted: a database dump alone — leaked
 backup, dumped table, compromised read replica — reveals no addresses, and the

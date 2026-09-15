@@ -3,10 +3,18 @@ import { getDb } from '../db/client'
 import { piiEncryptionEnabled } from './piiStorage'
 
 /**
- * Refuse to start when the configured mode disagrees with the stored data.
+ * Throw when the configured mode disagrees with the stored data.
  *
  * Without this the failure is silent and looks like every account vanishing:
- * lookups simply match nothing. Call it once during boot.
+ * lookups simply match nothing.
+ *
+ * Today the only caller is `/api/health`, which reports it as
+ * `piiStorage: unhealthy`. That catches the mismatch when someone looks, which
+ * is not the same as refusing to serve — a deployment in this state still
+ * starts and still fails every sign-in. Calling it from a boot hook would make
+ * it a hard gate; that is a deliberate operational choice (a transient DB
+ * outage would then also block startup), so it is left to the operator rather
+ * than assumed here.
  */
 export async function assertPiiStorageMatchesData(): Promise<void> {
   const db = getDb()

@@ -26,8 +26,8 @@ import { blindIndex } from './blindIndex'
  * Flipping it after any user exists makes every lookup miss — a plaintext row
  * has no hash to match, an encrypted row has no plaintext to match. Sign-in
  * fails for everyone and it reads as data loss rather than a config error.
- * assertPiiStorageMatchesData (piiStorageCheck.ts) refuses to start in that
- * state instead.
+ * assertPiiStorageMatchesData (piiStorageCheck.ts) detects exactly that state;
+ * it is surfaced by /api/health, and nothing calls it at boot today.
  *
  * ## What encrypted mode actually buys, and costs
  *

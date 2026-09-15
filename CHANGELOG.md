@@ -14,8 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   **This is an install-time choice, not a setting to flip.** Changing it after
   users exist strands every row — lookups in one mode cannot match rows written
-  in the other. The app refuses to start in that state and `/api/health`
-  reports `piiStorage: unhealthy`.
+  in the other. `/api/health` detects that state and reports
+  `piiStorage: unhealthy`. Note that this is a report, not a gate: nothing calls
+  the check at boot, so an install in this state still starts and fails every
+  sign-in until someone looks. Call `assertPiiStorageMatchesData()` from your
+  own startup path if you want it to be fatal.
 
   Covers `users.email` only; `verification_tokens.email` and
   `team_invitations.email` still hold addresses in the clear for the lifetime
