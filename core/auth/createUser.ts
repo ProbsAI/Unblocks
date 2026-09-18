@@ -3,7 +3,6 @@ import { users } from '../db/schema/users'
 import { hashPassword } from './password'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ValidationError } from '../errors/types'
-import { encryptNullable } from '../security/encryption'
 import type { CreateUserInput, User } from './types'
 import { toUser } from './toUser'
 import { emailColumns, emailMatches } from '../security/piiStorage'
@@ -38,7 +37,6 @@ export async function createUser(input: CreateUserInput): Promise<User> {
       ...emailColumns(emailLower),
       passwordHash,
       name: input.name ?? null,
-      nameEncrypted: encryptNullable(input.name ?? null),
       avatarUrl: input.avatarUrl ?? null,
       emailVerified: input.emailVerified ?? false,
     })

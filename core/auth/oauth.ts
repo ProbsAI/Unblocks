@@ -188,7 +188,6 @@ export async function handleOAuthCallback(
         .update(users)
         .set({
           name: updatedName,
-          nameEncrypted: encryptNullable(updatedName),
           avatarUrl: existingUser.avatarUrl ?? userInfo.avatarUrl,
           updatedAt: new Date(),
         })
@@ -221,7 +220,6 @@ export async function handleOAuthCallback(
       .values({
         ...emailColumns(emailLower),
         name: userInfo.name,
-        nameEncrypted: encryptNullable(userInfo.name),
         avatarUrl: userInfo.avatarUrl,
         // Trust the provider's assertion rather than assuming verification.
         emailVerified: userInfo.emailVerified,
