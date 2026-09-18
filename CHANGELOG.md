@@ -12,18 +12,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   alone reveals no addresses. Set it to `false` for plaintext storage, which is
   simpler and keeps substring search in the admin panel.
 
-  **BREAKING for existing installs.** Rows written before this release are
-  plaintext and the shipped default is encrypted, so after deploying, every
-  lookup — including sign-in — misses until the data is moved. Upgrading is
-  therefore a two-step deploy:
+  **BREAKING for existing installs.** Two separate things change: the schema
+  (`users.email` becomes nullable, `email_hash` is added) and the data (existing
+  rows are plaintext while the shipped default is encrypted). Neither happens on
+  its own, and until both are done, encrypted mode cannot even insert a user —
+  the old `NOT NULL` still stands.
+
+  With the application stopped, after deploying the new code:
 
   ```bash
-  # with the app stopped, after deploying the new code
-  npm run db:migrate-email-storage
+  npm run db:push                       # or: psql "$DATABASE_URL" -f scripts/sql/upgrade-email-storage.sql
+  npm run db:migrate-email-storage      # must run second — it writes email_hash
   ```
 
+  Then `GET /api/health` reports `piiStorage: unhealthy` if any of the three
+  tables still holds rows written the other way.
+
   Or set `privacy.encryptUserEmail: false` in `config/app.config.ts` to keep
-  the old behaviour, in which case nothing needs migrating.
+  the old behaviour, in which case only the schema step is needed.
 
   **It is an install-time choice, not a setting to flip.** Changing it while
   users exist strands every row — a lookup in one mode cannot match a row

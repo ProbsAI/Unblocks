@@ -564,6 +564,15 @@ See `.env.example` for full list.
 - **Block tables:** ai_usage, prompt_templates, data_sources, pipelines, pipeline_runs, datasets, seller_profiles, listings, orders, reviews
 - **Generate migrations:** `npm run db:generate`
 - **Apply migrations:** `npm run db:migrate`
+
+> **There is no committed migration baseline.** No `core/db/migrations/`
+> directory exists, so `db:migrate` has nothing to replay and every schema
+> change so far has reached databases through `db:push` (which is also what the
+> integration harness uses). That is why this branch ships
+> `scripts/sql/upgrade-email-storage.sql` as hand-written DDL rather than a
+> generated migration. Establishing a real baseline is outstanding work; until
+> it exists, a schema change is not deployable to an existing install without
+> either `db:push` or explicit SQL.
 - **Browse data:** `npm run db:studio`
 - **Seed data:** `npm run db:seed`
 
