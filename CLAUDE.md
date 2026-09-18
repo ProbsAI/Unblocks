@@ -441,6 +441,23 @@ in `core/auth/password.ts`. A low-entropy input at this work factor is exactly
 the weakness the CodeQL query looks for, and the argument above stops holding
 the moment one arrives.
 
+> **Email is the one deliberate exception, and it is narrower than it looks.**
+> Addresses are guessable, so by the rule above they do not belong here.
+> Guessing the index is only the cheapest attack for someone holding the
+> database **and** `BLIND_INDEX_KEY` but **not** `ENCRYPTION_KEY`: with neither
+> key the index cannot be computed, and with both, `email_encrypted` decrypts
+> directly and there is nothing to guess. Both keys come from the same
+> environment by default, so that middle case takes deliberately split custody.
+>
+> Defending it costs ~260ms of blocking CPU at every sign-in (≈4 logins/sec/
+> core) — the cost that got `slowBlindIndex` deleted — to close a gap the
+> attacker can already step around. **If you move `BLIND_INDEX_KEY` somewhere
+> `ENCRYPTION_KEY` is not, that trade inverts**: give the email index its own
+> derivation with a real work factor.
+>
+> `blindIndex.entropy.test.ts` asserts email is the *only* such input, so a
+> second one cannot inherit this argument silently.
+
 `core/security/blindIndex.entropy.test.ts` enforces that premise rather than
 leaving it to a comment: it asserts every generator feeding `blindIndex`
 produces 256-bit CSPRNG output, and that passwords go to bcrypt instead. **If

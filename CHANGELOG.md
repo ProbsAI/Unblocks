@@ -12,13 +12,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   alone reveals no addresses. Set it to `false` for plaintext storage, which is
   simpler and keeps substring search in the admin panel.
 
-  **This is an install-time choice, not a setting to flip.** Changing it after
-  users exist strands every row — lookups in one mode cannot match rows written
-  in the other. `/api/health` detects that state and reports
-  `piiStorage: unhealthy`. Note that this is a report, not a gate: nothing calls
-  the check at boot, so an install in this state still starts and fails every
-  sign-in until someone looks. Call `assertPiiStorageMatchesData()` from your
-  own startup path if you want it to be fatal.
+  **BREAKING for existing installs.** Rows written before this release are
+  plaintext and the shipped default is encrypted, so after deploying, every
+  lookup — including sign-in — misses until the data is moved. Upgrading is
+  therefore a two-step deploy:
+
+  ```bash
+  # with the app stopped, after deploying the new code
+  npm run db:migrate-email-storage
+  ```
+
+  Or set `privacy.encryptUserEmail: false` in `config/app.config.ts` to keep
+  the old behaviour, in which case nothing needs migrating.
+
+  **It is an install-time choice, not a setting to flip.** Changing it while
+  users exist strands every row — a lookup in one mode cannot match a row
+  written in the other — which is what the migration exists to move between.
+  `/api/health` detects the mismatched state and reports
+  `piiStorage: unhealthy`. That is a report, not a gate: nothing calls the check
+  at boot, so an install in this state still starts and fails every sign-in
+  until someone looks. Call `assertPiiStorageMatchesData()` from your own
+  startup path if you want it to be fatal.
+
+### Added
+- `npm run db:migrate-email-storage` — moves stored addresses between the two
+  storage modes, in either direction, across `users`, `verification_tokens` and
+  `team_invitations`. Idempotent, so an interrupted run can simply be repeated.
+  Run it with the application stopped.
 
   Covers every table that holds an address — `users`, `verification_tokens`
   and `team_invitations` — under the one setting.

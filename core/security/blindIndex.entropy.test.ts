@@ -100,6 +100,63 @@ describe('secrets reaching blindIndex are high-entropy', () => {
   })
 })
 
+describe('the one low-entropy input, and why it is allowed', () => {
+  /**
+   * Email addresses go through blindIndex, and they are guessable — which is
+   * precisely what the rule above forbids. This is the documented exception,
+   * asserted here so it stays a deliberate decision rather than drift.
+   *
+   * Guessing the index is only the cheapest attack for someone holding the
+   * database and BLIND_INDEX_KEY but NOT ENCRYPTION_KEY. With both keys, the
+   * ciphertext decrypts directly and there is nothing to guess; with neither,
+   * the index cannot be computed at all. Since both keys live in the same
+   * environment by default, that middle case takes deliberately split custody
+   * — and if you have split them, the email index needs its own derivation
+   * with a real work factor. See core/security/piiStorage.ts.
+   */
+  it('email is the only guessable value reaching blindIndex', async () => {
+    const fs = await import('node:fs')
+    const source = fs.readFileSync(
+      new URL('./piiStorage.ts', import.meta.url),
+      'utf8'
+    )
+
+    // Comments are stripped first: this file argues about blindIndex at length,
+    // and a tripwire that fires when someone edits a comment is a tripwire that
+    // gets deleted rather than heeded.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
+
+    // Two call sites, both on a normalized email: writing the index
+    // (emailColumns) and matching on it (emailMatchesIn). If a third appears,
+    // the exception above has to be re-argued for whatever value it carries
+    // rather than inherited silently.
+    expect(code.match(/blindIndex\(/g) ?? []).toHaveLength(2)
+  })
+
+  it('the ciphertext an attacker could decrypt instead is always written alongside', async () => {
+    // The escape hatch in the argument only exists because encrypted mode
+    // always stores email_encrypted next to the index. If a mode ever wrote
+    // the index WITHOUT the ciphertext, guessing would become the only path
+    // and the work factor would start mattering.
+    vi.resetModules()
+    vi.doMock('../runtime/configLoader', () => ({
+      loadConfig: () => ({ privacy: { encryptUserEmail: true } }),
+    }))
+
+    const { emailColumns } = await import('./piiStorage')
+    const columns = emailColumns('someone@example.com')
+
+    expect(columns.emailHash).toMatch(CSPRNG_HEX_256)
+    expect(columns.emailEncrypted).not.toBeNull()
+    expect(columns.email).toBeNull()
+
+    vi.doUnmock('../runtime/configLoader')
+    vi.resetModules()
+  })
+})
+
 describe('blindIndex behaviour the lookup path depends on', () => {
   it('is deterministic, which a salted KDF could not be', async () => {
     const { blindIndex } = await import('./blindIndex')
