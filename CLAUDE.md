@@ -376,9 +376,18 @@ simply *what reads this?* — if nothing does, it is not storage, it is exposure
 
 `accounts.access_token_encrypted` / `refresh_token_encrypted` are the one
 legitimate exception in kind: they are credentials **for another service** that
-the app must be able to replay, so they cannot be one-way. They are still
-unread today (no feature calls a Google API), which makes them exposure in
-practice — drop them, or give them a consumer.
+the app must be able to replay, so they cannot be one-way. They are kept
+deliberately, ahead of a feature that calls a Google API — the plaintext
+`access_token` / `refresh_token` columns beside them are explicitly written
+`null`, so this is real encryption protecting a real secret, not a duplicate of
+an adjacent cleartext column.
+
+**The test that separates those two cases is whether the cleartext sits next to
+the ciphertext.** `users.name_encrypted`, `files.filename_encrypted`,
+`files.original_name_encrypted` and `files.storage_key_encrypted` were each
+written beside the very column they encrypt, so an attacker reading the table
+just looked one column to the left. Those are gone. Field encryption only does
+anything when the plaintext column is NULL.
 
 ### Blind indexes are PBKDF2, at the spec's floor
 
@@ -475,12 +484,27 @@ costs are real: admin search over email becomes exact-match, because a digest
 has no substrings, and `BLIND_INDEX_KEY` becomes as critical as your backups —
 lose it and no user can ever be looked up again.
 
-**Scope, stated precisely because the name is a promise:** this covers
-`users.email` only. `verification_tokens.email` and `team_invitations.email`
-still hold addresses in the clear for the lifetime of a pending link or
-invitation. Those rows expire; the users table holds every address forever. So
-this is the large reduction, not the complete one. Extending it needs an index
-column on `team_invitations`, which is looked up *by* email.
+**Scope, stated precisely because the name is a promise:** all three tables that
+hold an address follow this one switch — `users`, `verification_tokens` and
+`team_invitations`. One setting, one kind of value; an install whose users table
+is ciphertext while a pending invitation holds the same address in the clear is
+not what the setting claims.
+
+They differ in what each needs, and the rule is *what queries it*:
+
+| table | how it is found | columns |
+|---|---|---|
+| `users` | by address | ciphertext + blind index |
+| `team_invitations` | by address (duplicate check) | ciphertext + blind index |
+| `verification_tokens` | by `token_hash` only | ciphertext, **no index** |
+
+`verification_tokens` gets no blind index on purpose. Nothing looks a token row
+up by address, and an index nobody queries is exactly the write-only column
+this codebase keeps having to delete. Add one when a lookup appears, not before.
+
+Use `emailColumns()` for a table looked up by address, `emailValueColumns()` for
+one that only reads it back, and `emailMatchesIn(table, email)` to match against
+any table's columns.
 
 `core/security/piiStorage.integration.test.ts` runs every case in both modes
 against a real Postgres, asserting the stored shape in SQL rather than through

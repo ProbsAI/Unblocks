@@ -20,11 +20,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sign-in until someone looks. Call `assertPiiStorageMatchesData()` from your
   own startup path if you want it to be fatal.
 
-  Covers `users.email` only; `verification_tokens.email` and
-  `team_invitations.email` still hold addresses in the clear for the lifetime
-  of a pending link or invitation.
+  Covers every table that holds an address — `users`, `verification_tokens`
+  and `team_invitations` — under the one setting.
 
 ### Removed
+- **Four `*_encrypted` columns that duplicated an adjacent plaintext column:**
+  `users.name_encrypted`, `files.filename_encrypted`,
+  `files.original_name_encrypted` and `files.storage_key_encrypted`. Each was
+  written on insert beside the column it encrypts and read by nothing, so the
+  ciphertext protected an attacker from having to look one column to the left.
+  Drop the columns when upgrading.
+
+  `accounts.access_token_encrypted` / `refresh_token_encrypted` are kept: their
+  plaintext twins are explicitly written `null`, so those genuinely protect a
+  third-party credential.
 - **`users.email_hash` and the `slowBlindIndex` derivation.** Nothing ever
   queried that column: it was written at signup, OAuth and magic-link request
   and read by no code path. Populating it cost ~260ms of synchronous PBKDF2 on

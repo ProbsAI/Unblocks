@@ -48,6 +48,26 @@ Edit `.env` and fill in your values:
 | `GOOGLE_CLIENT_ID` | For OAuth | [Google Cloud Console](https://console.cloud.google.com) |
 | `GOOGLE_CLIENT_SECRET` | For OAuth | Google Cloud Console |
 
+#### Before you go to production: turn on encryption at rest
+
+`ENCRYPTION_KEY` is application-level field encryption. It is **not** encryption
+at rest and does not substitute for it. Enable storage-level encryption on the
+database and its backups in your provider — it is a checkbox on RDS, Cloud SQL
+and most managed Postgres, and it is what defends a stolen disk or snapshot.
+
+The two are layers, not alternatives:
+
+- **At rest** (provider) — protects the volume and the backups. Useless once an
+  attacker can query the database, because the server decrypts transparently.
+- **Field encryption** (`ENCRYPTION_KEY`) — protects specific columns against
+  someone who can read a table but not your environment: a leaked `pg_dump`, a
+  compromised read replica, SQL injection. Useless if the attacker has the app,
+  because they have the key.
+
+See `privacy.encryptUserEmail` in `config/app.config.ts` for which columns this
+covers, and read the note there before changing it — it is an install-time
+choice, not a runtime toggle.
+
 ### 4. Set up the database
 
 ```bash
