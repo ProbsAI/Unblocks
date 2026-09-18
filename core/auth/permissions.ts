@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import type { User } from './types'
+import { toUser } from './toUser'
+import { emailMatches } from '../security/piiStorage'
 
 export async function getUserById(userId: string): Promise<User | null> {
   const db = getDb()
@@ -14,16 +16,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 
   if (!dbUser) return null
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: dbUser.emailVerified,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  return toUser(dbUser)
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
@@ -32,19 +25,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const [dbUser] = await db
     .select()
     .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .where(emailMatches(email))
     .limit(1)
 
   if (!dbUser) return null
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    avatarUrl: dbUser.avatarUrl,
-    emailVerified: dbUser.emailVerified,
-    status: dbUser.status,
-    createdAt: dbUser.createdAt,
-    updatedAt: dbUser.updatedAt,
-  }
+  return toUser(dbUser)
 }

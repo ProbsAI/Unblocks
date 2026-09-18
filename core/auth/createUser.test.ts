@@ -8,6 +8,27 @@ const mockInsert = vi.fn()
 const mockValues = vi.fn()
 const mockReturning = vi.fn()
 
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  emailValueColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+  })),
+  emailMatchesIn: vi.fn((_cols: unknown, email: string) => ({
+    email: email.toLowerCase(),
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
+
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
     select: mockSelect,

@@ -1,6 +1,20 @@
 import type { AppConfig } from '@unblocks/core/types'
 
 const appConfig: AppConfig = {
+  privacy: {
+    // INSTALL-TIME CHOICE — do not change this once users exist. Encrypted mode
+    // stores addresses as ciphertext plus a keyed lookup index, so a database
+    // dump on its own reveals nothing; plaintext mode is simpler and keeps
+    // substring search in the admin panel, which an index cannot support.
+    //
+    // If this disagrees with the stored rows, every lookup misses and nobody
+    // can sign in. /api/health reports that as `piiStorage: unhealthy`, but
+    // nothing gates startup — the app comes up and fails every sign-in. When
+    // upgrading an install that already has users, run
+    // `npm run db:migrate-email-storage` or set this to false.
+    encryptUserEmail: true,
+  },
+
   name: 'MyApp',
   tagline: 'The best way to do X',
   description: 'Build your SaaS in minutes, not months.',

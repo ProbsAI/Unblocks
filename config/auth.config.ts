@@ -4,7 +4,11 @@ const authConfig: AuthConfig = {
   providers: {
     email: { enabled: true },
     google: { enabled: false, clientId: '', clientSecret: '' },
-    magicLink: { enabled: false },
+    // requireConfirmation: the emailed link lands on a confirmation page and
+    // the session is created by a same-origin POST. Turning it off restores
+    // one-click sign-in and reopens a login-CSRF — see the note on the field in
+    // core/auth/types.ts before doing that.
+    magicLink: { enabled: false, requireConfirmation: true },
   },
   session: {
     strategy: 'jwt',

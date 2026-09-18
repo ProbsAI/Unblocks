@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createUser } from '@unblocks/core/auth'
+import { createUser, checkRateLimit } from '@unblocks/core/auth'
 import { createSession } from '@unblocks/core/auth'
 import { validateBody } from '@unblocks/core/api'
 import { successResponse } from '@unblocks/core/api'
@@ -18,6 +18,18 @@ const registerSchema = z.object({
 
 export const POST = withErrorHandler(async (request) => {
   const input = await validateBody(request, registerSchema)
+
+  // Same reasoning as the magic-link route. Registration is public, creates a
+  // row, and runs bcrypt — which blocks the event loop — so unbounded signups
+  // can monopolise it. (It also ran ~260ms of PBKDF2 for a column nothing read;
+  // that is gone, bcrypt is not.)
+  //
+  // Process-local counters, so per instance and reset on deploy: a speed bump,
+  // not a control. A real one needs the shared store.
+  await checkRateLimit(`register:${getClientIp(request) ?? 'unknown'}`, {
+    windowMs: 15 * 60 * 1000,
+    maxAttempts: 10,
+  })
 
   const user = await createUser({
     email: input.email,

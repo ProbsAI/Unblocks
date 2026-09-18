@@ -1,17 +1,21 @@
-import { runHook } from '../../core/runtime/hookRunner'
+import aiConfig from './ai.config'
+import { runHook } from '../runtime/hookRunner'
 import { getProviderFn } from './providers'
 import { trackUsage } from './usage'
 import { AIWrapperConfigSchema } from './types'
 import type { CompletionRequest, CompletionResponse, AIProvider, AIWrapperConfig } from './types'
 
+/**
+ * Load and validate the AI config.
+ *
+ * This previously used require() inside a try/catch. In an ESM module require is
+ * not defined, so the call threw on every invocation and the catch silently
+ * returned schema defaults — meaning ai.config.ts was never actually read and
+ * the configured provider keys, model costs and enabled flag were all ignored.
+ * A static import both fixes that and lets tests mock the module.
+ */
 function loadAIConfig(): AIWrapperConfig {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('./ai.config')
-    return AIWrapperConfigSchema.parse(mod.default ?? mod)
-  } catch {
-    return AIWrapperConfigSchema.parse({})
-  }
+  return AIWrapperConfigSchema.parse(aiConfig)
 }
 
 /**
@@ -23,8 +27,20 @@ export async function complete(
 ): Promise<CompletionResponse> {
   const config = loadAIConfig()
 
+  // Honour the kill switch. The flag was parsed but never consulted, so setting
+  // enabled: false still sent every request to the provider — and the endpoint
+  // became publicly reachable in this change.
+  if (!config.enabled) {
+    throw new Error('AI completion is disabled (set enabled: true in ai.config)')
+  }
+
+  // Resolve the model here rather than at each call site. Callers that omit it
+  // previously had to supply their own literal, which meant config.defaultModel
+  // was never consulted by anything.
+  const model = request.model || config.defaultModel
+
   // Determine provider from model or config
-  const provider = detectProvider(request.model, config.defaultProvider as AIProvider)
+  const provider = detectProvider(model, config.defaultProvider as AIProvider)
 
   // Get provider credentials
   const { apiKey, baseUrl } = getProviderCredentials(provider, config as unknown as Record<string, unknown>)
@@ -36,6 +52,7 @@ export async function complete(
   // Apply defaults
   const fullRequest: CompletionRequest = {
     ...request,
+    model,
     temperature: request.temperature ?? config.defaultTemperature,
     maxTokens: Math.min(
       request.maxTokens ?? config.maxTokensPerRequest,
@@ -87,7 +104,14 @@ export function renderTemplate(
 }
 
 function detectProvider(model: string, defaultProvider: AIProvider): AIProvider {
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3')) {
+  // `o1`/`o3` are deliberately absent. They were routed here, but the request
+  // this module builds always sends `temperature` and the legacy `max_tokens`
+  // shape, and OpenAI's reasoning models reject unsupported sampling fields and
+  // expect `max_completion_tokens`. Recognising them therefore produced a
+  // guaranteed API error rather than a completion — claiming support that does
+  // not exist. Add them back in the same change that builds their request
+  // shape conditionally.
+  if (model.startsWith('gpt-')) {
     return 'openai'
   }
   if (model.startsWith('claude-')) {
@@ -120,7 +144,9 @@ function getProviderCredentials(
     case 'google':
       return {
         apiKey: providers?.google?.apiKey ?? '',
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+        // Google's OpenAI-compatible surface is under /v1beta/openai; the
+        // bare /v1beta produced /v1beta/chat/completions, which 404s.
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       }
     default:
       return { apiKey: '', baseUrl: '' }

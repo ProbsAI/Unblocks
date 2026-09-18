@@ -1,12 +1,16 @@
-import { eq, and, gt, isNull } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { hashPassword } from './password'
 import { AuthError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import { claimVerificationToken } from './verificationTokens'
+import {
+  emailMatches,
+  emailValueColumns,
+  readEmail,
+} from '../security/piiStorage'
 
 export async function requestPasswordReset(
   email: string
@@ -14,9 +18,13 @@ export async function requestPasswordReset(
   const db = getDb()
 
   const [dbUser] = await db
-    .select({ id: users.id, email: users.email })
+    .select({
+      id: users.id,
+      email: users.email,
+      emailEncrypted: users.emailEncrypted,
+    })
     .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .where(emailMatches(email))
     .limit(1)
 
   // Always return success to prevent email enumeration
@@ -28,9 +36,9 @@ export async function requestPasswordReset(
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    tokenEncrypted: encrypt(token),
-    email: dbUser.email,
-    emailEncrypted: encrypt(dbUser.email),
+    // The token row keeps its own copy. users.email is nullable now, so the
+    // address has to come from readEmail rather than the column directly.
+    ...emailValueColumns(readEmail(dbUser)),
     type: 'password_reset',
     expiresAt,
   })
@@ -44,33 +52,18 @@ export async function resetPassword(
 ): Promise<void> {
   const db = getDb()
 
-  const [dbToken] = await db
-    .select()
-    .from(verificationTokens)
-    .where(
-      and(
-        eq(verificationTokens.tokenHash, blindIndex(token)),
-        eq(verificationTokens.type, 'password_reset'),
-        gt(verificationTokens.expiresAt, new Date()),
-        isNull(verificationTokens.usedAt)
-      )
-    )
-    .limit(1)
+  // Claimed atomically: two concurrent requests reading the row both saw an
+  // unused token and both reset the password, from one emailed link.
+  const dbToken = await claimVerificationToken(token, 'password_reset')
 
   if (!dbToken) {
     throw new AuthError('INVALID_TOKEN', 'Invalid or expired reset link')
   }
-
-  // Mark token as used
-  await db
-    .update(verificationTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(verificationTokens.id, dbToken.id))
 
   // Update password
   const passwordHash = await hashPassword(newPassword)
   await db
     .update(users)
     .set({ passwordHash, updatedAt: new Date() })
-    .where(eq(users.email, dbToken.email))
+    .where(emailMatches(readEmail(dbToken)))
 }

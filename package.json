@@ -29,8 +29,12 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/db-seed.ts",
+    "db:migrate-email-storage": "tsx scripts/migrate-email-storage.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "npm run test && npm run test:integration",
+    "bench:blind-index": "node scripts/bench-blind-index.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

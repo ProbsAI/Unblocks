@@ -75,16 +75,33 @@ export interface TeamMember {
   joinedAt: Date
 }
 
+/**
+ * A pending invitation, without its secret.
+ *
+ * `token` is deliberately absent. The column holds a blind index, so listing
+ * used to hand back a digest under a name that implies a usable secret —
+ * passing it to acceptInvitation() or building a link with it fails, and the
+ * only thing it achieves is publishing the index. The plaintext exists once, at
+ * creation, and is returned by {@link CreatedTeamInvitation}.
+ */
 export interface TeamInvitation {
   id: string
   teamId: string
   email: string
   role: TeamRole
   invitedBy: string
-  token: string
   expiresAt: Date
   acceptedAt: Date | null
   createdAt: Date
+}
+
+/**
+ * What `inviteMember` returns: the invitation plus the one-time plaintext
+ * token, so the caller can build the invite link. It is not stored and cannot
+ * be recovered afterwards.
+ */
+export interface CreatedTeamInvitation extends TeamInvitation {
+  token: string
 }
 
 export interface OnTeamCreatedArgs {

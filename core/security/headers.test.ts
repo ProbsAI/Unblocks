@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SECURITY_HEADERS } from './headers'
+import { SECURITY_HEADERS, contentSecurityPolicy } from './headers'
 
 describe('SECURITY_HEADERS', () => {
   it('includes Strict-Transport-Security', () => {
@@ -45,5 +45,33 @@ describe('SECURITY_HEADERS', () => {
     for (const key of expectedKeys) {
       expect(SECURITY_HEADERS).toHaveProperty(key)
     }
+  })
+})
+
+describe('contentSecurityPolicy', () => {
+  it('includes the directives that carry the protection', () => {
+    const csp = contentSecurityPolicy()
+
+    expect(csp).toContain("default-src 'self'")
+    expect(csp).toContain("base-uri 'self'")
+    expect(csp).toContain("object-src 'none'")
+    expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain("form-action 'self'")
+  })
+
+  it("never emits 'unsafe-eval' in production", () => {
+    // React Refresh needs it in dev; shipping it would defeat script-src.
+    expect(contentSecurityPolicy()).not.toContain("'unsafe-eval'")
+    expect(contentSecurityPolicy({ dev: false })).not.toContain("'unsafe-eval'")
+  })
+
+  it("emits 'unsafe-eval' only when dev is true", () => {
+    expect(contentSecurityPolicy({ dev: true })).toContain("'unsafe-eval'")
+  })
+
+  it('allows the Stripe origins the checkout flow needs', () => {
+    const csp = contentSecurityPolicy()
+    expect(csp).toContain('https://js.stripe.com')
+    expect(csp).toContain('https://api.stripe.com')
   })
 })

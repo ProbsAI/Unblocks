@@ -18,6 +18,7 @@ export type {
   Team,
   TeamMember,
   TeamInvitation,
+  CreatedTeamInvitation,
   TeamRole,
   OnTeamCreatedArgs,
   OnTeamMemberAddedArgs,

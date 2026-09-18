@@ -19,7 +19,7 @@ vi.mock('./plans', () => ({
     name: 'Pro',
     price: { monthly: 20, yearly: 200 },
     stripePriceId: { monthly: 'price_pro_monthly', yearly: 'price_pro_yearly' },
-    limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000 },
+    limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000, apiKeys: 25 },
     features: [],
   }),
 }))
@@ -87,7 +87,7 @@ describe('createCheckoutSession', () => {
       name: 'Basic',
       price: { monthly: 10, yearly: 100 },
       stripePriceId: { monthly: null, yearly: null },
-      limits: { projects: 5, teamMembers: 2, storageGb: 5, apiRequestsPerDay: 500 },
+      limits: { projects: 5, teamMembers: 2, storageGb: 5, apiRequestsPerDay: 500, apiKeys: 3 },
       features: [],
     })
 
@@ -102,7 +102,7 @@ describe('createCheckoutSession', () => {
       name: 'Pro',
       price: { monthly: 20, yearly: 200 },
       stripePriceId: { monthly: 'price_pro_monthly', yearly: 'price_pro_yearly' },
-      limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000 },
+      limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000, apiKeys: 25 },
       features: [],
     })
     mockCheckoutCreate.mockResolvedValue({ url: null })
@@ -118,7 +118,7 @@ describe('createCheckoutSession', () => {
       name: 'Pro',
       price: { monthly: 20, yearly: 200 },
       stripePriceId: { monthly: 'price_pro_monthly', yearly: 'price_pro_yearly' },
-      limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000 },
+      limits: { teamMembers: 10, projects: 10, storageGb: 50, apiRequestsPerDay: 5000, apiKeys: 25 },
       features: [],
     })
     mockCheckoutCreate.mockResolvedValue({

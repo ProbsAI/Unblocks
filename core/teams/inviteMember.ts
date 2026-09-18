@@ -1,14 +1,25 @@
-import { eq, and, or, isNull, sql } from 'drizzle-orm'
+import { eq, and, gt, isNull, sql } from 'drizzle-orm'
 import { randomBytes } from 'crypto'
 import { getDb } from '../db/client'
 import { teamMembers, teamInvitations } from '../db/schema/teams'
+import { users } from '../db/schema/users'
 import { loadConfig } from '../runtime/configLoader'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import {
+  emailColumns,
+  emailMatchesIn,
+  readEmail,
+} from '../security/piiStorage'
+import { isWellFormedToken } from '../auth/token'
 import { getUserTeamRole } from './getTeam'
-import type { TeamInvitation, TeamRole, OnTeamMemberAddedArgs } from './types'
+import type {
+  TeamInvitation,
+  CreatedTeamInvitation,
+  TeamRole,
+  OnTeamMemberAddedArgs,
+} from './types'
 
 /**
  * Invite a user to a team by email.
@@ -18,7 +29,7 @@ export async function inviteMember(
   email: string,
   role: TeamRole,
   invitedBy: string
-): Promise<TeamInvitation> {
+): Promise<CreatedTeamInvitation> {
   const config = loadConfig('teams')
   const db = getDb()
 
@@ -54,7 +65,7 @@ export async function inviteMember(
     .where(
       and(
         eq(teamInvitations.teamId, teamId),
-        eq(teamInvitations.email, email.toLowerCase()),
+        emailMatchesIn(teamInvitations, email),
         sql`${teamInvitations.acceptedAt} IS NULL`,
         sql`${teamInvitations.expiresAt} > NOW()`,
       )
@@ -75,22 +86,18 @@ export async function inviteMember(
     .insert(teamInvitations)
     .values({
       teamId,
-      email: emailLower,
-      emailEncrypted: encrypt(emailLower),
+      ...emailColumns(emailLower),
       role,
       invitedBy,
       token: blindIndex(token),
       tokenHash: blindIndex(token),
-      tokenEncrypted: encrypt(token),
       expiresAt,
     })
     .returning()
 
-  // Return the plaintext token (not the blind index stored in the DB)
-  // so the caller can build an invite link.
-  const result = toInvitation(invitation)
-  result.token = token
-  return result
+  // The plaintext token exists only here. The DB holds a blind index, so this
+  // is the sole opportunity to build an invite link.
+  return { ...toInvitation(invitation), token }
 }
 
 /**
@@ -100,32 +107,81 @@ export async function acceptInvitation(
   token: string,
   userId: string
 ): Promise<void> {
-  const db = getDb()
-
-  // Match by tokenHash (new rows) or by plaintext token for legacy rows
-  // where tokenHash was not yet populated.
-  const rows = await db
-    .select()
-    .from(teamInvitations)
-    .where(
-      or(
-        eq(teamInvitations.tokenHash, blindIndex(token)),
-        and(isNull(teamInvitations.tokenHash), eq(teamInvitations.token, token))
-      )
-    )
-    .limit(1)
-
-  if (rows.length === 0) {
+  // Bound the input before deriving a blind index: this is reached from a
+  // public endpoint and blindIndex runs PBKDF2. See isWellFormedToken.
+  if (!isWellFormedToken(token)) {
     throw new NotFoundError('Invitation not found')
   }
 
-  const invitation = rows[0]
+  const db = getDb()
 
-  if (invitation.acceptedAt) {
-    throw new ConflictError('Invitation has already been accepted')
+  // Check the accepting user BEFORE claiming the token.
+  //
+  // teams.requireEmailVerification defaults to true and was enforced nowhere —
+  // requireAuth() establishes identity, not that the address was ever proven.
+  // The order matters as much as the check: claiming first would consume a
+  // one-time invitation on behalf of someone who is then refused, leaving the
+  // real invitee with a dead link.
+  if (loadConfig('teams').requireEmailVerification) {
+    const [accepting] = await db
+      .select({ emailVerified: users.emailVerified })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    if (!accepting?.emailVerified) {
+      throw new ForbiddenError(
+        'Verify your email address before joining a team'
+      )
+    }
   }
 
-  if (new Date() > invitation.expiresAt) {
+  // Matched on the digest only.
+  //
+  // There used to be a fallback to the plaintext `token` column for rows
+  // written before tokenHash existed. Honouring it meant those invitations
+  // stayed redeemable straight out of a database dump — the exact thing the
+  // one-way storage invariant exists to prevent — so the fallback is gone.
+  // Any such row is now unredeemable and should be re-sent.
+  const matchesToken = eq(teamInvitations.tokenHash, blindIndex(token))
+
+  // Claim before doing anything, in one statement.
+  //
+  // Reading the row, checking acceptedAt, adding the member and only then
+  // marking it accepted let two different people redeem the same invitation:
+  // both read a null acceptedAt, both pass, and both join the team. The
+  // per-user "already a member" check below does not help, because they are
+  // different users. An invitation is for one person, so the flag has to be
+  // the thing that decides — which means it has to be set under the row lock.
+  //
+  // As with verification tokens, winning the claim consumes the invitation even
+  // if adding the member then fails. That is the right trade for a one-time
+  // credential; the alternative is an invitation that can be redeemed twice.
+  const [invitation] = await db
+    .update(teamInvitations)
+    .set({ acceptedAt: new Date() })
+    .where(
+      and(
+        matchesToken,
+        isNull(teamInvitations.acceptedAt),
+        gt(teamInvitations.expiresAt, new Date())
+      )
+    )
+    .returning()
+
+  if (!invitation) {
+    // Losing the claim is ambiguous, so read back to say why. Only on the
+    // failure path, and it cannot grant anything.
+    const [existing] = await db
+      .select()
+      .from(teamInvitations)
+      .where(matchesToken)
+      .limit(1)
+
+    if (!existing) throw new NotFoundError('Invitation not found')
+    if (existing.acceptedAt) {
+      throw new ConflictError('Invitation has already been accepted')
+    }
     throw new ForbiddenError('Invitation has expired')
   }
 
@@ -151,12 +207,6 @@ export async function acceptInvitation(
     userId,
     role: invitation.role,
   })
-
-  // Mark invitation as accepted
-  await db
-    .update(teamInvitations)
-    .set({ acceptedAt: new Date() })
-    .where(eq(teamInvitations.id, invitation.id))
 
   const hookArgs: OnTeamMemberAddedArgs = {
     teamId: invitation.teamId,
@@ -192,10 +242,9 @@ function toInvitation(row: typeof teamInvitations.$inferSelect): TeamInvitation 
   return {
     id: row.id,
     teamId: row.teamId,
-    email: row.email,
+    email: readEmail(row),
     role: row.role as TeamRole,
     invitedBy: row.invitedBy,
-    token: row.token,
     expiresAt: row.expiresAt,
     acceptedAt: row.acceptedAt,
     createdAt: row.createdAt,

@@ -1,31 +1,67 @@
 import { withErrorHandler } from '@/lib/routeHandler'
 import { requireAuth } from '@/lib/serverAuth'
 import { validateBody } from '@unblocks/core/api'
-import { successResponse, errorResponse } from '@unblocks/core/api'
-import { tryRequireBlock } from '@unblocks/core/runtime/blockRegistry'
+import { successResponse } from '@unblocks/core/api'
+import { complete } from '@unblocks/core/ai'
+import { checkRateLimit } from '@unblocks/core/auth'
 import { z } from 'zod'
+
+/** Bound the request so a single call cannot run up an unbounded provider bill. */
+const MAX_MESSAGES = 50
+const MAX_CONTENT_CHARS = 24_000
+/**
+ * Per-message caps alone allowed 50 x 24k = 1.2M characters (~300k tokens) in a
+ * single request, which exceeds most context windows and is a real cost spike.
+ * Bound the total as well.
+ */
+const MAX_TOTAL_CHARS = 100_000
 
 const completionSchema = z.object({
   model: z.string().optional(),
-  messages: z.array(z.object({
-    role: z.enum(['system', 'user', 'assistant']),
-    content: z.string(),
-  })),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['system', 'user', 'assistant']),
+        content: z.string().max(MAX_CONTENT_CHARS),
+      })
+    )
+    .min(1)
+    .max(MAX_MESSAGES)
+    .refine(
+      (messages) =>
+        messages.reduce((total, m) => total + m.content.length, 0) <=
+        MAX_TOTAL_CHARS,
+      { message: `Combined message content exceeds ${MAX_TOTAL_CHARS} characters` }
+    ),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().min(1).optional(),
+  maxTokens: z.number().int().min(1).optional(),
 })
 
 export const POST = withErrorHandler(async (request: Request) => {
   const user = await requireAuth()
+
+  // This endpoint calls a paid third-party provider, so an authenticated caller
+  // could otherwise run up arbitrary cost. maxTokens bounds only the response;
+  // the request itself is bounded by the schema above, and the call rate here.
+  //
+  // Scope, stated plainly: checkRateLimit keeps its counters in a process-local
+  // Map, so the ceiling is per instance. Across N replicas or serverless
+  // workers the effective limit is N x maxAttempts, and it resets on deploy.
+  // That makes this a guard against runaway loops and casual abuse, NOT a
+  // billing control. A real spend cap needs the shared store (Redis is already
+  // an optional dependency) plus the dailyTokenLimit/monthlyTokenLimit checks
+  // that ai.config declares and nothing enforces.
+  await checkRateLimit(`ai:completion:${user.id}`, {
+    windowMs: 60 * 1000,
+    maxAttempts: 20,
+  })
+
   const body = await validateBody(request, completionSchema)
 
-  const ai = tryRequireBlock<{ complete: (...args: unknown[]) => Promise<unknown> }>('ai-wrapper')
-  if (!ai) {
-    return errorResponse('BLOCK_NOT_AVAILABLE', 'AI wrapper block is not installed', 404)
-  }
-
-  const response = await ai.complete({
-    model: body.model ?? 'gpt-4o',
+  const response = await complete({
+    // Omit rather than hardcoding a default here: complete() applies the
+    // configured defaultModel, which a literal 'gpt-4o' silently overrode.
+    model: body.model,
     messages: body.messages,
     temperature: body.temperature,
     maxTokens: body.maxTokens,

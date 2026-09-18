@@ -31,3 +31,18 @@ export function getDb() {
   }
   return _db
 }
+
+/**
+ * Close the cached pool and clear the memoised client.
+ *
+ * Intended for test teardown and graceful shutdown. Without it an integration
+ * run leaves this module's pool open — its connections and keepalive timers can
+ * hold the process alive after the suite finishes. Safe to call when no pool was
+ * ever created, and the next getPool() simply builds a fresh one.
+ */
+export async function closeDb(): Promise<void> {
+  const pool = _pool
+  _pool = null
+  _db = null
+  await pool?.end()
+}

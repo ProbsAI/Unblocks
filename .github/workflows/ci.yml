@@ -23,6 +23,41 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit
 
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    # Runs the suites that exercise a real database. Unit tests mock the query
+    # builder and therefore cannot catch a wrong column, a missing WHERE, a bad
+    # ORDER BY, or a table no migration creates — the class of defect that
+    # reached production here. Without this job that coverage is opt-in locally
+    # and effectively never runs.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: unblocks_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d unblocks_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run test:integration
+        env:
+          DATABASE_URL_TEST: postgresql://postgres:password@localhost:5433/unblocks_test
+          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BLIND_INDEX_KEY: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+
   test:
     name: Tests
     runs-on: ubuntu-latest

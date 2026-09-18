@@ -38,10 +38,22 @@ vi.mock('./customer', () => ({
   })),
 }))
 
+vi.mock('./getSubscription', () => ({
+  getSubscription: vi.fn(),
+}))
+
 import { cancelSubscription } from './cancelSubscription'
+import { getSubscription } from './getSubscription'
 import { AppError } from '../errors/types'
 
+// Which row belongs to a user is getSubscription's job now, and a user can
+// hold several. Stubbing it here keeps these cases about cancel/change
+// behaviour; the selection rule itself is covered by
+// getSubscription.integration.test.ts against a real Postgres.
 function setupSelectChain(result: unknown[]) {
+  vi.mocked(getSubscription).mockResolvedValue(
+    (result[0] ?? null) as never
+  )
   mockLimit.mockResolvedValue(result)
   mockWhere.mockReturnValue({ limit: mockLimit })
   mockFrom.mockReturnValue({ where: mockWhere })

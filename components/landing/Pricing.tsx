@@ -5,17 +5,26 @@ interface PricingProps {
   plans: Plan[]
 }
 
+const ENTERPRISE_FEATURES = [
+  'Everything in Business',
+  'SSO / SAML / SCIM',
+  'Multi-tenancy',
+  'Compliance automation',
+  'Dedicated support + SLA',
+  'Custom integrations',
+]
+
 export function Pricing({ plans }: PricingProps) {
   return (
     <section className="px-4 py-24">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <h2 className="text-center text-3xl font-bold text-foreground">
           Simple, transparent pricing
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
-          Start free. Upgrade when you&apos;re ready.
+          Start free with all core features. Upgrade when you need premium blocks and scale.
         </p>
-        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => {
             const isPopular = plan.id === 'pro'
             return (
@@ -69,6 +78,33 @@ export function Pricing({ plans }: PricingProps) {
               </div>
             )
           })}
+
+          {/* Enterprise — Contact Sales */}
+          <div className="relative rounded-lg border border-border bg-gradient-to-b from-white to-muted/30 p-8">
+            <h3 className="text-lg font-semibold text-foreground">Enterprise</h3>
+            <div className="mt-4">
+              <span className="text-4xl font-bold text-foreground">Custom</span>
+            </div>
+            <ul className="mt-8 space-y-3">
+              {ENTERPRISE_FEATURES.map((feature) => (
+                <li
+                  key={feature}
+                  className="flex items-start gap-2 text-sm text-muted-foreground"
+                >
+                  <span className="mt-0.5 text-success">&#10003;</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8">
+              <Link
+                href="/contact"
+                className="block w-full rounded-md border border-border py-2.5 text-center text-sm font-medium text-foreground hover:bg-muted"
+              >
+                Contact Sales
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </section>

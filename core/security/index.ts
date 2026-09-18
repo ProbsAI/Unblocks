@@ -20,3 +20,13 @@ export {
 } from './encryption'
 
 export { blindIndex, blindIndexNullable } from './blindIndex'
+
+export {
+  piiEncryptionEnabled,
+  emailColumns,
+  emailValueColumns,
+  emailMatches,
+  emailMatchesIn,
+  readEmail,
+} from './piiStorage'
+export { assertPiiStorageMatchesData } from './piiStorageCheck'

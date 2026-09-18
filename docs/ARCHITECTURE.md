@@ -23,9 +23,6 @@ unblocks/
 │   ├── extensions/     # Extension manifest, loader, registry
 │   └── index.ts        # Public API barrel
 ├── blocks/             # Optional vertical domain modules
-│   ├── ai-wrapper/     # AI completion with OpenAI/Anthropic
-│   ├── data-platform/  # Pipelines, data sources, datasets
-│   ├── marketplace/    # Listings, orders, reviews, sellers
 │   ├── testing/        # Test helpers, factories, fixtures
 │   └── seed/           # Sample data generation
 ├── app/                # Next.js 15 App Router (adapter layer)
@@ -186,11 +183,15 @@ Preferences control which categories and channels each user receives.
 
 Blocks are optional vertical domain modules in `/blocks/`. They follow the same patterns as core but are domain-specific:
 
-- **AI Wrapper** — Multi-provider completion (OpenAI, Anthropic) with usage tracking and cost estimation
-- **Data Platform** — Pipeline management with datasources and datasets, integrated with background jobs
-- **Marketplace** — Listings, orders, reviews, and seller profiles for two-sided marketplaces
 - **Testing** — Shared test utilities: factories, fixtures, mocks, and DB helpers
 - **Seed** — Development data generation for all core tables and block tables
+
+AI completion is **not** a block. It lives in `core/ai/` and is always present;
+this document previously described a `blocks/ai-wrapper` package, which would
+have sent readers looking for something to install.
+
+`data-platform` and `marketplace` are described in the block registry section
+of CLAUDE.md: no such package is published, so their routes return 404 today.
 
 ## Database
 

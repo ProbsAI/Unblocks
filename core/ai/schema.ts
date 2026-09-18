@@ -6,8 +6,9 @@ import {
   jsonb,
   text,
   timestamp,
+  index,
 } from 'drizzle-orm/pg-core'
-import { users } from '../../core/db/schema/users'
+import { users } from '../db/schema/users'
 
 export const aiUsage = pgTable('ai_usage', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -21,7 +22,12 @@ export const aiUsage = pgTable('ai_usage', {
   latencyMs: integer('latency_ms').notNull().default(0),
   metadata: jsonb('metadata').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => [
+  // Both usage queries filter by user and order by time, and this table grows
+  // by a row per completion. Without a composite index they degrade into a
+  // full scan plus sort of every row ever written, on a per-request path.
+  index('ai_usage_user_created_idx').on(table.userId, table.createdAt),
+])
 
 export const promptTemplates = pgTable('prompt_templates', {
   id: uuid('id').primaryKey().defaultRandom(),

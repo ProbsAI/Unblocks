@@ -10,6 +10,20 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # Throwaway database for integration tests. Separate port so a test run can
+  # never truncate your dev data, and tmpfs so it starts clean and fast.
+  postgres_test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: unblocks_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    command: postgres -c fsync=off -c full_page_writes=off
+
   redis:
     image: redis:7-alpine
     ports:

@@ -24,7 +24,8 @@ import {
   isWorkerRunning,
   getRegisteredJobTypes,
 } from './worker'
-import { fetchNextJobs } from './queue'
+import { fetchNextJobs, completeJob, failJob } from './queue'
+import type { JobRecord } from './types'
 
 describe('worker', () => {
   beforeEach(() => {
@@ -96,7 +97,8 @@ describe('worker', () => {
       // Let the initial poll complete
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(fetchNextJobs).toHaveBeenCalledWith(5)
+      // Second argument is the reclaim lease — 3x the 300000ms defaultTimeout.
+      expect(fetchNextJobs).toHaveBeenCalledWith(5, 900000)
     })
 
     it('does not start twice if already running', async () => {
@@ -136,6 +138,84 @@ describe('worker', () => {
       // Advance by pollInterval to trigger next poll
       await vi.advanceTimersByTimeAsync(1000)
       expect(fetchNextJobs).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  /**
+   * Job execution, which every other test in this file skips: they mock
+   * fetchNextJobs to return an empty batch, so no handler is ever invoked and
+   * neither the timeout nor its cancellation is exercised.
+   *
+   * What matters here is that the timeout is *cooperative*. Promise.race
+   * abandons the wait; it cannot stop the handler. So a timed-out job keeps
+   * running while the worker marks it failed and schedules a retry, and the
+   * retry duplicates whatever side effect the first attempt was midway through
+   * — a second charge, a second email. The AbortSignal is the only thing a
+   * handler can act on.
+   */
+  describe('running a job', () => {
+    const job: JobRecord = {
+      id: 'job-1',
+      type: 'timed-job',
+      payload: { to: 'someone@example.com' },
+      status: 'processing',
+      priority: 'normal',
+      attempts: 0,
+      maxRetries: 3,
+      lastError: null,
+      scheduledAt: new Date(),
+      startedAt: new Date(),
+      completedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    function queueOneJob(): void {
+      vi.mocked(fetchNextJobs).mockResolvedValueOnce([job]).mockResolvedValue([])
+    }
+
+    it('passes a live signal to the handler and cancels it on success', async () => {
+      let seen: AbortSignal | undefined
+      registerJobHandler('timed-job', async (_payload, ctx) => {
+        seen = ctx.signal
+      })
+      queueOneJob()
+
+      startWorker()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(seen).toBeDefined()
+      expect(seen?.aborted).toBe(false)
+      expect(completeJob).toHaveBeenCalledWith('job-1')
+
+      // The timeout timer must be cleared when the job finishes early. If it
+      // were not, it would still fire — and, at 5 minutes per completed job,
+      // hold a timer open for every job the worker has ever run.
+      stopWorker()
+      await vi.advanceTimersByTimeAsync(400_000)
+      expect(seen?.aborted).toBe(false)
+    })
+
+    it('aborts the signal when the job outlives its timeout', async () => {
+      let seen: AbortSignal | undefined
+      registerJobHandler('timed-job', (_payload, ctx) => {
+        seen = ctx.signal
+        // Never settles: the handler that ignores its signal is exactly the
+        // case the abort exists for.
+        return new Promise<void>(() => undefined)
+      })
+      queueOneJob()
+
+      startWorker()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(seen?.aborted).toBe(false)
+
+      // defaultTimeout is 300000 in the mocked config above.
+      await vi.advanceTimersByTimeAsync(300_001)
+
+      expect(seen?.aborted).toBe(true)
+      expect(failJob).toHaveBeenCalled()
+      expect(completeJob).not.toHaveBeenCalled()
     })
   })
 })

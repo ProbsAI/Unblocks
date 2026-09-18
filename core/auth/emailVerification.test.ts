@@ -1,14 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// verifyEmail no longer selects the token — it is claimed atomically — so the
+// only select left in this module belongs to the getDb stub below.
 const mockSelect = vi.fn()
-const mockFrom = vi.fn()
-const mockWhere = vi.fn()
-const mockLimit = vi.fn()
 const mockInsert = vi.fn()
 const mockValues = vi.fn()
 const mockUpdate = vi.fn()
 const mockSet = vi.fn()
 const mockUpdateWhere = vi.fn()
+
+const { claimedTokenRow } = vi.hoisted(() => ({
+  claimedTokenRow: { current: [] as unknown[] },
+}))
+
+// Storage mode is not what these cases are about — they predate it and assert
+// the plaintext shape. The fork itself is covered in both directions by
+// core/security/piiStorage.integration.test.ts, against a real database.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  emailValueColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+  })),
+  emailMatchesIn: vi.fn((_cols: unknown, email: string) => ({
+    email: email.toLowerCase(),
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
+}))
 
 vi.mock('../db/client', () => ({
   getDb: vi.fn(() => ({
@@ -31,6 +55,8 @@ vi.mock('../db/schema/verificationTokens', () => ({
     type: 'type',
     expiresAt: 'expiresAt',
     usedAt: 'usedAt',
+    email: 'email',
+    emailEncrypted: 'emailEncrypted',
   },
 }))
 
@@ -43,10 +69,21 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('./token', () => ({
   generateRandomToken: vi.fn().mockReturnValue('verification-token-123'),
+  // Mirrors the real guard rather than stubbing it true: these suites exercise
+  // the lookup paths, and the format check is now part of what they do.
+  isWellFormedToken: vi.fn((value: string) => /^[0-9a-f]{64}$/.test(value)),
 }))
 
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((val: string) => `blind:${val}`),
+  // Mock the whole module surface, not just the export this file
+  // happens to reach today. blindIndex.ts exports three functions and a
+  // partial mock fails only once the module under test starts using the
+  // other one — which is how magicLink broke when emailHash moved to
+  // a different derivation.
+  blindIndexNullable: vi.fn((val: string | null | undefined) =>
+    val == null ? null : `blind:${val}`
+  ),
 }))
 
 vi.mock('../security/encryption', () => ({
@@ -59,20 +96,24 @@ import {
 } from './emailVerification'
 import { AuthError } from '../errors/types'
 
-function setupSelectChain(result: unknown[]) {
-  mockLimit.mockResolvedValue(result)
-  mockWhere.mockReturnValue({ limit: mockLimit })
-  mockFrom.mockReturnValue({ where: mockWhere })
-  mockSelect.mockReturnValue({ from: mockFrom })
-}
-
 function setupInsertChain() {
   mockValues.mockResolvedValue(undefined)
   mockInsert.mockReturnValue({ values: mockValues })
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue(undefined)
+  // Single-use tokens are now claimed with UPDATE ... RETURNING, so `where`
+  // has to be both awaitable (the plain user updates) and carry `.returning()`
+  // (the claim). A resolved promise with the method attached satisfies both.
+  //
+  // What this cannot check is the thing the claim exists for: that two
+  // concurrent callers cannot both win it. That is a property of Postgres row
+  // locking and lives in verificationTokens.integration.test.ts.
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve(undefined), {
+      returning: vi.fn().mockResolvedValue(claimedTokenRow.current),
+    })
+  )
   mockSet.mockReturnValue({ where: mockUpdateWhere })
   mockUpdate.mockReturnValue({ set: mockSet })
 }
@@ -81,6 +122,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   setupUpdateChain()
 })
+
+// Tokens must now match the shape generateRandomToken emits — 64 hex chars —
+// before anything derives a blind index from them, so these cases cannot use
+// readable placeholders like 'valid-token'. See isWellFormedToken.
+const VALID_TOKEN = 'a'.repeat(64)
+const UNKNOWN_TOKEN = 'b'.repeat(64)
 
 describe('createEmailVerificationToken', () => {
   it('creates and returns a token', async () => {
@@ -93,7 +140,6 @@ describe('createEmailVerificationToken', () => {
       expect.objectContaining({
         token: 'blind:verification-token-123',
         tokenHash: 'blind:verification-token-123',
-        tokenEncrypted: 'enc:verification-token-123',
         email: 'test@example.com',
         type: 'email_verification',
       })
@@ -131,19 +177,22 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     // Should update token as used and update user email verification
     expect(mockUpdate).toHaveBeenCalledTimes(2)
   })
 
   it('throws AuthError for invalid token', async () => {
-    setupSelectChain([])
+    // The atomic claim returns nothing: unknown, expired, or already used.
+    claimedTokenRow.current = []
+    setupUpdateChain()
 
-    await expect(verifyEmail('bad-token')).rejects.toThrow(AuthError)
-    await expect(verifyEmail('bad-token')).rejects.toThrow(
+    await expect(verifyEmail(UNKNOWN_TOKEN)).rejects.toThrow(AuthError)
+    await expect(verifyEmail(UNKNOWN_TOKEN)).rejects.toThrow(
       'Invalid or expired verification link'
     )
   })
@@ -155,9 +204,10 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ usedAt: expect.any(Date) })
@@ -171,9 +221,10 @@ describe('verifyEmail', () => {
       email: 'test@example.com',
       type: 'email_verification',
     }
-    setupSelectChain([mockToken])
+    claimedTokenRow.current = [mockToken]
+    setupUpdateChain()
 
-    await verifyEmail('valid-token')
+    await verifyEmail(VALID_TOKEN)
 
     // Second update call should set emailVerified
     const secondSetCall = mockSet.mock.calls[1][0]
