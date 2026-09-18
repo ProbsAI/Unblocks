@@ -211,6 +211,29 @@ describe('assertPiiStorageMatchesData', () => {
     await expect(assertPiiStorageMatchesData()).resolves.toBeUndefined()
   })
 
+  it('catches a table left behind by a partial migration', async () => {
+    // The migration walks the tables in order, so an interrupted run leaves
+    // users converted and something else not. A check that only looked at
+    // users would call that healthy while outstanding magic links resolved to
+    // nothing and invitations could not be matched.
+    const { createUser } = await import('../auth/createUser')
+    const { assertPiiStorageMatchesData } = await import('./piiStorageCheck')
+
+    mode.encryptUserEmail = true
+    await createUser({ email: 'migrated@example.com', password: 'pw-12345678' })
+
+    // users is correct; this token row is not.
+    const db = getTestDb()
+    await db.execute(sql`
+      INSERT INTO verification_tokens (token, token_hash, email, type, expires_at)
+      VALUES ('t', 'h', 'left-behind@example.com', 'magic_link', NOW() + INTERVAL '1 hour')
+    `)
+
+    await expect(assertPiiStorageMatchesData()).rejects.toThrow(
+      /verification_tokens/
+    )
+  })
+
   it('refuses to run against data written the other way', async () => {
     // The whole reason this is an install-time choice. Flipping it strands
     // every existing row, and the symptom is that nobody can sign in — which
