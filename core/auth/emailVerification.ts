@@ -3,10 +3,13 @@ import { users } from '../db/schema/users'
 import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { AuthError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
-import { emailMatches } from '../security/piiStorage'
+import {
+  emailMatches,
+  emailValueColumns,
+  readEmail,
+} from '../security/piiStorage'
 
 export async function createEmailVerificationToken(
   email: string
@@ -20,8 +23,7 @@ export async function createEmailVerificationToken(
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    email: emailLower,
-    emailEncrypted: encrypt(emailLower),
+    ...emailValueColumns(emailLower),
     type: 'email_verification',
     expiresAt,
   })
@@ -48,5 +50,5 @@ export async function verifyEmail(token: string): Promise<void> {
       emailVerifiedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(emailMatches(dbToken.email))
+    .where(emailMatches(readEmail(dbToken)))
 }

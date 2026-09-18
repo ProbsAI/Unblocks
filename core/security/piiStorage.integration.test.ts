@@ -131,6 +131,57 @@ for (const encryptUserEmail of [true, false]) {
       ).rejects.toThrow()
     })
 
+    it('stores a magic-link address the same way, and reads it back', async () => {
+      // verification_tokens follows the same switch as users. If it did not,
+      // an install advertising encrypted storage would still write every
+      // address in the clear for the life of a pending link.
+      const { createMagicLink, peekMagicLink } = await import('../auth/magicLink')
+
+      const token = await createMagicLink('linked@example.com')
+
+      const db = getTestDb()
+      const [row] = (
+        await db.execute(sql`
+          SELECT email, email_encrypted FROM verification_tokens LIMIT 1
+        `)
+      ).rows as Array<{ email: string | null; email_encrypted: string | null }>
+
+      if (encryptUserEmail) {
+        expect(row.email).toBeNull()
+        expect(row.email_encrypted).not.toBeNull()
+        expect(row.email_encrypted).not.toContain('linked@example.com')
+      } else {
+        expect(row.email).toBe('linked@example.com')
+        expect(row.email_encrypted).toBeNull()
+      }
+
+      // peek is what names the account on the confirmation page, so it has to
+      // survive the mode too — a blank address there removes the only signal a
+      // recipient has that a planted link points somewhere else.
+      expect((await peekMagicLink(token))?.email).toBe('linked@example.com')
+    })
+
+    it('still detects a duplicate team invitation by address', async () => {
+      // team_invitations is the one that is looked up BY address, so it needs
+      // the blind index. Without it the duplicate check silently matches
+      // nothing and every re-invite creates another pending row.
+      const { createUser } = await import('../auth/createUser')
+      const { createTeam } = await import('../teams/createTeam')
+      const { inviteMember } = await import('../teams/inviteMember')
+
+      const owner = await createUser({
+        email: 'owner@example.com',
+        password: 'pw-12345678',
+      })
+      const team = await createTeam(owner.id, owner.email, 'Acme', 'acme')
+
+      await inviteMember(team.id, 'invitee@example.com', 'member', owner.id)
+
+      await expect(
+        inviteMember(team.id, 'invitee@example.com', 'member', owner.id)
+      ).rejects.toThrow(/already been invited/i)
+    })
+
     it('reads the address back through every path that returns a user', async () => {
       const { createUser } = await import('../auth/createUser')
       const { getUserById, getUserByEmail } = await import('../auth/permissions')

@@ -5,12 +5,16 @@ import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken, isWellFormedToken } from './token'
 import { runHook } from '../runtime/hookRunner'
 import { AuthError, NotFoundError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
 import type { User } from './types'
 import { toUser } from './toUser'
-import { emailColumns, emailMatches } from '../security/piiStorage'
+import {
+  emailColumns,
+  emailMatches,
+  emailValueColumns,
+  readEmail,
+} from '../security/piiStorage'
 
 export async function createMagicLink(email: string): Promise<string> {
   const db = getDb()
@@ -47,8 +51,7 @@ export async function createMagicLink(email: string): Promise<string> {
   await db.insert(verificationTokens).values({
     token: blindIndex(token),
     tokenHash: blindIndex(token),
-    email: emailLower,
-    emailEncrypted: encrypt(emailLower),
+    ...emailValueColumns(emailLower),
     type: 'magic_link',
     expiresAt,
   })
@@ -82,7 +85,10 @@ export async function peekMagicLink(
   const db = getDb()
 
   const [dbToken] = await db
-    .select({ email: verificationTokens.email })
+    .select({
+      email: verificationTokens.email,
+      emailEncrypted: verificationTokens.emailEncrypted,
+    })
     .from(verificationTokens)
     .where(
       and(
@@ -94,7 +100,7 @@ export async function peekMagicLink(
     )
     .limit(1)
 
-  return dbToken ? { email: dbToken.email } : null
+  return dbToken ? { email: readEmail(dbToken) } : null
 }
 
 export async function verifyMagicLink(token: string): Promise<User> {
@@ -113,7 +119,7 @@ export async function verifyMagicLink(token: string): Promise<User> {
   const [dbUser] = await db
     .select()
     .from(users)
-    .where(emailMatches(dbToken.email))
+    .where(emailMatches(readEmail(dbToken)))
     .limit(1)
 
   if (!dbUser) {

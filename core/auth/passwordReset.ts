@@ -4,10 +4,13 @@ import { verificationTokens } from '../db/schema/verificationTokens'
 import { generateRandomToken } from './token'
 import { hashPassword } from './password'
 import { AuthError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
 import { claimVerificationToken } from './verificationTokens'
-import { emailMatches, readEmail } from '../security/piiStorage'
+import {
+  emailMatches,
+  emailValueColumns,
+  readEmail,
+} from '../security/piiStorage'
 
 export async function requestPasswordReset(
   email: string
@@ -35,8 +38,7 @@ export async function requestPasswordReset(
     tokenHash: blindIndex(token),
     // The token row keeps its own copy. users.email is nullable now, so the
     // address has to come from readEmail rather than the column directly.
-    email: readEmail(dbUser),
-    emailEncrypted: encrypt(readEmail(dbUser)),
+    ...emailValueColumns(readEmail(dbUser)),
     type: 'password_reset',
     expiresAt,
   })
@@ -63,5 +65,5 @@ export async function resetPassword(
   await db
     .update(users)
     .set({ passwordHash, updatedAt: new Date() })
-    .where(emailMatches(dbToken.email))
+    .where(emailMatches(readEmail(dbToken)))
 }

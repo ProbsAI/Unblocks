@@ -6,8 +6,12 @@ import { users } from '../db/schema/users'
 import { loadConfig } from '../runtime/configLoader'
 import { runHook } from '../runtime/hookRunner'
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors/types'
-import { encrypt } from '../security/encryption'
 import { blindIndex } from '../security/blindIndex'
+import {
+  emailColumns,
+  emailMatchesIn,
+  readEmail,
+} from '../security/piiStorage'
 import { isWellFormedToken } from '../auth/token'
 import { getUserTeamRole } from './getTeam'
 import type {
@@ -61,7 +65,7 @@ export async function inviteMember(
     .where(
       and(
         eq(teamInvitations.teamId, teamId),
-        eq(teamInvitations.email, email.toLowerCase()),
+        emailMatchesIn(teamInvitations, email),
         sql`${teamInvitations.acceptedAt} IS NULL`,
         sql`${teamInvitations.expiresAt} > NOW()`,
       )
@@ -82,8 +86,7 @@ export async function inviteMember(
     .insert(teamInvitations)
     .values({
       teamId,
-      email: emailLower,
-      emailEncrypted: encrypt(emailLower),
+      ...emailColumns(emailLower),
       role,
       invitedBy,
       token: blindIndex(token),
@@ -239,7 +242,7 @@ function toInvitation(row: typeof teamInvitations.$inferSelect): TeamInvitation 
   return {
     id: row.id,
     teamId: row.teamId,
-    email: row.email,
+    email: readEmail(row),
     role: row.role as TeamRole,
     invitedBy: row.invitedBy,
     expiresAt: row.expiresAt,

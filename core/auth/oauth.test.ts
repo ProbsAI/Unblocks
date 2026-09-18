@@ -22,6 +22,13 @@ vi.mock('../security/piiStorage', () => ({
     emailEncrypted: null,
     emailHash: null,
   })),
+  emailValueColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+  })),
+  emailMatchesIn: vi.fn((_cols: unknown, email: string) => ({
+    email: email.toLowerCase(),
+  })),
   readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
 }))
 

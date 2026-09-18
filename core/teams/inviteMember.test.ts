@@ -4,7 +4,7 @@ vi.mock('../db/client', () => ({ getDb: vi.fn() }))
 vi.mock('../db/schema/teams', () => ({
   teams: { id: 'id', slug: 'slug', ownerId: 'ownerId' },
   teamMembers: { id: 'id', teamId: 'teamId', userId: 'userId', role: 'role', joinedAt: 'joinedAt' },
-  teamInvitations: { id: 'id', teamId: 'teamId', email: 'email', role: 'role', token: 'token', tokenHash: 'tokenHash', expiresAt: 'expiresAt', acceptedAt: 'acceptedAt', createdAt: 'createdAt', invitedBy: 'invitedBy' },
+  teamInvitations: { id: 'id', teamId: 'teamId', email: 'email', emailEncrypted: 'emailEncrypted', emailHash: 'emailHash', role: 'role', token: 'token', tokenHash: 'tokenHash', expiresAt: 'expiresAt', acceptedAt: 'acceptedAt', createdAt: 'createdAt', invitedBy: 'invitedBy' },
 }))
 vi.mock('drizzle-orm', () => ({ eq: vi.fn((a, b) => ({ a, b })), and: vi.fn((...a) => a), or: vi.fn((...a) => a), isNull: vi.fn((a) => ({ isNull: a })), sql: vi.fn() }))
 vi.mock('../runtime/configLoader', () => ({
@@ -13,8 +13,25 @@ vi.mock('../runtime/configLoader', () => ({
 vi.mock('../runtime/hookRunner', () => ({
   runHook: vi.fn(),
 }))
-vi.mock('../security/encryption', () => ({
-  encrypt: vi.fn((v: string) => `encrypted-${v}`),
+// Which column an address lives in is decided by config and exercised for real
+// in core/security/piiStorage.integration.test.ts. Here it is stubbed to
+// plaintext so these cases stay about invitation logic.
+vi.mock('../security/piiStorage', () => ({
+  piiEncryptionEnabled: vi.fn(() => false),
+  emailColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+    emailHash: null,
+  })),
+  emailValueColumns: vi.fn((email: string) => ({
+    email: email.toLowerCase(),
+    emailEncrypted: null,
+  })),
+  emailMatches: vi.fn((email: string) => ({ email: email.toLowerCase() })),
+  emailMatchesIn: vi.fn((_cols: unknown, email: string) => ({
+    email: email.toLowerCase(),
+  })),
+  readEmail: vi.fn((row: { email: string | null }) => row.email ?? ''),
 }))
 vi.mock('../security/blindIndex', () => ({
   blindIndex: vi.fn((v: string) => `blind-${v}`),

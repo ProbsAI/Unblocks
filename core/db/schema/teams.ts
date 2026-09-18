@@ -33,8 +33,13 @@ export const teamMembers = pgTable('team_members', {
 export const teamInvitations = pgTable('team_invitations', {
   id: uuid('id').primaryKey().defaultRandom(),
   teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
-  email: varchar('email', { length: 255 }).notNull(),
+  // Follows privacy.encryptUserEmail, like users.email: one column holds the
+  // address and the other is NULL. Unlike verification_tokens this table IS
+  // looked up by address (the duplicate-invitation check), so it carries a
+  // blind index to match on. Go through core/security/piiStorage.ts.
+  email: varchar('email', { length: 255 }),
   emailEncrypted: text('email_encrypted'),
+  emailHash: varchar('email_hash', { length: 64 }),
   role: varchar('role', { length: 20 }).notNull().default('member'),
   invitedBy: uuid('invited_by').notNull().references(() => users.id),
   token: varchar('token', { length: 255 }).notNull().unique(),
